@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+
+@config "../../tailwind.config.js";
+
+@layer base {
+  :root {
+    --font-geist-sans: 'Geist Sans', system-ui, sans-serif; /* Or use Inter: 'Inter', sans-serif */
+    --font-geist-mono: 'Geist Mono', 'SF Mono', monospace; /* Or Inter for mono */
+    
+    /* Align with Tailwind primary/secondary */
+    --background: #ffffff;
+    --foreground: #000000; /* Or theme('colors.primary.900') */
+  }
+  
+  .dark {
+    --background: #000000;
+    --foreground: #ffffff;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+    font-family: var(--font-geist-sans); /* Fallback to Tailwind's font-body */
+  }
+  
+  body {
+    @apply font-body; /* Keeps Tailwind Inter */
+    background: var(--background);
+    color: var(--foreground);
+  }
+}
+
+@layer components {
+  .gradient-bg {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+  }
+  
+  .dark .gradient-bg {
+    background: linear-gradient(135deg, #075985 0%, #0c4a6e 100%);
+  }
+  
+  .section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(14, 165, 233, 0.3) 50%, transparent 100%);
+  }
+  
+  .dark .section-divider {
+    background: linear-gradient(90deg, transparent 0%, rgba(14, 165, 233, 0.2) 50%, transparent 100%);
+  }
+  
+  .feature-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .feature-card:hover {
+    transform: translateY(-5px);
+  }
+}

@@ -1,0 +1,160 @@
+[
+  {
+    "parish": "Kingston",
+    "churches": [
+      {
+        "name": "Swallowfield Chapel",
+        "address": "5–9 Swallowfield Road, Kingston 5, Jamaica",
+        "service_times": {
+          "sunday": "10:00 AM",
+          "wednesday": "7:00 PM Prayer Meeting"
+        },
+        "contact": "876-929-3414"
+      },
+      {
+        "name": "Pentecostal Tabernacle",
+        "address": "66 Wildman Street, Kingston, Jamaica",
+        "service_times": {
+          "sunday": "7:00 AM & 10:30 AM",
+          "tuesday": "7:00 PM Bible Study",
+          "friday": "7:00 PM Youth Service"
+        },
+        "contact": "876-922-6977"
+      },
+      {
+        "name": "Kencot Seventh-day Adventist Church",
+        "address": "10-12 Osbourne Road, Kingston 10, Jamaica",
+        "service_times": {
+          "saturday": "9:00 AM Sabbath School, 11:00 AM Divine Hour",
+          "wednesday": "7:00 PM Prayer Meeting"
+        },
+        "contact": "876-960-1518"
+      }
+    ]
+  },
+  {
+    "parish": "St. Andrew",
+    "churches": [
+      {
+        "name": "Church on the Rock",
+        "address": "7 Clifton Avenue, Kingston 8, Jamaica",
+        "service_times": {
+          "sunday": "8:00 AM & 10:30 AM",
+          "wednesday": "7:00 PM Prayer Meeting"
+        },
+        "contact": "876-925-4673"
+      },
+      {
+        "name": "Hope Fellowship Church",
+        "address": "3 Hampden Road, Kingston 10, Jamaica",
+        "service_times": {
+          "sunday": "10:00 AM",
+          "thursday": "6:30 PM Bible Study"
+        },
+        "contact": "876-926-6612"
+      }
+    ]
+  },
+  {
+    "parish": "St. James",
+    "churches": [
+      {
+        "name": "Faith Temple Assembly of God",
+        "address": "6 Princess Street, Montego Bay, St. James",
+        "service_times": {
+          "sunday": "8:30 AM & 11:00 AM",
+          "wednesday": "7:00 PM Prayer Meeting"
+        },
+        "contact": "876-952-3436"
+      }
+    ]
+  },
+{
+  "parish": "Manchester",
+  "churches": [
+    {
+      "name": "Mandeville SDA Church",
+      "address": "2 Perth Road, Mandeville, Manchester",
+      "service_times": {
+        "saturday": "9:00 AM Sabbath School, 11:00 AM Worship",
+        "wednesday": "7:00 PM Prayer Meeting"
+      },
+      "contact": "876-962-2221"
+    }
+  ]
+},
+{
+  "parish": "St. Catherine",
+      "churches": [
+        {
+          "name": "Greater Grace Assembly",
+          "address": "12 Spanish Town Road, Spanish Town, St. Catherine",
+          "service_times": {
+            "sunday": "9:00 AM & 11:30 AM",
+            "wednesday": "7:00 PM Prayer Meeting"
+          },
+          "contact": "876-984-1234"
+        }
+      ]
+    },
+
+    {
+      "parish": "Clarendon",
+      "churches": [
+        {
+          "name": "Clarendon Pentecostal Church",
+          "address": "45 Church Street, May Pen, Clarendon",
+          "service_times": {
+            "sunday": "8:00 AM & 10:30 AM",
+            "wednesday": "7:00 PM Prayer Meeting"
+          },
+          "contact": "876-983-5678"
+        }
+      ]
+    },
+
+    {
+      "parish": "St. Ann",
+      "churches": [
+        {
+          "name": "St. Ann's Bay Baptist Church",
+          "address": "23 Main Street, St. Ann's Bay, St. Ann",
+          "service_times": {
+            "sunday": "10:00 AM",
+            "wednesday": "7:00 PM Bible Study"
+          },
+          "contact": "876-972-3456"
+        }
+      ]
+    },
+
+    {
+      "parish": "Trelawny",
+      "churches": [
+        {
+          "name": "Falmouth Seventh-day Adventist Church",
+          "address": "15 Market Street, Falmouth, Trelawny",
+          "service_times": {
+            "saturday": "9:00 AM Sabbath School, 11:00 AM Worship",
+            "wednesday": "7:00 PM Prayer Meeting"
+          },
+          "contact": "876-955-7890"
+        }
+      ]
+    },
+
+    {
+      "parish": "Westmoreland",
+          "churches": [
+            {
+              "name": "Savanna-la-Mar Methodist Church",
+              "address": "10 Church Street, Savanna-la-Mar, Westmoreland",
+              "service_times": {
+                "sunday": "9:00 AM & 11:00 AM",
+                "wednesday": "6:30 PM Prayer Meeting"
+              },
+              "contact": "876-937-6543"
+            }
+          ]
+        }
+    ]

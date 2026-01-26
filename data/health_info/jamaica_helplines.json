@@ -1,0 +1,22 @@
+{
+  "helplines": [
+    {
+      "name": "Mental Health & Suicide Prevention Helpline",
+      "number": "888-NEW-LIFE (888-639-5433)",
+      "availability": "24/7",
+      "description": "Trained counsellors offering emotional support and crisis intervention."
+    },
+    {
+      "name": "U-Matter Youth Mental Health Chatline",
+      "number": "876-838-4897",
+      "availability": "For ages 16–24",
+      "description": "Text-based mental health support for young people."
+    },
+    {
+      "name": "Emergency Services",
+      "number": "119",
+      "availability": "24/7",
+      "description": "Police and emergency response for immediate danger."
+    }
+  ]
+}

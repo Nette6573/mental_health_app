@@ -1,0 +1,44 @@
+[
+  {
+    "topic": "anxiety",
+    "emotions": ["worry", "fear", "racing_thoughts"],
+    "reference": "Philippians 4:6-7 (KJV)",
+    "verse_text_kjv": "Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God. And the peace of God, which passeth all understanding, shall keep your hearts and minds through Christ Jesus.",
+    "explanation": "Encourage the user to bring their worries to God honestly, while also reminding them that it is healthy to seek professional help if anxiety is ongoing or severe."
+  },
+  {
+    "topic": "depression",
+    "emotions": ["hopelessness", "sadness", "emptiness"],
+    "reference": "Psalm 34:18 (KJV)",
+    "verse_text_kjv": "The LORD is nigh unto them that are of a broken heart; and saveth such as be of a contrite spirit.",
+    "explanation": "Use when someone feels broken or alone, reminding them that God is close to the brokenhearted."
+  },
+  {
+    "topic": "fear",
+    "emotions": ["panic", "terror", "night_fears"],
+    "reference": "Isaiah 41:10 (KJV)",
+    "verse_text_kjv": "Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee; yea, I will help thee; yea, I will uphold thee with the right hand of my righteousness.",
+    "explanation": "Use when someone feels overwhelmed by fear and needs reassurance that they are not alone."
+  },
+  {
+    "topic": "stress_and_burden",
+    "emotions": ["overwhelm", "pressure", "burnout"],
+    "reference": "Matthew 11:28 (KJV)",
+    "verse_text_kjv": "Come unto me, all ye that labour and are heavy laden, and I will give you rest.",
+    "explanation": "Use when someone feels worn out and exhausted, while reminding them about healthy rest and seeking professional support."
+  },
+  {
+    "topic": "hopelessness",
+    "emotions": ["despair", "giving_up"],
+    "reference": "Lamentations 3:21-23 (KJV)",
+    "verse_text_kjv": "This I recall to my mind, therefore have I hope. It is of the LORD'S mercies that we are not consumed, because his compassions fail not. They are new every morning: great is thy faithfulness.",
+    "explanation": "Use when someone feels like nothing will ever change, to gently point them toward hope."
+  },
+  {
+    "topic": "anger",
+    "emotions": ["rage", "irritation", "frustration"],
+    "reference": "James 1:19-20 (KJV)",
+    "verse_text_kjv": "Wherefore, my beloved brethren, let every man be swift to hear, slow to speak, slow to wrath: For the wrath of man worketh not the righteousness of God.",
+    "explanation": "Use when someone struggles with anger, alongside suggestions for healthy ways to process it."
+  }
+]

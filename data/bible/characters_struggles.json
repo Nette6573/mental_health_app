@@ -1,0 +1,80 @@
+[
+  {
+    "character": "Elijah",
+    "struggles": ["despair", "burnout", "suicidal_thoughts", "fear"],
+    "summary": "After a great victory over the prophets of Baal, Elijah fled from Jezebel, felt alone, exhausted and asked God to let him die.",
+    "key_passages_kjv": [
+      "1 Kings 19:1-18"
+    ],
+    "notes_for_model": "Use Elijah when someone feels totally overwhelmed, tired of life, or hopeless. Show that God listened, provided rest, food and gentle encouragement."
+  },
+  {
+    "character": "David",
+    "struggles": ["deep_sadness", "guilt", "fear", "loneliness"],
+    "summary": "David went through seasons of fear, betrayal and deep emotional pain, and expressed it openly in the Psalms.",
+    "key_passages_kjv": [
+      "Psalm 13:1-6",
+      "Psalm 42:1-11",
+      "Psalm 51:1-12"
+    ],
+    "notes_for_model": "Use David when someone feels down, guilty, or alone. Emphasize honest prayer, pouring out feelings to God, and hope returning."
+  },
+  {
+    "character": "Job",
+    "struggles": ["grief", "suffering", "loss", "questioning_God"],
+    "summary": "Job lost his children, health and possessions, experienced deep anguish, and wrestled with big questions about suffering.",
+    "key_passages_kjv": [
+      "Job 3:1-26",
+      "Job 6:1-13",
+      "Job 19:25-27"
+    ],
+    "notes_for_model": "Use Job when someone faces intense loss or feels like life is unfair. Acknowledge pain and show that God can still be present in suffering."
+  },
+  {
+    "character": "Hannah",
+    "struggles": ["bitterness_of_soul", "longing", "family_conflict"],
+    "summary": "Hannah was deeply distressed over infertility, misunderstood by others, and poured out her soul to God in the temple.",
+    "key_passages_kjv": [
+      "1 Samuel 1:1-20"
+    ],
+    "notes_for_model": "Use Hannah when someone feels misunderstood, desperate for change, or struggling with unfulfilled desires."
+  },
+  {
+    "character": "Jeremiah",
+    "struggles": ["discouragement", "rejection", "emotional_pain"],
+    "summary": "Jeremiah was called to a difficult ministry, often felt mocked and alone, and expressed deep emotional struggle.",
+    "key_passages_kjv": [
+      "Jeremiah 20:7-11",
+      "Lamentations 3:17-26"
+    ],
+    "notes_for_model": "Use Jeremiah when someone feels worn down by their calling, rejected or discouraged."
+  },
+  {
+    "character": "Naomi",
+    "struggles": ["grief", "bitterness", "hopelessness"],
+    "summary": "Naomi lost her husband and sons, felt that her life had become bitter, and believed her future was hopeless.",
+    "key_passages_kjv": [
+      "Ruth 1:1-21"
+    ],
+    "notes_for_model": "Use Naomi when someone feels their life has become bitter or meaningless after loss."
+  },
+  {
+    "character": "Paul",
+    "struggles": ["hardship", "despair_of_life", "weakness"],
+    "summary": "Paul described times when he was burdened beyond measure and despaired even of life, yet found strength in God.",
+    "key_passages_kjv": [
+      "2 Corinthians 1:8-10",
+      "2 Corinthians 12:7-10"
+    ],
+    "notes_for_model": "Use Paul when someone feels they cannot handle their pressures. Emphasize God's strength in weakness."
+  },
+  {
+    "character": "Jonah",
+    "struggles": ["anger", "resentment", "wanting_to_die"],
+    "summary": "Jonah ran from God, became angry when God showed mercy, and at one point said it was better for him to die than to live.",
+    "key_passages_kjv": [
+      "Jonah 4:1-11"
+    ],
+    "notes_for_model": "Use Jonah when someone feels angry, resentful or hopeless about their situation."
+  }
+]

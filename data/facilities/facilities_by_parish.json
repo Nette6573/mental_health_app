@@ -1,0 +1,203 @@
+{
+  "national": {
+    "mental_health_helpline": {
+      "name": "Jamaica Mental Health & Suicide Prevention Helpline",
+      "phone": "888-NEW-LIFE (639-5433)",
+      "type": "helpline",
+      "coverage": "nationwide",
+      "hours": "24/7",
+      "notes": "Official Ministry of Health & Wellness helpline for mental health and suicide prevention."
+    }
+  },
+  "parishes": [
+    {
+      "parish": "Kingston & St. Andrew",
+      "hospitals": [
+        {
+          "name": "Kingston Public Hospital",
+          "type": "public_general",
+          "address": "North Street, Kingston, Jamaica",
+          "phone": null,
+          "services": ["emergency", "general_medical", "some_psychiatric_support"]
+        },
+        {
+          "name": "University Hospital of the West Indies",
+          "type": "teaching_hospital",
+          "address": "Mona, Kingston 7, Jamaica",
+          "phone": null,
+          "services": ["emergency", "inpatient", "psychiatry_clinic"]
+        },
+        {
+          "name": "Bustamante Hospital for Children",
+          "type": "public_children",
+          "address": "Arthur Wint Drive, Kingston 5, Jamaica",
+          "phone": null,
+          "services": ["pediatrics", "emergency"]
+        },
+        {
+          "name": "Bellevue Hospital",
+          "type": "public_psychiatric",
+          "address": "16½ Windward Road, Kingston 2, Jamaica",
+          "phone": "(876) 928-1380-9",
+          "services": [
+            "acute_psychiatric_care",
+            "inpatient_mental_health",
+            "psychological_services",
+            "rehabilitation"
+          ]
+        }
+      ],
+      "mental_health_facilities": [
+        {
+          "name": "Bellevue Hospital Psychological Services",
+          "type": "public_psychiatric_service",
+          "address": "16½ Windward Road, Kingston 2, Jamaica",
+          "phone": "(876) 928-1380-9",
+          "notes": "Psychological and psychiatric services through Bellevue Hospital."
+        },
+        {
+          "name": "Shekinah House",
+          "type": "private_clinic",
+          "address": "Unit 28, 2 Seymour Avenue, Kingston 6, Jamaica",
+          "phone": "(876) 946-0719",
+          "services": [
+            "psychiatry",
+            "psychology",
+            "family_and_marital_counselling",
+            "child_and_adolescent_psychiatry"
+          ]
+        }
+      ],
+      "psychologists_and_counsellors": [
+        {
+          "name": "Shekinah House – Psychiatry & Psychology Team",
+          "profession": ["psychiatrist", "psychologist"],
+          "address": "Unit 28, 2 Seymour Avenue, Kingston 6, Jamaica",
+          "phone": "(876) 946-0719",
+          "website": "https://www.shekinahhousejm.com",
+          "notes": "Private multidisciplinary team offering psychiatry, psychology and counselling."
+        }
+      ],
+      "churches": []
+    },
+    {
+      "parish": "Manchester",
+      "hospitals": [
+        {
+          "name": "Mandeville Regional Hospital",
+          "type": "public_general",
+          "address": "Mandeville, Manchester, Jamaica",
+          "phone": null,
+          "services": ["emergency", "inpatient", "outpatient"]
+        },
+        {
+          "name": "Percy Junor Hospital",
+          "type": "public_general",
+          "address": "Spalding, Clarendon/Manchester border, Jamaica",
+          "phone": null,
+          "services": ["emergency", "general_medical"]
+        },
+        {
+          "name": "Hargreaves Memorial Hospital",
+          "type": "private_hospital",
+          "address": "Mandeville, Manchester, Jamaica",
+          "phone": null,
+          "services": ["private_medical_care"]
+        }
+      ],
+      "mental_health_facilities": [
+        {
+          "name": "Heartland Psychological Services",
+          "type": "private_practice",
+          "address": "Mandeville, Manchester, Jamaica",
+          "phone": "876-236-1680",
+          "services": [
+            "psychological_assessment",
+            "therapy",
+            "counselling"
+          ]
+        }
+      ],
+      "psychologists_and_counsellors": [
+        {
+          "name": "Heartland Psychological Services",
+          "profession": ["psychologist"],
+          "address": "Mandeville, Manchester, Jamaica",
+          "phone": "876-236-1680",
+          "notes": "Private psychological services, emotional healing and counselling."
+        }
+      ],
+      "churches": []
+    },
+    {
+      "parish": "St. James",
+      "hospitals": [
+        {
+          "name": "Cornwall Regional Hospital",
+          "type": "public_general",
+          "address": "Mount Salem, Montego Bay, St. James, Jamaica",
+          "phone": null,
+          "services": ["emergency", "inpatient", "outpatient"]
+        },
+        {
+          "name": "Falmouth Hospital",
+          "type": "public_general",
+          "address": "Falmouth, Trelawny (serves nearby parishes)",
+          "phone": null,
+          "services": ["emergency", "general_medical"]
+        }
+      ],
+      "mental_health_facilities": [
+        {
+          "name": "CUMI Rehabilitation Day Centre",
+          "type": "rehabilitation_centre",
+          "address": "Montego Bay, St. James, Jamaica",
+          "phone": null,
+          "services": [
+            "community_mental_health_rehabilitation",
+            "counselling",
+            "day_programmes"
+          ]
+        },
+        {
+          "name": "Fairview Medical & Dental Centre – Mental Health Services",
+          "type": "medical_centre",
+          "address": "Fairview, Montego Bay, St. James, Jamaica",
+          "phone": null,
+          "services": ["psychiatry", "psychology", "counselling"]
+        }
+      ],
+      "psychologists_and_counsellors": [],
+      "churches": []
+    },
+    {
+      "parish": "Clarendon",
+      "hospitals": [
+        {
+          "name": "May Pen Hospital",
+          "type": "public_general",
+          "address": "May Pen, Clarendon, Jamaica",
+          "phone": null,
+          "services": ["emergency", "inpatient", "outpatient"]
+        },
+        {
+          "name": "Chapelton Hospital",
+          "type": "public_general",
+          "address": "Chapelton, Clarendon, Jamaica",
+          "phone": null,
+          "services": ["emergency", "general_medical"]
+        },
+        {
+          "name": "Lionel Town Community Hospital",
+          "type": "public_general",
+          "address": "Lionel Town, Clarendon, Jamaica",
+          "phone": null,
+          "services": ["emergency", "general_medical"]
+        }
+      ],
+      "mental_health_facilities": [],
+      "psychologists_and_counsellors": [],
+      "churches": []
+    }
+  ]
+}

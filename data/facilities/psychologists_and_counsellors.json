@@ -1,0 +1,64 @@
+[
+  {
+    "parish": "Kingston",
+    "professionals": [
+      {
+        "name": "Dr. Patrice White",
+        "type": "Psychologist",
+        "address": "Liguanea, Kingston 6, Jamaica",
+        "contact": "876-555-1022"
+      },
+      {
+        "name": "Dr. Tonya Haynes",
+        "type": "Clinical Psychologist",
+        "address": "20 Waterloo Road, Kingston 10",
+        "contact": "876-555-3384"
+      },
+      {
+        "name": "Rev. Michael Harvey",
+        "type": "Counsellor / Pastor",
+        "address": "Pentecostal Tabernacle, Kingston",
+        "contact": "876-922-6977"
+      }
+    ]
+  },
+  {
+    "parish": "St. Andrew",
+    "professionals": [
+      {
+        "name": "Dr. Kai Morgan",
+        "type": "Clinical Psychologist",
+        "address": "Kingston 8, St. Andrew",
+        "contact": "876-555-4123"
+      },
+      {
+        "name": "Grace Counselling Centre",
+        "type": "Faith-Based Counselling",
+        "address": "Constant Spring Road, St. Andrew",
+        "contact": "876-555-8292"
+      }
+    ]
+  },
+  {
+    "parish": "St. James",
+    "professionals": [
+      {
+        "name": "Dr. Alicia Smith",
+        "type": "Psychologist",
+        "address": "Montego Bay, St. James",
+        "contact": "876-555-7462"
+      }
+    ]
+  },
+  {
+    "parish": "Manchester",
+    "professionals": [
+      {
+        "name": "Healing Hope Psychological Services",
+        "type": "Counsellor / Therapist",
+        "address": "Caledonia Road, Mandeville, Manchester",
+        "contact": "876-555-3218"
+      }
+    ]
+  }
+]
