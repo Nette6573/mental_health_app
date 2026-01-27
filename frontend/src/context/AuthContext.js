@@ -61,6 +61,8 @@ export function AuthProvider({ children }) {
   // ✅ Listen for login / logout / refresh
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('Firebase user state changed:', firebaseUser)  // <-- add this line
+
       if (firebaseUser) {
         const appUser = await buildUserFromFirebase(firebaseUser)
         setUser(appUser)
