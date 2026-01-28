@@ -7,3 +7,6 @@ export default function PaulaDashboardPage() {
     </div>
   )
 }
+
+// 👇 forces TypeScript to treat this as a module
+export {}
