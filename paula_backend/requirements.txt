@@ -1,1 +1,6 @@
 pymongo
+fastapi
+uvicorn
+pymongo
+firebase-admin
+openai
