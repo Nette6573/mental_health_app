@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // -------------------
 // TYPES
@@ -19,42 +22,6 @@ interface AuthUser {
   email: string;
 }
 
-// -------------------
-// SPEECH RECOGNITION TYPES (NO `any`)
-// -------------------
-interface SpeechRecognitionResult {
-  transcript: string;
-}
-
-interface SpeechRecognitionResultList {
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionEvent {
-  results: {
-    [index: number]: SpeechRecognitionResultList;
-  };
-}
-
-interface SpeechRecognitionInstance {
-  lang: string;
-  interimResults: boolean;
-  start(): void;
-  onresult: (event: SpeechRecognitionEvent) => void;
-}
-
-interface SpeechRecognitionWindow extends Window {
-  webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
-  SpeechRecognition?: new () => SpeechRecognitionInstance;
-}
-
-const getSpeechRecognition = (): SpeechRecognitionInstance | null => {
-  if (typeof window === "undefined") return null;
-  const w = window as SpeechRecognitionWindow;
-  const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
-  return Ctor ? new Ctor() : null;
-};
-
 export default function PaulaChat() {
   const { user, isLoading } = useAuth() as {
     user: AuthUser | null;
@@ -70,55 +37,8 @@ export default function PaulaChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [mutePaula, setMutePaula] = useState(false);
 
   const sessionId = `session-${user?.id}`;
-
-  // -------------------
-  // ENSURE VOICES LOAD
-  // -------------------
-  useEffect(() => {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        window.speechSynthesis.getVoices();
-      };
-    }
-  }, []);
-
-  // -------------------
-  // 🔊 TEXT TO SPEECH (STABLE REF)
-  // -------------------
-  const speak = useCallback(
-    (text: string) => {
-      if (mutePaula || !("speechSynthesis" in window)) return;
-
-      const synth = window.speechSynthesis;
-      const utterance = new SpeechSynthesisUtterance(text);
-
-      utterance.lang = "en-JM";
-      utterance.rate = 0.95;
-      utterance.pitch = 1.1;
-
-      const voices = synth.getVoices();
-
-      const femaleVoice =
-        voices.find(
-          (v) =>
-            v.lang.startsWith("en") &&
-            (
-              v.name.toLowerCase().includes("female") ||
-              v.name.toLowerCase().includes("woman") ||
-              v.name.toLowerCase().includes("samantha") ||
-              v.name.toLowerCase().includes("zira") ||
-              v.name.toLowerCase().includes("victoria")
-            )
-        ) || voices.find((v) => v.lang.startsWith("en"));
-
-      if (femaleVoice) utterance.voice = femaleVoice;
-      synth.speak(utterance);
-    },
-    [mutePaula]
-  );
 
   // -------------------
   // AUTH CHECK
@@ -138,7 +58,7 @@ export default function PaulaChat() {
     const loadHistory = async () => {
       try {
         const res = await fetch(
-          `http://localhost:8000/chat/history?user_id=${user.id}&session_id=${sessionId}`
+          `${API_BASE}/chat/history?user_id=${user.id}&session_id=${sessionId}`
         );
         const data = await res.json();
         if (data.messages) setMessages(data.messages);
@@ -167,9 +87,8 @@ export default function PaulaChat() {
     };
 
     setMessages((prev) => [...prev, greeting]);
-    speak(greeting.text);
     sessionStorage.setItem(greetedKey, "true");
-  }, [user?.id, speak]);
+  }, [user?.id]);
 
   // -------------------
   // AUTO-SCROLL
@@ -177,23 +96,6 @@ export default function PaulaChat() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
-
-  // -------------------
-  // 🎤 VOICE INPUT
-  // -------------------
-  const startListening = () => {
-    const rec = getSpeechRecognition();
-    if (!rec) return alert("Voice input not supported.");
-
-    rec.lang = "en-JM";
-    rec.interimResults = false;
-
-    rec.onresult = (e: SpeechRecognitionEvent) => {
-      setInput(e.results[0][0].transcript);
-    };
-
-    rec.start();
-  };
 
   // -------------------
   // SEND MESSAGE
@@ -213,7 +115,7 @@ export default function PaulaChat() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/chat/", {
+      const res = await fetch(`${API_BASE}/chat/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -225,16 +127,20 @@ export default function PaulaChat() {
 
       const data = await res.json();
 
+      if (!data.message || !data.message.text) {
+        throw new Error("Invalid backend response");
+      }
+
       const paulaReply: ChatMessage = {
-        id: crypto.randomUUID(),
-        sender: "paula",
-        text: data.response || "Mi nuh quite catch dat—try again?",
-        timestamp: new Date().toISOString(),
+        id: data.message.id,
+        sender: data.message.sender,
+        text: data.message.text,
+        timestamp: data.message.timestamp,
       };
 
       setMessages((prev) => [...prev, paulaReply]);
-      speak(paulaReply.text);
-    } catch {
+    } catch (err) {
+      console.error(err);
       setMessages((prev) => [
         ...prev,
         {
@@ -258,7 +164,7 @@ export default function PaulaChat() {
     sessionStorage.removeItem(`paula_greeted_${user.id}`);
     setMessages([]);
 
-    await fetch("http://localhost:8000/chat/reset", {
+    await fetch(`${API_BASE}/chat/reset`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -272,7 +178,11 @@ export default function PaulaChat() {
   // BLOCK UI
   // -------------------
   if (isLoading || !user) {
-    return <div className="h-screen flex items-center justify-center">Loading…</div>;
+    return (
+      <div className="h-screen flex items-center justify-center">
+        Loading…
+      </div>
+    );
   }
 
   // -------------------
@@ -284,21 +194,12 @@ export default function PaulaChat() {
         Talk With Paula 💛
       </h1>
 
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setMutePaula((p) => !p)}
-          className="px-3 py-1 border rounded bg-white"
-        >
-          {mutePaula ? "🔈 Voice ON" : "🔇 Mute"}
-        </button>
-
-        <button
-          onClick={startNewConversation}
-          className="px-3 py-1 border rounded bg-red-100 hover:bg-red-200"
-        >
-          🔄 New Conversation
-        </button>
-      </div>
+      <button
+        onClick={startNewConversation}
+        className="mb-3 px-3 py-1 border rounded bg-red-100 hover:bg-red-200"
+      >
+        🔄 New Conversation
+      </button>
 
       <div className="w-full max-w-xl bg-white rounded-xl shadow p-4 flex flex-col overflow-y-auto h-[70%]">
         {messages.map((m) => (
@@ -322,10 +223,6 @@ export default function PaulaChat() {
       </div>
 
       <div className="flex w-full max-w-xl mt-4 gap-2">
-        <button onClick={startListening} className="px-3 py-2 bg-gray-200 rounded">
-          🎤
-        </button>
-
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}

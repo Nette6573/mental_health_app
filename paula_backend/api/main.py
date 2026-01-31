@@ -1,23 +1,25 @@
+import os
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from api.routes.chat import router as chat_router
+import httpx
 
-app = FastAPI(title="Paula Backend")
+app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+CHATBASE_API_KEY = os.getenv("CHATBASE_API_KEY")
+CHATBASE_AGENT_ID = os.getenv("CHATBASE_AGENT_ID")
 
-@app.options("/{rest_of_path:path}")
-async def preflight_handler(rest_of_path: str):
-    return {}
+@app.post("/chat")
+async def chat(message: str):
+    if not CHATBASE_API_KEY or not CHATBASE_AGENT_ID:
+        return {"response": "Fallback: Chatbase API key or agent ID missing"}
 
-app.include_router(chat_router, prefix="/chat", tags=["chat"])
+    url = "https://api.chatbase.co/v1/query"
+    headers = {"Authorization": f"Bearer {CHATBASE_API_KEY}"}
+    payload = {"message": message, "agent": CHATBASE_AGENT_ID}
 
-@app.get("/")
-def root():
-    return {"status": "Paula backend running"}
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(url, json=payload, headers=headers)
+        if resp.status_code == 200:
+            data = resp.json()
+            return {"response": data.get("response", "No reply")}
+        else:
+            return {"response": "Fallback: Chatbase API failed"}
