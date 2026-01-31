@@ -10,8 +10,8 @@ router = APIRouter()
 
 CHATBASE_API_KEY = os.getenv("CHATBASE_API_KEY")
 CHATBASE_BOT_ID = os.getenv("CHATBASE_BOT_ID")
-
 CHATBASE_URL = "https://www.chatbase.co/api/v1/chat"
+
 
 # -----------------------------
 # GET CHAT HISTORY
@@ -66,7 +66,14 @@ async def chat(request: Request):
     session_id = body.get("session_id", "default")
 
     if not message:
-        return {"response": "I didn’t quite catch that — try again for me?"}
+        return {
+            "message": {
+                "id": str(uuid.uuid4()),
+                "sender": "paula",
+                "text": "I didn’t quite catch that — try again for me?",
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        }
 
     # 1️⃣ SAVE USER MESSAGE
     user_message = {
@@ -89,16 +96,18 @@ async def chat(request: Request):
             },
             json={
                 "botId": CHATBASE_BOT_ID,
-                "messages": [
-                    {"role": "user", "content": message}
-                ],
+                "messages": [{"role": "user", "content": message}],
                 "conversationId": session_id,
             },
             timeout=30,
         )
 
         data = res.json()
-        response_text = data.get("text") or "Mi deh yah wid yuh. Try again."
+        response_text = (
+            data.get("text")
+            or data.get("answer")
+            or "Mi deh yah wid yuh. Try again."
+        )
 
     except Exception as e:
         print("Chatbase error:", e)
@@ -115,14 +124,14 @@ async def chat(request: Request):
     }
     chats_collection.insert_one(paula_message)
 
+    # 4️⃣ ALWAYS RETURN SAME SHAPE
     return {
-        "response": response_text,
         "message": {
             "id": paula_message["id"],
             "sender": "paula",
             "text": response_text,
             "timestamp": paula_message["timestamp"].isoformat(),
-        },
+        }
     }
 
 
