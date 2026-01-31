@@ -1,28 +1,23 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from api.routes.chat import router as chat_router
-from api.routes.health_info import router as health_router
 
-app = FastAPI(
-    title="Mental Health AI Assistant",
-    description="Chatbot + Jamaican Mental Health Facility Finder",
-    version="1.0"
-)
+app = FastAPI(title="Paula Backend")
 
-# Allow frontend (Next.js)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # You can later restrict to your domain
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Routes
-app.include_router(chat_router, prefix="/chat", tags=["Chatbot"])
-app.include_router(health_router, prefix="/health", tags=["Health Facilities"])
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(rest_of_path: str):
+    return {}
+
+app.include_router(chat_router, prefix="/chat", tags=["chat"])
 
 @app.get("/")
-def home():
-    return {"message": "Mental Health API is running"}
+def root():
+    return {"status": "Paula backend running"}
