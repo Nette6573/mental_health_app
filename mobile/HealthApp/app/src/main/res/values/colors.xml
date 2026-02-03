@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors -->
+    <color name="primary_color">#3B82F6</color>
+    <color name="primary_dark_color">#1E40AF</color>
+
+    <!-- Status Colors -->
+    <color name="error_color">#DC2626</color>
+    <color name="success_color">#10B981</color>
+    <color name="warning_color">#F59E0B</color>
+    <color name="info_color">#3B82F6</color>
+
+    <!-- Background Colors -->
+    <color name="light_background">#FFFFFF</color>
+    <color name="dark_background">#111827</color>
+
+    <!-- Surface Colors -->
+    <color name="light_surface">#FFFFFF</color>
+    <color name="dark_surface">#1F2937</color>
+
+    <!-- Text Colors -->
+    <color name="light_text">#111827</color>
+    <color name="dark_text">#F9FAFB</color>
+    <color name="light_secondary_text">#6B7280</color>
+    <color name="dark_secondary_text">#9CA3AF</color>
+
+    <!-- Common Colors -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
+</resources>

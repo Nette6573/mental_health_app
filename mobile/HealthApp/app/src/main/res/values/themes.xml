@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme -->
+    <style name="Theme.HealthApp" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Primary Colors -->
+        <item name="colorPrimary">@color/primary_color</item>
+<!--        <item name="colorPrimaryVariant">@color/primary_dark_color</item>-->
+<!--        <item name="colorOnPrimary">@color/white</item>-->
+
+        <!-- Background Colors -->
+        <item name="android:colorBackground">@color/light_background</item>
+<!--        <item name="colorSurface">@color/light_surface</item>-->
+
+        <!-- Text Colors -->
+        <item name="android:textColorPrimary">@color/light_text</item>
+        <item name="android:textColorSecondary">@color/light_secondary_text</item>
+
+        <!-- Status Bar -->
+        <item name="android:statusBarColor">@color/primary_color</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+
+    </style>
+
+    <!-- Dark Theme (Optional) -->
+    <style name="Theme.HealthApp.Dark" parent="android:Theme.Material.NoActionBar">
+        <!-- Primary Colors -->
+        <item name="colorPrimary">@color/primary_color</item>
+<!--        <item name="colorPrimaryVariant">@color/primary_dark_color</item>-->
+<!--        <item name="colorOnPrimary">@color/white</item>-->
+
+        <!-- Background Colors -->
+        <item name="android:colorBackground">@color/dark_background</item>
+<!--        <item name="colorSurface">@color/dark_surface</item>-->
+
+        <!-- Text Colors -->
+        <item name="android:textColorPrimary">@color/dark_text</item>
+        <item name="android:textColorSecondary">@color/dark_secondary_text</item>
+
+        <!-- Status Bar -->
+        <item name="android:statusBarColor">@color/dark_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
