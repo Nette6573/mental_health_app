@@ -72,6 +72,7 @@ dependencies {
 
     // Coroutines
     implementation(libs.coroutines.android)
+    implementation(libs.androidx.media3.exoplayer)
 
     // Testing
     testImplementation(libs.junit)
