@@ -7,12 +7,12 @@ export default function SocialLogin({ loading = false }) {
   const { loginWithGoogle, loginWithFacebook } = useAuth()
 
   // const handleGoogle = async () => {
-  //   const { loginWithGoogle } = await import('@/context/AuthContext')
+  //   const { loginWithGoogle } = await import('@/context/AuthContext') -k
   //   loginWithGoogle()
   // }
 
   // const handleFacebook = async () => {
-  //   const { loginWithFacebook } = await import('@/context/AuthContext')
+  //   const { loginWithFacebook } = await import('@/context/AuthContext') -k
   //   loginWithFacebook()
   // }
 
