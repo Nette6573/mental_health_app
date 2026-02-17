@@ -1,6 +1,7 @@
-fastapi
-uvicorn
-pymongo
-python-dotenv
-cryptography
-requests
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pymongo==4.5.0
+python-dotenv==1.0.0
+cryptography==41.0.7
+requests==2.31.0
+huggingface_hub==0.19.4
