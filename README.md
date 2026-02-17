@@ -1,5 +1,3 @@
-Here's a comprehensive update for your GitHub README that accurately reflects your current project structure with Hugging Face integration, Railway backend, and Vercel frontend:
-
 # 🧠 HopePath - Mental Health AI Assistant (Jamaica)
 
 [![Vercel](https://img.shields.io/badge/Vercel-Frontend-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://mental-health-app-cyan.vercel.app)
