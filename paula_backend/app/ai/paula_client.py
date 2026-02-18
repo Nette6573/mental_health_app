@@ -5,7 +5,8 @@ from app.config import HF_TOKEN
 
 logger = logging.getLogger(__name__)
 
-API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-3-8B-Instruct"
+# UPDATED: New Hugging Face endpoint
+API_URL = "https://router.huggingface.co/hf-inference/models/meta-llama/Llama-3-8B-Instruct"
 
 headers = {
     "Authorization": f"Bearer {HF_TOKEN}",
