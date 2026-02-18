@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-// Actual Hugging Face Space URL
+// Actual backend URL
 const API_BASE = process.env.NEXT_PUBLIC_API_URL!;
 
 // FIX: Remove any trailing slash from API_BASE
