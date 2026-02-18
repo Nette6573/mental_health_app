@@ -46,6 +46,17 @@ app = FastAPI(
     redoc_url="/redoc"  # ReDoc
 )
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # you can restrict later
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 # Include routers
 app.include_router(chat_router, prefix="/api", tags=["chats"])
 logger.info("✅ Routers mounted successfully")
