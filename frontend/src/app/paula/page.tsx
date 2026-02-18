@@ -5,8 +5,12 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-// Your actual Hugging Face Space URL
+// Actual Hugging Face Space URL
 const API_BASE = process.env.NEXT_PUBLIC_API_URL!;
+
+// FIX: Remove any trailing slash from API_BASE
+const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+
 
 // -------------------
 // TYPES
@@ -128,8 +132,7 @@ export default function PaulaChat() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
-
-  // -------------------
+// -------------------
 // SEND MESSAGE TO BACKEND
 // -------------------
 const sendMessage = async () => {
@@ -142,7 +145,6 @@ const sendMessage = async () => {
     timestamp: new Date().toISOString(),
   };
 
-  // Add user message immediately
   setMessages((prev) => [...prev, userMessage]);
   setInput("");
   setLoading(true);
@@ -150,11 +152,11 @@ const sendMessage = async () => {
   try {
     if (!API_BASE) throw new Error("API_BASE is not set");
 
-    // Build URL for FastAPI endpoint
-    let url = `${API_BASE}/api/send?user_id=${encodeURIComponent(userId)}`;
+    // FIXED: Use baseUrl instead of API_BASE
+    let url = `${baseUrl}/api/send?user_id=${encodeURIComponent(userId)}`;
     if (chatId) url += `&chat_id=${encodeURIComponent(chatId)}`;
 
-    console.log("Sending message to:", url, "payload:", { text: userMessage.text });
+    console.log("Sending message to:", url);
 
     const res = await fetch(url, {
       method: "POST",
@@ -173,7 +175,6 @@ const sendMessage = async () => {
     const data: BackendResponse = await res.json();
     console.log("Backend response:", data);
 
-    // Save chat ID for future messages
     if (data.chat_id) setChatId(data.chat_id);
 
     const paulaReply: ChatMessage = {
@@ -204,7 +205,6 @@ const sendMessage = async () => {
     setLoading(false);
   }
 };
-
   // -------------------
   // NEW CONVERSATION
   // -------------------

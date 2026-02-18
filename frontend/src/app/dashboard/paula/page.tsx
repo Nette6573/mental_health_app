@@ -5,8 +5,12 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-// Your actual Hugging Face Space URL
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://Anthoinette-hopepath-paula.hf.space";
+// Actual Hugging Face Space URL
+const API_BASE = process.env.NEXT_PUBLIC_API_URL!;
+
+// FIX: Remove any trailing slash from API_BASE
+const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+
 
 // -------------------
 // TYPES
@@ -128,93 +132,79 @@ export default function PaulaChat() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+// -------------------
+// SEND MESSAGE TO BACKEND
+// -------------------
+const sendMessage = async () => {
+  if (!input.trim() || !user || loading) return;
 
-  // -------------------
-  // SEND MESSAGE TO HUGGING FACE BACKEND
-  // -------------------
-  const sendMessage = async () => {
-    if (!input.trim() || !user || loading) return;
-
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      sender: "user",
-      text: input,
-      timestamp: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setLoading(true);
-
-    try {
-      // Construct URL with query parameters for your Hugging Face backend
-      let url = `${API_BASE}/api/send?user_id=${encodeURIComponent(userId)}`;
-      if (chatId) {
-        url += `&chat_id=${encodeURIComponent(chatId)}`;
-      }
-
-      console.log("Sending to:", url); // For debugging
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json" 
-        },
-        body: JSON.stringify({
-          text: userMessage.text, // Your backend expects 'text', not 'message'
-        }),
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("Backend error:", res.status, errorText);
-        throw new Error(`Backend responded with ${res.status}`);
-      }
-
-      const data: BackendResponse = await res.json();
-      console.log("Backend response:", data); // For debugging
-
-      // Store the chat ID for continuing the conversation
-      if (data.chat_id) {
-        setChatId(data.chat_id);
-      }
-
-      const paulaReply: ChatMessage = {
-        id: crypto.randomUUID(),
-        sender: "paula",
-        text: data.response, // Your backend returns 'response'
-        timestamp: data.timestamp || new Date().toISOString(),
-      };
-
-      setMessages((prev) => [...prev, paulaReply]);
-    } catch (err) {
-      console.error("Send message error:", err);
-      
-      // More user-friendly error message
-      let errorMessage = "Something went wrong. Try again in a likkle bit.";
-      
-      if (err instanceof Error) {
-        if (err.message.includes('Failed to fetch')) {
-          errorMessage = "Can't reach Paula right now. Please check your internet connection.";
-        } else if (err.message.includes('500')) {
-          errorMessage = "Paula's having trouble thinking. Please try again in a moment.";
-        }
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          sender: "paula",
-          text: errorMessage,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+  const userMessage: ChatMessage = {
+    id: crypto.randomUUID(),
+    sender: "user",
+    text: input,
+    timestamp: new Date().toISOString(),
   };
 
+  setMessages((prev) => [...prev, userMessage]);
+  setInput("");
+  setLoading(true);
+
+  try {
+    if (!API_BASE) throw new Error("API_BASE is not set");
+
+    // FIXED: Use baseUrl instead of API_BASE
+    let url = `${baseUrl}/api/send?user_id=${encodeURIComponent(userId)}`;
+    if (chatId) url += `&chat_id=${encodeURIComponent(chatId)}`;
+
+    console.log("Sending message to:", url);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text: userMessage.text }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("Backend error:", res.status, text);
+      throw new Error(`Backend responded with status ${res.status}`);
+    }
+
+    const data: BackendResponse = await res.json();
+    console.log("Backend response:", data);
+
+    if (data.chat_id) setChatId(data.chat_id);
+
+    const paulaReply: ChatMessage = {
+      id: crypto.randomUUID(),
+      sender: "paula",
+      text: data.response,
+      timestamp: data.timestamp || new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, paulaReply]);
+  } catch (err) {
+    console.error("Send message error:", err);
+
+    const errorMessage = err instanceof Error && err.message.includes("Failed to fetch")
+      ? "Can't reach Paula right now. Check your internet connection."
+      : "Something went wrong. Try again in a likkle bit.";
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        sender: "paula",
+        text: errorMessage,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+  } finally {
+    setLoading(false);
+  }
+};
   // -------------------
   // NEW CONVERSATION
   // -------------------
