@@ -46,14 +46,30 @@ def is_blocked_topic(text):
     return any(topic in text for topic in BLOCKED_TOPICS)
 
 # ============================================
-# TRY THESE MODELS IN ORDER (one will work)
+# CORRECT HUGGING FACE API ENDPOINTS
 # ============================================
+# Using the standard inference API (works with all public models)
 MODELS_TO_TRY = [
-    "microsoft/DialoGPT-medium",        # Good for conversation
-    "gpt2",                              # Simple, always works
-    "distilgpt2",                         # Smaller, faster
-    "EleutherAI/gpt-neo-125M",            # Alternative
-    "facebook/blenderbot-400M-distill"    # Good for chat
+    {
+        "name": "microsoft/DialoGPT-medium",
+        "url": "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
+    },
+    {
+        "name": "gpt2",
+        "url": "https://api-inference.huggingface.co/models/gpt2"
+    },
+    {
+        "name": "distilgpt2",
+        "url": "https://api-inference.huggingface.co/models/distilgpt2"
+    },
+    {
+        "name": "EleutherAI/gpt-neo-125M",
+        "url": "https://api-inference.huggingface.co/models/EleutherAI/gpt-neo-125M"
+    },
+    {
+        "name": "facebook/blenderbot-400M-distill",
+        "url": "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill"
+    }
 ]
 
 # ============================================
@@ -148,13 +164,16 @@ def ask_paula(prompt, history):
             "Content-Type": "application/json"
         }
         
+        # For text generation models, use this payload format
         payload = {
             "inputs": full_prompt,
             "parameters": {
+                "max_length": 500,
                 "max_new_tokens": 300,
                 "temperature": 0.7,
                 "do_sample": True,
                 "top_p": 0.95,
+                "repetition_penalty": 1.1,
                 "return_full_text": False
             }
         }
@@ -162,30 +181,51 @@ def ask_paula(prompt, history):
         # Try each model until one works
         for model in MODELS_TO_TRY:
             try:
-                # Use the new router endpoint
-                API_URL = f"https://router.huggingface.co/hf-inference/models/{model}"
-                logger.info(f"📡 Trying model: {model}")
+                logger.info(f"📡 Trying model: {model['name']}")
                 
-                response = requests.post(API_URL, headers=headers, json=payload, timeout=10)
+                response = requests.post(
+                    model['url'], 
+                    headers=headers, 
+                    json=payload, 
+                    timeout=15
+                )
+                
+                logger.info(f"📡 Response status: {response.status_code}")
                 
                 if response.status_code == 200:
                     data = response.json()
-                    logger.info(f"✅ Success with model: {model}")
+                    logger.info(f"✅ Success with model: {model['name']}")
                     
                     # Handle different response formats
+                    reply = ""
                     if isinstance(data, list) and len(data) > 0:
-                        if "generated_text" in data[0]:
-                            reply = data[0]["generated_text"].strip()
+                        if isinstance(data[0], dict) and "generated_text" in data[0]:
+                            reply = data[0]["generated_text"]
+                        elif isinstance(data[0], str):
+                            reply = data[0]
                         else:
-                            reply = str(data[0]).strip()
+                            reply = str(data[0])
                     elif isinstance(data, dict) and "generated_text" in data:
-                        reply = data["generated_text"].strip()
+                        reply = data["generated_text"]
                     else:
-                        reply = str(data).strip()
+                        reply = str(data)
                     
                     # Clean up the response
+                    reply = reply.strip()
+                    
+                    # Remove the input prompt if it's included
+                    if full_prompt in reply:
+                        reply = reply.replace(full_prompt, "").strip()
+                    
+                    # Extract just Paula's response
                     if "Paula:" in reply:
-                        reply = reply.split("Paula:")[-1].strip()
+                        parts = reply.split("Paula:")
+                        if len(parts) > 1:
+                            reply = parts[-1].strip()
+                    
+                    # If reply is too short, add a default
+                    if len(reply) < 10:
+                        reply = "Mi hear yuh. Tell mi more about how yuh feeling."
                     
                     # Add footer
                     footer = """Need extra support?
@@ -200,30 +240,60 @@ If you're in immediate danger, please contact emergency services (119) or go to 
                     
                     return reply
                     
-                elif response.status_code == 404:
-                    logger.warning(f"⏳ Model {model} not found, trying next...")
-                    continue
                 elif response.status_code == 503:
-                    logger.warning(f"⏳ Model {model} loading, trying next...")
+                    logger.warning(f"⏳ Model {model['name']} loading, trying next...")
                     continue
                 else:
-                    logger.warning(f"⚠️ Model {model} returned {response.status_code}, trying next...")
+                    logger.warning(f"⚠️ Model {model['name']} returned {response.status_code}, trying next...")
                     continue
                     
+            except requests.exceptions.Timeout:
+                logger.warning(f"⏰ Timeout with model {model['name']}, trying next...")
+                continue
             except Exception as e:
-                logger.warning(f"⚠️ Error with model {model}: {str(e)[:50]}")
+                logger.warning(f"⚠️ Error with model {model['name']}: {str(e)[:50]}")
                 continue
         
-        # If all models fail
+        # If all models fail, try one more time with a simpler prompt
+        try:
+            logger.info("📡 Trying fallback with simple prompt...")
+            simple_prompt = f"User: {prompt}\nPaula (Jamaican assistant):"
+            
+            fallback_payload = {
+                "inputs": simple_prompt,
+                "parameters": {
+                    "max_new_tokens": 100,
+                    "temperature": 0.8
+                }
+            }
+            
+            response = requests.post(
+                "https://api-inference.huggingface.co/models/gpt2",
+                headers=headers,
+                json=fallback_payload,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list) and len(data) > 0:
+                    reply = data[0].get("generated_text", "").strip()
+                    if "Paula:" in reply:
+                        reply = reply.split("Paula:")[-1].strip()
+                    return f"{reply}\n\n{footer}"
+        except:
+            pass
+        
+        # Final fallback
         logger.error("❌ All models failed")
-        return """Mi having trouble connecting to my brain right now. Can yuh try again in a minute?
-
-Need extra support?
+        footer = """Need extra support?
 If you're in Jamaica and feel like you need to talk to someone:
 • Mental Health & Suicide Prevention Helpline: 888-NEW-LIFE
 • Your nearest public hospital or health centre
 • A trusted family member, friend, or community leader
 If you're in immediate danger, please contact emergency services (119) or go to the nearest hospital."""
+        
+        return f"Mi having trouble connecting to my brain right now. Can yuh try again in a minute?\n\n{footer}"
 
     except Exception as e:
         logger.error(f"❌ HF ERROR: {str(e)}", exc_info=True)
