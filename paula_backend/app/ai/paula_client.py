@@ -45,8 +45,16 @@ def is_blocked_topic(text):
     text = text.lower()
     return any(topic in text for topic in BLOCKED_TOPICS)
 
-# Model to use
-MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta"
+# ============================================
+# TRY THESE MODELS IN ORDER (one will work)
+# ============================================
+MODELS_TO_TRY = [
+    "microsoft/DialoGPT-medium",        # Good for conversation
+    "gpt2",                              # Simple, always works
+    "distilgpt2",                         # Smaller, faster
+    "EleutherAI/gpt-neo-125M",            # Alternative
+    "facebook/blenderbot-400M-distill"    # Good for chat
+]
 
 # ============================================
 # PAULA'S SYSTEM PROMPT - Complete prompt
@@ -135,8 +143,6 @@ def ask_paula(prompt, history):
         else:
             full_prompt = f"{SYSTEM_PROMPT}\n\nUser: {prompt}\nPaula:"
 
-        # Use the new router endpoint with direct requests
-        API_URL = f"https://router.huggingface.co/hf-inference/models/{MODEL_NAME}"
         headers = {
             "Authorization": f"Bearer {HF_TOKEN}",
             "Content-Type": "application/json"
@@ -153,51 +159,72 @@ def ask_paula(prompt, history):
             }
         }
 
-        logger.info(f"📡 Sending to Hugging Face with model: {MODEL_NAME}")
-        
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
-        
-        if response.status_code == 200:
-            data = response.json()
-            logger.info(f"✅ Received response")
-            
-            # Handle different response formats
-            if isinstance(data, list) and len(data) > 0:
-                if "generated_text" in data[0]:
-                    reply = data[0]["generated_text"].strip()
-                else:
-                    reply = str(data[0]).strip()
-            elif isinstance(data, dict) and "generated_text" in data:
-                reply = data["generated_text"].strip()
-            else:
-                reply = str(data).strip()
+        # Try each model until one works
+        for model in MODELS_TO_TRY:
+            try:
+                # Use the new router endpoint
+                API_URL = f"https://router.huggingface.co/hf-inference/models/{model}"
+                logger.info(f"📡 Trying model: {model}")
                 
-        elif response.status_code == 503:
-            logger.warning("⏳ Model is loading...")
-            return "Paula warming up - try again in a few seconds!"
-        else:
-            logger.error(f"❌ API Error: {response.status_code} - {response.text}")
-            return "Mi having trouble right now. Try again in a likkle bit."
-
-        # Add footer if not already present
-        footer = """Need extra support?
+                response = requests.post(API_URL, headers=headers, json=payload, timeout=10)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    logger.info(f"✅ Success with model: {model}")
+                    
+                    # Handle different response formats
+                    if isinstance(data, list) and len(data) > 0:
+                        if "generated_text" in data[0]:
+                            reply = data[0]["generated_text"].strip()
+                        else:
+                            reply = str(data[0]).strip()
+                    elif isinstance(data, dict) and "generated_text" in data:
+                        reply = data["generated_text"].strip()
+                    else:
+                        reply = str(data).strip()
+                    
+                    # Clean up the response
+                    if "Paula:" in reply:
+                        reply = reply.split("Paula:")[-1].strip()
+                    
+                    # Add footer
+                    footer = """Need extra support?
 If you're in Jamaica and feel like you need to talk to someone:
 • Mental Health & Suicide Prevention Helpline: 888-NEW-LIFE
 • Your nearest public hospital or health centre
 • A trusted family member, friend, or community leader
 If you're in immediate danger, please contact emergency services (119) or go to the nearest hospital."""
 
-        if "888-NEW-LIFE" not in reply and "119" not in reply:
-            reply = f"{reply}\n\n{footer}"
+                    if "888-NEW-LIFE" not in reply and "119" not in reply:
+                        reply = f"{reply}\n\n{footer}"
+                    
+                    return reply
+                    
+                elif response.status_code == 404:
+                    logger.warning(f"⏳ Model {model} not found, trying next...")
+                    continue
+                elif response.status_code == 503:
+                    logger.warning(f"⏳ Model {model} loading, trying next...")
+                    continue
+                else:
+                    logger.warning(f"⚠️ Model {model} returned {response.status_code}, trying next...")
+                    continue
+                    
+            except Exception as e:
+                logger.warning(f"⚠️ Error with model {model}: {str(e)[:50]}")
+                continue
+        
+        # If all models fail
+        logger.error("❌ All models failed")
+        return """Mi having trouble connecting to my brain right now. Can yuh try again in a minute?
 
-        return reply
+Need extra support?
+If you're in Jamaica and feel like you need to talk to someone:
+• Mental Health & Suicide Prevention Helpline: 888-NEW-LIFE
+• Your nearest public hospital or health centre
+• A trusted family member, friend, or community leader
+If you're in immediate danger, please contact emergency services (119) or go to the nearest hospital."""
 
-    except requests.exceptions.Timeout:
-        logger.error("⏰ Request timed out")
-        return "Mi thinking too long - try again?"
-    except requests.exceptions.ConnectionError:
-        logger.error("🔌 Connection error")
-        return "Mi can't reach my brain right now. Check internet?"
     except Exception as e:
         logger.error(f"❌ HF ERROR: {str(e)}", exc_info=True)
         return "Mi having trouble right now. Try again in a likkle bit."
