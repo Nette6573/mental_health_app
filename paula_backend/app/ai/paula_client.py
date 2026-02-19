@@ -1,20 +1,58 @@
 # app/ai/paula_client.py
-import requests
+
 import logging
+from huggingface_hub import InferenceClient
 from app.config import HF_TOKEN
 
 logger = logging.getLogger(__name__)
 
-# Working Hugging Face endpoint
-API_URL = "https://api-inference.huggingface.co/models/gpt2"
+if not HF_TOKEN:
+    raise ValueError("HF_TOKEN is missing")
 
-headers = {
-    "Authorization": f"Bearer {HF_TOKEN}",
-    "Content-Type": "application/json"
-}
+# Use HuggingFace official inference client
+client = InferenceClient(token=HF_TOKEN)
+
+HIGH_RISK_KEYWORDS = [
+    "suicide", "kill myself", "end my life",
+    "don't want to live", "self harm",
+    "cut myself", "hang myself", "overdose",
+    "no reason to live"
+]
+
+# Crisis response template
+CRISIS_TEMPLATE = """Mi hear seh yuh going through something serious right now 💛.
+
+Mi need to be clear with yuh: I'm an AI assistant, not a crisis service. But yuh matter, and yuh deserve real support right now.
+
+Please reach out immediately to someone who can help:
+• Crisis Hotline: 888-ONE-LOVE (666-5683)
+• Mental Health Emergency: 876-619-1234
+• Suicide Prevention: 888-554-HELP (4357)
+• Emergency Services: 119
+
+Yuh not alone in this. Please talk to someone right now."""
+
+# Blocked topics
+BLOCKED_TOPICS = ["crypto", "stock market", "code", "politics", "bitcoin", "programming", "investment"]
+
+# Fallback message
+FALLBACK_MESSAGE = """I'm here to support emotional well-being and mental health. I might not be the best person to help with that, but if what you're dealing with feels stressful or overwhelming, I'm here to listen and help you find support."""
+
+def is_high_risk(text):
+    """Check if message contains high-risk keywords"""
+    text = text.lower()
+    return any(phrase in text for phrase in HIGH_RISK_KEYWORDS)
+
+def is_blocked_topic(text):
+    """Check if message is about blocked topics"""
+    text = text.lower()
+    return any(topic in text for topic in BLOCKED_TOPICS)
+
+# More stable instruction-tuned model
+MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta"
 
 # ============================================
-# PAULA'S SYSTEM PROMPT - Your complete prompt
+# PAULA'S SYSTEM PROMPT - Complete prompt
 # ============================================
 SYSTEM_PROMPT = """You are PAULA (Peace-Centered Assistant for Upliftment, Learning & Awareness), a mental health support agent for the general public in Jamaica.
 
@@ -69,103 +107,69 @@ If you're in immediate danger, please contact emergency services (119) or go to 
 
 --- FALLBACK ---
 If the user asks something outside your role:
-"I'm here to support emotional well-being and mental health. I might not be the best person to help with that, but if what you're dealing with feels stressful or overwhelming, I'm here to listen and help you find support."""
+"I'm here to support emotional well-being and mental health. I might not be the best person to help with that, but if what you're dealing with feels stressful or overwhelming, I'm here to listen and help you find support." """
 
 def ask_paula(prompt, history):
     try:
         logger.info(f"🤔 Paula thinking about: {prompt[:50]}...")
-        
-        if not HF_TOKEN:
-            logger.error("❌ HF_TOKEN is missing")
-            return "Mi need to connect to my brain first. Check back soon!"
 
-        # Format conversation history
-        conversation = ""
-        if history and len(history) > 0:
-            # Get last few messages for context
-            recent = history[-6:] if len(history) > 6 else history
+        # Check for high-risk content FIRST
+        if is_high_risk(prompt):
+            logger.warning("⚠️ High-risk content detected")
+            return CRISIS_TEMPLATE
+
+        # Check for blocked topics
+        if is_blocked_topic(prompt):
+            logger.info("🚫 Blocked topic detected")
+            return FALLBACK_MESSAGE
+
+        # Build structured chat messages
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT}
+        ]
+
+        # Add conversation history (last 6 messages)
+        if history:
+            recent = history[-6:]
             for msg in recent:
-                role = "User" if msg.get("sender") == "user" else "Paula"
-                content = msg.get("text", "")
-                conversation += f"{role}: {content}\n"
+                role = "user" if msg.get("sender") == "user" else "assistant"
+                messages.append({
+                    "role": role,
+                    "content": msg.get("text", "")
+                })
 
-        # Construct the full prompt with system instructions and conversation
-        if conversation:
-            full_prompt = f"{SYSTEM_PROMPT}\n\n{conversation}User: {prompt}\nPaula:"
-        else:
-            full_prompt = f"{SYSTEM_PROMPT}\n\nUser: {prompt}\nPaula:"
+        # Add current user message
+        messages.append({
+            "role": "user",
+            "content": prompt
+        })
 
-        payload = {
-            "inputs": full_prompt,
-            "parameters": {
-                "max_new_tokens": 200,
-                "temperature": 0.7,
-                "top_p": 0.9,
-                "do_sample": True,
-                "return_full_text": False
-            }
-        }
+        logger.info(f"📡 Sending to Hugging Face with model: {MODEL_NAME}")
 
-        logger.info(f"📡 Sending to Hugging Face...")
-        
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
-        logger.info(f"📡 Response status: {response.status_code}")
+        # Call HuggingFace Inference API (chat style)
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=messages,
+            max_tokens=300,
+            temperature=0.7,
+        )
 
-        if response.status_code == 200:
-            data = response.json()
-            logger.info(f"✅ Success!")
-            
-            # Extract response text
-            if isinstance(data, list) and len(data) > 0:
-                if "generated_text" in data[0]:
-                    text = data[0]["generated_text"]
-                else:
-                    text = str(data[0])
-            else:
-                text = str(data)
-            
-            # Clean up the response
-            text = text.replace(full_prompt, "").strip()
-            
-            # Ensure Paula's response doesn't include the system prompt
-            if "Paula:" in text:
-                text = text.split("Paula:")[-1].strip()
-            
-            # Remove any remaining system prompt fragments
-            if "---" in text:
-                text = text.split("---")[0].strip()
-            
-            # Ensure the footer is included if not already there
-            footer = """Need extra support?
-If you're in Jamaica and feel like you need to talk to someone:
-• Mental Health & Suicide Prevention Helpline: 888-NEW-LIFE
-• Your nearest public hospital or health centre
-• A trusted family member, friend, or community leader
-If you're in immediate danger, please contact emergency services (119) or go to the nearest hospital."""
-            
-            # Add footer if not present and this isn't a crisis response
-            if footer not in text and "119" not in text:
-                text = f"{text}\n\n{footer}"
-            
-            return text
-            
-        elif response.status_code == 503:
-            logger.warning("⏳ Model loading...")
-            return "Paula warming up - try again in a few seconds!"
-        else:
-            logger.error(f"❌ API Error: {response.status_code}")
-            return """Mi having trouble right now. Can yuh try again?
+        reply = response.choices[0].message.content.strip()
+        logger.info(f"✅ Received response: {reply[:50]}...")
 
-Need extra support?
+        # Add footer if not already present
+        footer = """Need extra support?
 If you're in Jamaica and feel like you need to talk to someone:
 • Mental Health & Suicide Prevention Helpline: 888-NEW-LIFE
 • Your nearest public hospital or health centre
 • A trusted family member, friend, or community leader
 If you're in immediate danger, please contact emergency services (119) or go to the nearest hospital."""
 
-    except requests.exceptions.Timeout:
-        logger.error("❌ Request timed out")
-        return "Mi thinking too long - try again?"
+        if "888-NEW-LIFE" not in reply and "119" not in reply:
+            reply = f"{reply}\n\n{footer}"
+
+        return reply
+
     except Exception as e:
-        logger.error(f"❌ Unexpected error: {str(e)}", exc_info=True)
-        return "Something went wrong. Please try again."
+        logger.error(f"❌ HF ERROR: {str(e)}", exc_info=True)
+        return "Mi having trouble right now. Try again in a likkle bit."
