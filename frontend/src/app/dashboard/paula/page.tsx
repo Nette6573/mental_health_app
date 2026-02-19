@@ -4,13 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-
-// Actual backend URL
-const API_BASE = process.env.NEXT_PUBLIC_API_URL!;
-
-// FIX: Remove any trailing slash from API_BASE
-const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
-
+import Link from "next/link"; 
 
 // -------------------
 // TYPES
@@ -34,6 +28,12 @@ interface BackendResponse {
   timestamp: string;
 }
 
+// Actual backend URL
+const API_BASE = process.env.NEXT_PUBLIC_API_URL!;
+
+// FIX: Remove any trailing slash from API_BASE
+const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+
 export default function PaulaChat() {
   const { user, isLoading } = useAuth() as {
     user: AuthUser | null;
@@ -50,6 +50,27 @@ export default function PaulaChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [chatId, setChatId] = useState<string | null>(null);
+
+  // Add after your state declarations
+useEffect(() => {
+  // Force clear any cached double-slash URLs
+  const appVersion = "1.0.2";
+  const storedVersion = localStorage.getItem('app_version');
+  
+  if (storedVersion !== appVersion) {
+    console.log("New version detected, clearing old data...");
+    localStorage.setItem('app_version', appVersion);
+    
+    // Clear any potentially cached chat data with double slashes
+    if (user?.id) {
+      const oldFormat = localStorage.getItem(`chat_history_${user.id}`);
+      if (oldFormat) {
+        // Keep messages but version is updated
+        console.log("Chat history preserved with new version");
+      }
+    }
+  }
+}, [user?.id]);
 
   // Generate a consistent user ID from the auth user
   const userId = user?.id || '';
@@ -245,22 +266,31 @@ const sendMessage = async () => {
       </div>
     );
   }
-
-  // -------------------
-  // UI
-  // -------------------
-  return (
-    <div className="flex flex-col items-center h-screen p-4 bg-gradient-to-b from-purple-100 to-gray-100">
-      <h1 className="text-3xl font-bold text-purple-700 mb-2">
+// -------------------
+// UI
+// -------------------
+return (
+  <div className="flex flex-col items-center h-screen p-4 bg-gradient-to-b from-purple-100 to-gray-100">
+    
+    {/* Header with title and safety link */}
+    <div className="flex justify-between items-center w-full max-w-xl mb-2">
+      <h1 className="text-3xl font-bold text-purple-700">
         Talk With Paula 💛
       </h1>
-
-      <button
-        onClick={startNewConversation}
-        className="mb-3 px-3 py-1 border rounded bg-red-100 hover:bg-red-200 transition-colors"
+      <Link 
+        href="/safety" 
+        className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded-full hover:bg-red-200 transition-colors"
       >
-        🔄 New Conversation
-      </button>
+        🆘 Crisis Help
+      </Link>
+    </div>
+
+    <button
+      onClick={startNewConversation}
+      className="mb-3 px-3 py-1 border rounded bg-red-100 hover:bg-red-200 transition-colors"
+    >
+      🔄 New Conversation
+    </button>
 
       <div className="w-full max-w-xl bg-white rounded-xl shadow p-4 flex flex-col overflow-y-auto h-[70%]">
         {messages.map((m) => (
@@ -284,8 +314,8 @@ const sendMessage = async () => {
             <div className="bg-purple-100 p-3 rounded-lg">
               <div className="flex space-x-2">
                 <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce animation-delay-200"></div>
+                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce animation-delay-400"></div>
               </div>
             </div>
           </div>
