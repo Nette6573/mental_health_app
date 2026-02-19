@@ -1,19 +1,13 @@
 # app/ai/paula_client.py
 
 import logging
-from huggingface_hub import InferenceClient
+import requests
 from app.config import HF_TOKEN
 
 logger = logging.getLogger(__name__)
 
 if not HF_TOKEN:
     raise ValueError("HF_TOKEN is missing")
-
-# Use HuggingFace official inference client with the new endpoint
-client = InferenceClient(
-    token=HF_TOKEN,
-    base_url="https://router.huggingface.co/hf-inference"  # Updated endpoint
-)
 
 HIGH_RISK_KEYWORDS = [
     "suicide", "kill myself", "end my life",
@@ -51,7 +45,7 @@ def is_blocked_topic(text):
     text = text.lower()
     return any(topic in text for topic in BLOCKED_TOPICS)
 
-# More stable instruction-tuned model
+# Model to use
 MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta"
 
 # ============================================
@@ -141,28 +135,49 @@ def ask_paula(prompt, history):
         else:
             full_prompt = f"{SYSTEM_PROMPT}\n\nUser: {prompt}\nPaula:"
 
+        # Use the new router endpoint with direct requests
+        API_URL = f"https://router.huggingface.co/hf-inference/models/{MODEL_NAME}"
+        headers = {
+            "Authorization": f"Bearer {HF_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "inputs": full_prompt,
+            "parameters": {
+                "max_new_tokens": 300,
+                "temperature": 0.7,
+                "do_sample": True,
+                "top_p": 0.95,
+                "return_full_text": False
+            }
+        }
+
         logger.info(f"📡 Sending to Hugging Face with model: {MODEL_NAME}")
-
-        # Call HuggingFace Inference API using text_generation
-        response = client.text_generation(
-            prompt=full_prompt,
-            model=MODEL_NAME,
-            max_new_tokens=300,
-            temperature=0.7,
-            do_sample=True,
-            top_p=0.95,
-            repetition_penalty=1.1
-        )
-
-        logger.info(f"✅ Received response: {str(response)[:50]}...")
-
-        # Handle different response formats
-        if isinstance(response, str):
-            reply = response.strip()
-        elif hasattr(response, 'generated_text'):
-            reply = response.generated_text.strip()
+        
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            logger.info(f"✅ Received response")
+            
+            # Handle different response formats
+            if isinstance(data, list) and len(data) > 0:
+                if "generated_text" in data[0]:
+                    reply = data[0]["generated_text"].strip()
+                else:
+                    reply = str(data[0]).strip()
+            elif isinstance(data, dict) and "generated_text" in data:
+                reply = data["generated_text"].strip()
+            else:
+                reply = str(data).strip()
+                
+        elif response.status_code == 503:
+            logger.warning("⏳ Model is loading...")
+            return "Paula warming up - try again in a few seconds!"
         else:
-            reply = str(response).strip()
+            logger.error(f"❌ API Error: {response.status_code} - {response.text}")
+            return "Mi having trouble right now. Try again in a likkle bit."
 
         # Add footer if not already present
         footer = """Need extra support?
@@ -177,6 +192,12 @@ If you're in immediate danger, please contact emergency services (119) or go to 
 
         return reply
 
+    except requests.exceptions.Timeout:
+        logger.error("⏰ Request timed out")
+        return "Mi thinking too long - try again?"
+    except requests.exceptions.ConnectionError:
+        logger.error("🔌 Connection error")
+        return "Mi can't reach my brain right now. Check internet?"
     except Exception as e:
         logger.error(f"❌ HF ERROR: {str(e)}", exc_info=True)
         return "Mi having trouble right now. Try again in a likkle bit."
