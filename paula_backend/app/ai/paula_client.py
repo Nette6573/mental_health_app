@@ -9,8 +9,11 @@ logger = logging.getLogger(__name__)
 if not HF_TOKEN:
     raise ValueError("HF_TOKEN is missing")
 
-# Use HuggingFace official inference client
-client = InferenceClient(token=HF_TOKEN)
+# Use HuggingFace official inference client with the new endpoint
+client = InferenceClient(
+    token=HF_TOKEN,
+    base_url="https://router.huggingface.co/hf-inference"  # Updated endpoint
+)
 
 HIGH_RISK_KEYWORDS = [
     "suicide", "kill myself", "end my life",
