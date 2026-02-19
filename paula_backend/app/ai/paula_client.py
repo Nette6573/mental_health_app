@@ -123,39 +123,43 @@ def ask_paula(prompt, history):
             logger.info("🚫 Blocked topic detected")
             return FALLBACK_MESSAGE
 
-        # Build structured chat messages
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT}
-        ]
-
-        # Add conversation history (last 6 messages)
+        # Build the conversation prompt
+        conversation = ""
         if history:
             recent = history[-6:]
             for msg in recent:
-                role = "user" if msg.get("sender") == "user" else "assistant"
-                messages.append({
-                    "role": role,
-                    "content": msg.get("text", "")
-                })
+                role = "User" if msg.get("sender") == "user" else "Paula"
+                content = msg.get("text", "")
+                conversation += f"{role}: {content}\n"
 
-        # Add current user message
-        messages.append({
-            "role": "user",
-            "content": prompt
-        })
+        # Construct the full prompt with system instructions
+        if conversation:
+            full_prompt = f"{SYSTEM_PROMPT}\n\n{conversation}User: {prompt}\nPaula:"
+        else:
+            full_prompt = f"{SYSTEM_PROMPT}\n\nUser: {prompt}\nPaula:"
 
         logger.info(f"📡 Sending to Hugging Face with model: {MODEL_NAME}")
 
-        # Call HuggingFace Inference API (chat style)
-        response = client.chat.completions.create(
+        # Call HuggingFace Inference API using text_generation
+        response = client.text_generation(
+            prompt=full_prompt,
             model=MODEL_NAME,
-            messages=messages,
-            max_tokens=300,
+            max_new_tokens=300,
             temperature=0.7,
+            do_sample=True,
+            top_p=0.95,
+            repetition_penalty=1.1
         )
 
-        reply = response.choices[0].message.content.strip()
-        logger.info(f"✅ Received response: {reply[:50]}...")
+        logger.info(f"✅ Received response: {str(response)[:50]}...")
+
+        # Handle different response formats
+        if isinstance(response, str):
+            reply = response.strip()
+        elif hasattr(response, 'generated_text'):
+            reply = response.generated_text.strip()
+        else:
+            reply = str(response).strip()
 
         # Add footer if not already present
         footer = """Need extra support?
