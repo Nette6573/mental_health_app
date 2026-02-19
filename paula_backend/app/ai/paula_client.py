@@ -46,29 +46,21 @@ def is_blocked_topic(text):
     return any(topic in text for topic in BLOCKED_TOPICS)
 
 # ============================================
-# CORRECT HUGGING FACE API ENDPOINTS
+# HUGGING FACE INFERENCE API (NEW ROUTER)
 # ============================================
-# Using the standard inference API (works with all public models)
+# Using the new router endpoint that actually works
 MODELS_TO_TRY = [
     {
         "name": "microsoft/DialoGPT-medium",
-        "url": "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
+        "url": "https://router.huggingface.co/hf-inference/models/microsoft/DialoGPT-medium"
     },
     {
         "name": "gpt2",
-        "url": "https://api-inference.huggingface.co/models/gpt2"
+        "url": "https://router.huggingface.co/hf-inference/models/gpt2"
     },
     {
-        "name": "distilgpt2",
-        "url": "https://api-inference.huggingface.co/models/distilgpt2"
-    },
-    {
-        "name": "EleutherAI/gpt-neo-125M",
-        "url": "https://api-inference.huggingface.co/models/EleutherAI/gpt-neo-125M"
-    },
-    {
-        "name": "facebook/blenderbot-400M-distill",
-        "url": "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill"
+        "name": "google/flan-t5-base",
+        "url": "https://router.huggingface.co/hf-inference/models/google/flan-t5-base"
     }
 ]
 
@@ -164,16 +156,14 @@ def ask_paula(prompt, history):
             "Content-Type": "application/json"
         }
         
-        # For text generation models, use this payload format
+        # For text generation models
         payload = {
             "inputs": full_prompt,
             "parameters": {
-                "max_length": 500,
-                "max_new_tokens": 300,
+                "max_new_tokens": 200,
                 "temperature": 0.7,
-                "do_sample": True,
                 "top_p": 0.95,
-                "repetition_penalty": 1.1,
+                "do_sample": True,
                 "return_full_text": False
             }
         }
@@ -196,13 +186,11 @@ def ask_paula(prompt, history):
                     data = response.json()
                     logger.info(f"✅ Success with model: {model['name']}")
                     
-                    # Handle different response formats
+                    # Extract response
                     reply = ""
                     if isinstance(data, list) and len(data) > 0:
                         if isinstance(data[0], dict) and "generated_text" in data[0]:
                             reply = data[0]["generated_text"]
-                        elif isinstance(data[0], str):
-                            reply = data[0]
                         else:
                             reply = str(data[0])
                     elif isinstance(data, dict) and "generated_text" in data:
@@ -210,22 +198,18 @@ def ask_paula(prompt, history):
                     else:
                         reply = str(data)
                     
-                    # Clean up the response
+                    # Clean up response
                     reply = reply.strip()
                     
-                    # Remove the input prompt if it's included
-                    if full_prompt in reply:
-                        reply = reply.replace(full_prompt, "").strip()
-                    
-                    # Extract just Paula's response
+                    # Extract Paula's response
                     if "Paula:" in reply:
                         parts = reply.split("Paula:")
                         if len(parts) > 1:
                             reply = parts[-1].strip()
                     
-                    # If reply is too short, add a default
-                    if len(reply) < 10:
-                        reply = "Mi hear yuh. Tell mi more about how yuh feeling."
+                    # Add Jamaican flavor if response is too generic
+                    if len(reply) < 20:
+                        reply = f"Mi hear yuh. {reply}"
                     
                     # Add footer
                     footer = """Need extra support?
@@ -235,7 +219,7 @@ If you're in Jamaica and feel like you need to talk to someone:
 • A trusted family member, friend, or community leader
 If you're in immediate danger, please contact emergency services (119) or go to the nearest hospital."""
 
-                    if "888-NEW-LIFE" not in reply and "119" not in reply:
+                    if "888-NEW-LIFE" not in reply:
                         reply = f"{reply}\n\n{footer}"
                     
                     return reply
@@ -247,45 +231,22 @@ If you're in immediate danger, please contact emergency services (119) or go to 
                     logger.warning(f"⚠️ Model {model['name']} returned {response.status_code}, trying next...")
                     continue
                     
-            except requests.exceptions.Timeout:
-                logger.warning(f"⏰ Timeout with model {model['name']}, trying next...")
-                continue
             except Exception as e:
                 logger.warning(f"⚠️ Error with model {model['name']}: {str(e)[:50]}")
                 continue
         
-        # If all models fail, try one more time with a simpler prompt
-        try:
-            logger.info("📡 Trying fallback with simple prompt...")
-            simple_prompt = f"User: {prompt}\nPaula (Jamaican assistant):"
-            
-            fallback_payload = {
-                "inputs": simple_prompt,
-                "parameters": {
-                    "max_new_tokens": 100,
-                    "temperature": 0.8
-                }
-            }
-            
-            response = requests.post(
-                "https://api-inference.huggingface.co/models/gpt2",
-                headers=headers,
-                json=fallback_payload,
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                if isinstance(data, list) and len(data) > 0:
-                    reply = data[0].get("generated_text", "").strip()
-                    if "Paula:" in reply:
-                        reply = reply.split("Paula:")[-1].strip()
-                    return f"{reply}\n\n{footer}"
-        except:
-            pass
+        # Final fallback with hardcoded responses
+        logger.warning("⚠️ Using fallback response")
+        fallback_responses = [
+            "Mi hear yuh. Tell mi more about how yuh feeling.",
+            "Mi understand. That must be tough. What else is on yuh mind?",
+            "Mi here fi yuh. Would yuh like to talk more about it?",
+            "Mi hear yuh. How long have yuh been feeling this way?",
+            "Mi understand. Have yuh talked to anyone else about this?"
+        ]
+        import random
+        reply = random.choice(fallback_responses)
         
-        # Final fallback
-        logger.error("❌ All models failed")
         footer = """Need extra support?
 If you're in Jamaica and feel like you need to talk to someone:
 • Mental Health & Suicide Prevention Helpline: 888-NEW-LIFE
@@ -293,7 +254,7 @@ If you're in Jamaica and feel like you need to talk to someone:
 • A trusted family member, friend, or community leader
 If you're in immediate danger, please contact emergency services (119) or go to the nearest hospital."""
         
-        return f"Mi having trouble connecting to my brain right now. Can yuh try again in a minute?\n\n{footer}"
+        return f"{reply}\n\n{footer}"
 
     except Exception as e:
         logger.error(f"❌ HF ERROR: {str(e)}", exc_info=True)
