@@ -129,7 +129,15 @@ Keep responses supportive, clear, and culturally appropriate.
 
 
 # --- PUBLIC FUNCTION USED BY ROUTES ---
-_paula_client = PaulaClient()
+_paula_client = None
 
-def ask_paula(user_message: str, messages: List[Dict] = None) -> str:
-    return _paula_client.generate_response(user_message, messages)
+def ask_paula(user_message: str, chat_history=None) -> str:
+    global _paula_client
+
+    if _paula_client is None:
+        try:
+            _paula_client = PaulaClient()
+        except Exception as e:
+            return "Paula is temporarily unavailable. Please try again shortly."
+
+    return _paula_client.generate_response(user_message)
