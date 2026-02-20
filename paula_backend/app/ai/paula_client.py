@@ -1,10 +1,13 @@
+# app/ai/paula_client.py
+
 import os
 import requests
 import json
-from typing import Optional
+from typing import List, Dict
 
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 MODEL_ID = "meta-llama/Meta-Llama-3-8B-Instruct"
+
 
 CRISIS_KEYWORDS = [
     "kill myself",
@@ -18,8 +21,12 @@ CRISIS_KEYWORDS = [
     "hang myself"
 ]
 
+
 class PaulaClient:
     def __init__(self, model: str = MODEL_ID):
+        if not HF_API_TOKEN:
+            raise ValueError("HF_API_TOKEN not set.")
+
         self.model = model
         self.endpoint = f"https://api-inference.huggingface.co/models/{model}"
         self.headers = {
@@ -30,18 +37,16 @@ class PaulaClient:
     def generate_response(
         self,
         user_message: str,
+        conversation_history: List[Dict] = None,
         max_tokens: int = 512,
         temperature: float = 0.7
     ) -> str:
 
-        if not HF_API_TOKEN:
-            raise ValueError("HF_API_TOKEN not set.")
-
-        # 🔴 Crisis Detection Before Model Call
+        # Crisis detection BEFORE model call
         if self._is_crisis(user_message):
             return self._crisis_response()
 
-        prompt = self._format_prompt(user_message)
+        prompt = self._format_prompt(user_message, conversation_history)
 
         payload = {
             "inputs": prompt,
@@ -52,28 +57,24 @@ class PaulaClient:
             }
         }
 
-        try:
-            response = requests.post(
-                self.endpoint,
-                headers=self.headers,
-                data=json.dumps(payload),
-                timeout=60
-            )
+        response = requests.post(
+            self.endpoint,
+            headers=self.headers,
+            data=json.dumps(payload),
+            timeout=60
+        )
 
-            if response.status_code != 200:
-                raise Exception(response.text)
+        if response.status_code != 200:
+            raise Exception(f"HuggingFace API error: {response.text}")
 
-            result = response.json()
+        result = response.json()
 
-            if isinstance(result, list) and len(result) > 0:
-                return result[0]["generated_text"].strip()
+        if isinstance(result, list) and len(result) > 0:
+            return result[0]["generated_text"].strip()
 
-            return "I'm here with you. Could you tell me a little more about what you're feeling?"
+        return "I'm here with you. Could you tell me a little more about what you're feeling?"
 
-        except Exception:
-            return "I'm having trouble responding right now. Please try again."
-
-    def _format_prompt(self, user_message: str) -> str:
+    def _format_prompt(self, user_message: str, history: List[Dict]) -> str:
         system_prompt = """
 You are Paula, a calm and compassionate emotional support assistant serving users in Jamaica.
 
@@ -88,17 +89,25 @@ If a user expresses emotional distress:
 If a user expresses suicidal intent:
 - Encourage calling 119 if in immediate danger.
 - Encourage contacting Jamaica Mental Health & Suicide Prevention Helpline: 888-NEW-LIFE (639-5433).
-- Encourage visiting the in-app Safety page.
 - Encourage reaching out to a trusted person nearby.
 
 Do not provide instructions for self-harm.
 Keep responses supportive, clear, and culturally appropriate.
 """
 
+        formatted_history = ""
+
+        if history:
+            for message in history[-6:]:  # limit memory
+                role = message.get("role")
+                content = message.get("content")
+                formatted_history += f"<|start_header_id|>{role}<|end_header_id|>\n{content}\n<|eot_id|>\n"
+
         return f"""<|begin_of_text|>
 <|start_header_id|>system<|end_header_id|>
 {system_prompt}
 <|eot_id|>
+{formatted_history}
 <|start_header_id|>user<|end_header_id|>
 {user_message}
 <|eot_id|>
@@ -115,6 +124,12 @@ Keep responses supportive, clear, and culturally appropriate.
             "If you're in immediate danger, please call 119 right now.\n\n"
             "You can also contact the Jamaica Mental Health & Suicide Prevention Helpline:\n"
             "📞 888-NEW-LIFE (639-5433) — available 24/7 nationwide.\n\n"
-            "You can visit the Safety page in this app for local hospitals and mental health services.\n\n"
             "If possible, please reach out to someone you trust and let them know how you're feeling."
         )
+
+
+# --- PUBLIC FUNCTION USED BY ROUTES ---
+_paula_client = PaulaClient()
+
+def ask_paula(user_message: str, messages: List[Dict] = None) -> str:
+    return _paula_client.generate_response(user_message, messages)
