@@ -28,7 +28,7 @@ class PaulaClient:
             raise ValueError("HF_API_TOKEN not set.")
 
         self.model = model
-        self.endpoint = f"https://api-inference.huggingface.co/models/{model}"
+        self.endpoint = f"https://router.huggingface.co/hf-inference/models/{model}"
         self.headers = {
             "Authorization": f"Bearer {HF_API_TOKEN}",
             "Content-Type": "application/json"
