@@ -118,42 +118,56 @@ mental_health_app/
 
 ### Frontend Setup
 
-```bash
-cd frontend
-npm install
-npm run dev
-# Opens on http://localhost:3000
-Backend Setup
 bash
-cd paula_backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+
+- cd frontend
+- npm install
+- npm run dev
+
+# Opens on http://localhost:3000
+
+### Backend Setup
+
+bash
+
+- cd paula_backend
+- python -m venv venv
+- source venv/bin/activate # On Windows: venv\Scripts\activate
+- pip install -r requirements.txt
 
 # Create .env file with:
+
 # HF_TOKEN=your_huggingface_token
+
 # MONGO_URI=your_mongodb_connection_string
+
 # SECRET_KEY=your_secret_key
 
 uvicorn app.main:app --reload
+
 # API at http://localhost:8000
+
 # Docs at http://localhost:8000/docs
-🔑 Environment Variables
+
+## 🔑 Environment Variables
+
 Frontend (.env.local)
 env
-NEXT_PUBLIC_API_URL=https://your-backend.railway.app  # Railway URL in production
+NEXT_PUBLIC_API_URL=https://your-backend.railway.app # Railway URL in production
 Backend (.env)
 env
 HF_TOKEN=hf_your_huggingface_token
 MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/dbname
 SECRET_KEY=your_secret_key_here
 📡 API Endpoints
-Method	Endpoint	Description
-GET	/health	Health check
-POST	/api/send?user_id={id}&chat_id={optional}	Send message to Paula
-GET	/	Root welcome message
-GET	/docs	Swagger API documentation
-🚢 Deployment
+Method Endpoint Description
+GET /health Health check
+POST /api/send?user_id={id}&chat_id={optional} Send message to Paula
+GET / Root welcome message
+GET /docs Swagger API documentation
+
+## 🚢 Deployment
+
 Frontend (Cloudflare Pages)
 Push code to GitHub
 
@@ -180,7 +194,8 @@ Add environment variables in Railway dashboard
 
 Deploy automatically
 
-🤝 Contributing
+## 🤝 Contributing
+
 Fork the repository
 
 Create your feature branch (git checkout -b feature/AmazingFeature)
@@ -191,10 +206,12 @@ Push to branch (git push origin feature/AmazingFeature)
 
 Open a Pull Request
 
-📄 License
+## 📄 License
+
 This project is licensed under the MIT License.
 
-🙏 Acknowledgments
+## 🙏 Acknowledgments
+
 Medical Council of Jamaica
 
 Jamaica Psychological Society
@@ -207,10 +224,10 @@ Cloudflare for hosting and DNS services
 
 Namecheap for domain registration
 
-📞 Contact
+## 📞 Contact
+
 Project Link: https://github.com/Nette6573/mental_health_app
 
 Live Site: https://hopepath.online
 
 Built with ❤️ for Jamaica
-```
