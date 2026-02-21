@@ -101,7 +101,6 @@ mental_health_app/
 
 ## 💬 Paula AI Chat Features
 
-- 🇯🇲 **Jamaican Patois Understanding** - Trained to understand local dialect
 - 💾 **Conversation Memory** - Maintains chat history per user
 - 🔐 **User Authentication** - Secure login/signup
 - 📱 **Cross-Platform** - Works on web and mobile
@@ -118,93 +117,84 @@ mental_health_app/
 
 ### Frontend Setup
 
-bash
+```bash
 
-- cd frontend
-- npm install
-- npm run dev
-
-# Opens on http://localhost:3000
+cd frontend
+npm install
+ npm run dev
+# Opens on http://localhost:3000**
+```
 
 ### Backend Setup
 
-bash
+```bash
 
-- cd paula_backend
-- python -m venv venv
-- source venv/bin/activate # On Windows: venv\Scripts\activate
-- pip install -r requirements.txt
+cd paula_backend
+python -m venv venv
+source venv/bin/activate # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
 
 # Create .env file with:
-
 # HF_TOKEN=your_huggingface_token
-
 # MONGO_URI=your_mongodb_connection_string
-
 # SECRET_KEY=your_secret_key
 
 uvicorn app.main:app --reload
-
-# API at http://localhost:8000
-
-# Docs at http://localhost:8000/docs
+#API at http://localhost:8000**
+#Docs at http://localhost:8000/docs**
+```
 
 ## 🔑 Environment Variables
 
-Frontend (.env.local)
-env
-NEXT_PUBLIC_API_URL=https://your-backend.railway.app # Railway URL in production
-Backend (.env)
-env
-HF_TOKEN=hf_your_huggingface_token
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/dbname
-SECRET_KEY=your_secret_key_here
-📡 API Endpoints
-Method Endpoint Description
-GET /health Health check
-POST /api/send?user_id={id}&chat_id={optional} Send message to Paula
-GET / Root welcome message
-GET /docs Swagger API documentation
+### Frontend (.env.local)
+
+````env
+  NEXT_PUBLIC_API_URL=https://your-backend.railway.app # Railway URL in production
+  ```
+### Backend (.env)
+
+ ```env
+  HF_TOKEN=hf_your_huggingface_token
+  MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/dbname
+  SECRET_KEY=your_secret_key_here
+  ```
+## 📡 API Endpoints
+
+
+| Method | Endpoint                                    | Description               |
+| ------ | ------------------------------------------- | ------------------------- |
+| GET    | `/health`                                   | Health check              |
+| POST   | `/api/send?user_id={id}&chat_id={optional}` | Send message to Paula     |
+| GET    | `/`                                         | Root welcome message      |
+| GET    | `/docs`                                     | Swagger API documentation |
 
 ## 🚢 Deployment
 
-Frontend (Cloudflare Pages)
-Push code to GitHub
+### Frontend (Cloudflare Pages)
 
-Connect repository to Cloudflare Pages
+1.Push code to GitHub
+2.Connect repository to Cloudflare Pages
+3.Configure build settings:
+**Build command**: cd frontend && npm install && npm run build
+**Build output directory**: frontend/out
+4.Add NEXT_PUBLIC_API_URL environment variable with your Railway backend URL
+5.Deploy automatically on push
+6.Connect custom domain hopepath.online in Cloudflare Pages dashboard
 
-Configure build settings:
+### Backend (Railway)
 
-Build command: cd frontend && npm install && npm run build
-
-Build output directory: frontend/out
-
-Add NEXT_PUBLIC_API_URL environment variable with your Railway backend URL
-
-Deploy automatically on push
-
-Connect custom domain hopepath.online in Cloudflare Pages dashboard
-
-Backend (Railway)
-Push code to GitHub
-
-Connect repository to Railway
-
-Add environment variables in Railway dashboard
-
-Deploy automatically
+1.Push code to GitHub
+2.Connect repository to Railway
+3.Add environment variables in Railway dashboard
+4.Deploy automatically
 
 ## 🤝 Contributing
 
-Fork the repository
-
-Create your feature branch (git checkout -b feature/AmazingFeature)
-
-Commit changes (git commit -m 'Add AmazingFeature')
-
-Push to branch (git push origin feature/AmazingFeature)
-
-Open a Pull Request
+1.Fork the repository
+2.Create your feature branch (git checkout -b feature/AmazingFeature)
+3.Commit changes (git commit -m 'Add AmazingFeature')
+4.Push to branch (git push origin feature/AmazingFeature)
+5.Open a Pull Request
 
 ## 📄 License
 
@@ -212,17 +202,12 @@ This project is licensed under the MIT License.
 
 ## 🙏 Acknowledgments
 
-Medical Council of Jamaica
-
-Jamaica Psychological Society
-
-Hugging Face for AI infrastructure
-
-MongoDB Atlas for database hosting
-
-Cloudflare for hosting and DNS services
-
-Namecheap for domain registration
+- Medical Council of Jamaica
+- Jamaica Psychological Society
+- Hugging Face for AI infrastructure
+- MongoDB Atlas for database hosting
+- Cloudflare for hosting and DNS services
+- Namecheap for domain registration
 
 ## 📞 Contact
 
@@ -230,4 +215,7 @@ Project Link: https://github.com/Nette6573/mental_health_app
 
 Live Site: https://hopepath.online
 
-Built with ❤️ for Jamaica
+---
+
+** Built with ❤️ for Jamaica**
+````
