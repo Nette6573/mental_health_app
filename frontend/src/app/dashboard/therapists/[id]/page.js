@@ -5,10 +5,11 @@
 export async function generateStaticParams() {
   // Return an array of objects with the id parameter
   return [{ id: '1' }]
+  // Add more IDs as needed: { id: '2' }, { id: '3' }
 }
 
-// Enable fallback for IDs not generated at build time
-export const dynamicParams = true
+// Remove or comment out this line - it's incompatible with static export
+// export const dynamicParams = true
 
 // Then import the client component
 import TherapistProfilePageClient from './TherapistProfilePageClient'
