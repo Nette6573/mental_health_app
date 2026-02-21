@@ -2,82 +2,94 @@
 export const metadata = {
   title: 'Privacy Policy - HopePath',
   description: 'Learn how HopePath protects your privacy.',
-}
+};
 
 export default function PrivacyPage() {
   return (
     <div className="prose mx-auto p-6">
-      <h1>Privacy Policy</h1>
-      <p>Your privacy is important to us. This policy explains how we handle your data...</p>
-      {Privacy Policy – HopePath
+      <h1>Privacy Policy – HopePath</h1>
 
-HopePath is extremely committed to protecting the privacy and security of all its users’ data and inputted information. This document serves as the official Privacy Policy, which explains how user data is collected, stored, used, and safeguarded, particularly that of personally identifiable information. HopePath systems, storage mechanisms, and designs comply with the Jamaica Data Protection Act (2020) and the Cybercrimes Act (2010, last amended 2015).
+      <p>
+        HopePath is committed to protecting the privacy and security of all user
+        information. This Privacy Policy explains how your data is collected,
+        stored, used, and safeguarded in accordance with Jamaican legislation,
+        including the Data Protection Act (2020) and the Cybercrimes Act
+        (2010/2015).
+      </p>
 
-HopePath is designed to provide emotional support, mood tracking, journaling tools, and referral pathways to licensed mental health professionals. All our users need to understand in its entirety that we do not provide medical diagnosis or treatment.
+      <h2>Information We Collect</h2>
+      <ul>
+        <li><strong>Personally Identifiable Information (PII):</strong> name, email, phone number.</li>
+        <li><strong>Usage Data:</strong> mood logs, chats with Paula, journaling entries.</li>
+        <li><strong>Technical Data:</strong> browser, device type, IP address.</li>
+        <li><strong>Optional Faith Data:</strong> only if the user opts in.</li>
+      </ul>
 
-Information We Collect
-•	Personally Identifiable Information (PII): Full names, email, phone number (for registration);
-•	Usage Data: Mood tracking logs, chat information with Paula, and journaling entries;
-•	Technical Data: Browser information, IP address, and device type;
-•	Optional Faith Data: Only if the user opts in, data surrounding scripture-based content and encouragements will be collected, to ensure that the information provided is accurate to the user’s expectations. 
-Information that is considered to be sensitive and/or private, such as mental health notes, is handled with the highest confidentiality and the strictest of security. 
+      <h2>Legal Basis for Collection</h2>
+      <ul>
+        <li>User consent for optional features.</li>
+        <li>Legitimate operational needs (authentication, crisis escalation).</li>
+        <li>Compliance with Jamaican Cybercrimes Act.</li>
+      </ul>
 
-Legal Basis for Collection
-The data HopePath Collects is used only:
-•	With users' consent whenever they opt in to our programs, such as faith-based support or journaling;
-•	For legitimate operation needs. i.e. crisis escalation, authentication, etc.;
-•	In compliance with the Cybercrimes Act, HopePath will prohibit unauthorised access, misuse, and modification of data. 
-Use of Information
-The reasons for collecting data:
-•	To maintain compliance with the legislation that governs data use, software, and storage in Jamaica;
-•	Provide secure access to HopePath Services;
-•	Escalate crises to Jamaican mental health hotlines when necessary;
-•	Improve HopePath’s platform and systems to enhance performance and safety.
-•	Deliver empathetic conversational support via Paula.
+      <h2>Use of Information</h2>
+      <ul>
+        <li>To comply with Jamaican data laws.</li>
+        <li>To provide secure access to HopePath services.</li>
+        <li>To escalate crises when necessary.</li>
+        <li>To improve system performance and safety.</li>
+        <li>To support empathetic conversation with Paula.</li>
+      </ul>
 
+      <h2>Data Protection & Security</h2>
+      <ul>
+        <li>Encryption in transit and at rest.</li>
+        <li>Tiered administrative access.</li>
+        <li>Auditing and activity monitoring.</li>
+        <li>Incident response following Jamaican law.</li>
+      </ul>
 
-Data Protection & Security
-•	Encryption: All sensitive data is encrypted both in transit and at rest;
-•	Access Control: Only authorised and tiered administrators will have access to system logs and data on a need-to-know basis;
-•	Monitoring: All activities and trails will be audited and maintained;
-•	Incident Response: Reported breaches will be dealt with in accordance with the Data Protection Act and the Cyber Crime Act. 
+      <h2>User Rights</h2>
+      <ul>
+        <li>Withdraw consent.</li>
+        <li>Request data correction or deletion.</li>
+        <li>Report misuse.</li>
+        <li>Access personal data.</li>
+      </ul>
 
-User Rights
+      <h2>Data Retention</h2>
+      <ul>
+        <li>User-generated content until account deletion.</li>
+        <li>Administrative records as required by law.</li>
+        <li>Crisis logs kept no longer than 12 months.</li>
+      </ul>
 
-Under the Data Protection Act (2020), all users of HopePath have the right to:
+      <h2>Third-Party Sharing</h2>
+      <ul>
+        <li>With vetted providers under strict contracts.</li>
+        <li>With law enforcement when legally required.</li>
+        <li>With licensed mental health professionals (with consent).</li>
+      </ul>
 
-•	Withdraw Consent for optional features
-•	Request correction or deletion of their personal data;
-•	Report misuse to Jamaican authorities;
-•	Access or be given access to their personal data.
+      <h2>Compliance with Jamaican Laws</h2>
+      <ul>
+        <li>Telemedicine Guidelines (2025)</li>
+        <li>Data Protection Act (2020)</li>
+        <li>Cybercrimes Act (2010/2015)</li>
+      </ul>
 
-Data Retention
-•	Journaling and mood tracking data will be retained until the user deletes or closes their account. 
-•	Administrative records will be retained as required by law.
-•	Crisis escalation logs will be retained for a period not exceeding 12 months, in compliance with the aforementioned Jamaican legislation.
+      <h2>Policy Updates</h2>
+      <p>
+        HopePath may update this Privacy Policy periodically. Users will be
+        notified through the app or email.
+      </p>
 
-Third-Party Sharing
-Data may be shared only:
-•	With vetted third-party services, which will be done under the strictest of contracts, ensuring compliance. E.g. hosting services, authentication services, servers and databases;
-•	With law enforcement, if required under the Cybercrimes Act;
-•	With licenced professionals for referrals, customer consent will be required. 
-
-Compliance with Jamaican Laws
-HopePath must comply with the following legislation:
-•	Telemedicine Guidelines (2025): Aligns with ethical standards for digital health platforms;
-•	Data Protection Act (2020): Ensures lawful processing, securing, and handling of sensitive user information, observing user rights.
-•	Cybercrimes Act (2010, last amended 2015): Guides HopePath on the prevention of unauthorised access, interception, and misuse of data. 
-
-Policy updates
-This Privacy Policy will be updated periodically. All users will be notified of any and all changes via HopePath’s platforms or any other specified communication methods.
-
-Contact Information
-For complaints or privacy concerns, please contact:
-Healing Bridges Inc.
-email: privacy@hopepath.online 
-Phone: 1(658) 432-5674
-}
+      <h2>Contact Information</h2>
+      <p>
+        Healing Bridges Inc.<br />
+        Email: privacy@hopepath.online<br />
+        Phone: 1 (658) 432-5674
+      </p>
     </div>
-  )
+  );
 }
-
