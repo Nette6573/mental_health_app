@@ -17,6 +17,8 @@ export default function PrivacyPage() {
         (2010/2015).
       </p>
 
+      <br></br>
+      
       <h2>Information We Collect</h2>
       <ul>
         <li><strong>Personally Identifiable Information (PII):</strong> name, email, phone number.</li>
