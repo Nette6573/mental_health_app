@@ -1,14 +1,11 @@
 // frontend/next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Remove or comment out the 'output: export' line
-  // output: 'export',
-  
-  // Instead, use these settings for Cloudflare Pages
+  output: 'export',  // This enables static export
   images: {
-    unoptimized: true,
+    unoptimized: true, // Required for static export with Next.js Image component
   },
-  trailingSlash: true,
+  trailingSlash: true, // Optional but recommended for Cloudflare
 }
 
 module.exports = nextConfig
