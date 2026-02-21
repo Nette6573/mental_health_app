@@ -1,3 +1,5 @@
+// frontend/src/app/dashboard/therapists/[id]/page.js
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -8,6 +10,7 @@ import TherapistProfile from '@/components/dashboard/therapists/TherapistProfile
 
 // Mock data - replace with API call
 const getTherapistById = async (id) => {
+  // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 1000))
   
   const therapists = {
@@ -85,12 +88,15 @@ export default function TherapistProfilePage() {
         }
       } catch (err) {
         setError('Failed to load therapist profile')
+        console.error('Error fetching therapist:', err)
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchTherapist()
+    if (params?.id) {
+      fetchTherapist()
+    }
   }, [params.id])
 
   if (authLoading) {
@@ -138,8 +144,18 @@ export default function TherapistProfilePage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 h-96"></div>
         </div>
       ) : (
-        <TherapistProfile therapist={therapist} />
+        therapist && <TherapistProfile therapist={therapist} />
       )}
     </DashboardLayout>
   )
 }
+
+// Move generateStaticParams to the bottom, after the component
+// This function is required for static export with dynamic routes
+export async function generateStaticParams() {
+  // Return an array of objects with the id parameter
+  return [{ id: '1' }]
+}
+
+// Enable fallback for IDs not generated at build time
+export const dynamicParams = true

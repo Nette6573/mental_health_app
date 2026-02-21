@@ -1,7 +1,9 @@
+// frontend/src/components/dashboard/settings/ProfileSettings.js
 'use client'
 
 import { useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
+import Image from 'next/image' // ✅ Import Next.js Image component
 
 export default function ProfileSettings({ user }) {
   const { updateProfile } = useAuth()
@@ -70,20 +72,27 @@ export default function ProfileSettings({ user }) {
         {/* Avatar Upload */}
         <div className="flex items-center space-x-6">
           <div className="relative">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary-500 to-blue-600 flex items-center justify-center text-white text-2xl font-bold">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary-500 to-blue-600 flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
               {avatarPreview ? (
-                <img
-                  src={avatarPreview}
-                  alt="Profile"
-                  className="w-full h-full rounded-full object-cover"
+                // ✅ Fixed: Using Next.js Image component with proper dimensions
+                <Image 
+                  src={avatarPreview} 
+                  alt="Profile" 
+                  width={96} 
+                  height={96} 
+                  className="w-full h-full object-cover"
+                  priority
                 />
               ) : (
-                user?.firstName?.[0] || 'U'
+                // Show initials if no avatar
+                <span className="text-3xl">
+                  {user?.firstName?.[0] || user?.email?.[0] || 'U'}
+                </span>
               )}
             </div>
             <label
               htmlFor="avatar-upload"
-              className="absolute bottom-0 right-0 w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-primary-600 transition-colors"
+              className="absolute bottom-0 right-0 w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-primary-600 transition-colors shadow-md"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -101,8 +110,20 @@ export default function ProfileSettings({ user }) {
           <div>
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">Profile Photo</h3>
             <p className="text-gray-600 dark:text-gray-400 text-sm">
-              Recommended: Square image, at least 200x200 pixels
+              Recommended: Square image, at least 200x200 pixels (Max 5MB)
             </p>
+            {avatarPreview && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAvatarPreview('')
+                  setFormData(prev => ({ ...prev, avatar: '' }))
+                }}
+                className="mt-2 text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+              >
+                Remove photo
+              </button>
+            )}
           </div>
         </div>
 
@@ -250,6 +271,22 @@ export default function ProfileSettings({ user }) {
         <div className="flex items-center justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
           <button
             type="button"
+            onClick={() => {
+              // Reset form to original user data
+              setFormData({
+                firstName: user?.firstName || '',
+                lastName: user?.lastName || '',
+                email: user?.email || '',
+                phone: user?.phone || '',
+                bio: user?.bio || '',
+                location: user?.location || '',
+                dateOfBirth: user?.dateOfBirth || '',
+                gender: user?.gender || '',
+                avatar: user?.avatar || ''
+              })
+              setAvatarPreview(user?.avatar || '')
+              setMessage({ type: '', text: '' })
+            }}
             className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             Cancel
@@ -257,9 +294,17 @@ export default function ProfileSettings({ user }) {
           <button
             type="submit"
             disabled={isLoading}
-            className="px-8 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-primary-400 text-white rounded-lg font-medium transition-colors shadow-sm hover:shadow-md"
+            className="px-8 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-primary-400 text-white rounded-lg font-medium transition-colors shadow-sm hover:shadow-md disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Saving...' : 'Save Changes'}
+            {isLoading ? (
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
+              </span>
+            ) : 'Save Changes'}
           </button>
         </div>
       </form>

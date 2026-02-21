@@ -1,6 +1,7 @@
+// frontend/src/components/dashboard/settings/HelpSupport.js
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function HelpSupport({ user }) {
   const [activeTab, setActiveTab] = useState('faq')
@@ -11,6 +12,17 @@ export default function HelpSupport({ user }) {
     urgency: 'normal'
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showWelcomeMessage, setShowWelcomeMessage] = useState(false)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
+
+  useEffect(() => {
+    // Show welcome message with user's name if available
+    if (user?.firstName) {
+      setShowWelcomeMessage(true)
+      const timer = setTimeout(() => setShowWelcomeMessage(false), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [user])
 
   const faqCategories = [
     {
@@ -18,7 +30,7 @@ export default function HelpSupport({ user }) {
       questions: [
         {
           question: 'How do I reset my password?',
-          answer: 'You can reset your password by going to Settings > Account Security > Change Password. You will need to enter your current password and then create a new one.'
+          answer: 'You can reset your password by going to Settings &gt; Account Security &gt; Change Password. You will need to enter your current password and then create a new one.'
         },
         {
           question: 'Can I change my email address?',
@@ -35,7 +47,7 @@ export default function HelpSupport({ user }) {
       questions: [
         {
           question: 'How do I post a prayer request?',
-          answer: 'Navigate to the Prayer Wall section and click "Add Prayer Request". You can choose to post publicly or keep it private.'
+          answer: 'Navigate to the Prayer Wall section and click &quot;Add Prayer Request&quot;. You can choose to post publicly or keep it private.'
         },
         {
           question: 'Can I pray for others anonymously?',
@@ -60,7 +72,7 @@ export default function HelpSupport({ user }) {
         },
         {
           question: 'How do I enable notifications?',
-          answer: 'Go to Settings > Notifications to manage your notification preferences for email, push, and SMS alerts.'
+          answer: 'Go to Settings &gt; Notifications to manage your notification preferences for email, push, and SMS alerts.'
         }
       ]
     }
@@ -70,10 +82,19 @@ export default function HelpSupport({ user }) {
     e.preventDefault()
     setIsSubmitting(true)
     
-    // Simulate API call
+    // Simulate API call - include user info in the submission
+    console.log('Submitting support request for user:', {
+      userId: user?.id,
+      userEmail: user?.email,
+      userName: user?.firstName ? `${user.firstName} ${user.lastName || ''}` : 'Unknown',
+      ...contactForm
+    })
+    
     await new Promise(resolve => setTimeout(resolve, 2000))
     
     setIsSubmitting(false)
+    setSubmitSuccess(true)
+    
     // Reset form
     setContactForm({
       subject: '',
@@ -81,7 +102,9 @@ export default function HelpSupport({ user }) {
       message: '',
       urgency: 'normal'
     })
-    // Show success message
+
+    // Hide success message after 5 seconds
+    setTimeout(() => setSubmitSuccess(false), 5000)
   }
 
   const handleInputChange = (e) => {
@@ -91,11 +114,33 @@ export default function HelpSupport({ user }) {
 
   return (
     <div className="p-8">
+      {/* Personalized Welcome Message */}
+      {showWelcomeMessage && user?.firstName && (
+        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-blue-700 dark:text-blue-400 animate-fade-in">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+              {user.firstName[0]}
+            </div>
+            <div>
+              <p className="font-medium">Welcome to Help & Support, {user.firstName}!</p>
+              <p className="text-sm">We&apos;re here to help you with any questions or issues.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Help & Support</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Help & Support {user?.firstName && `- ${user.firstName}&apos;s Assistance`}
+        </h2>
         <p className="text-gray-600 dark:text-gray-400 mt-2">
           Get help, report issues, or contact our support team
         </p>
+        {user?.email && (
+          <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+            Support requests will be sent to {user.email}
+          </p>
+        )}
       </div>
 
       {/* Tabs */}
@@ -129,9 +174,11 @@ export default function HelpSupport({ user }) {
       {activeTab === 'faq' && (
         <div className="space-y-8">
           <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Frequently Asked Questions</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              {user?.firstName ? `${user.firstName}&apos;s Frequently Asked Questions` : 'Frequently Asked Questions'}
+            </h3>
             <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Find quick answers to common questions about using MindCare
+              Find quick answers to common questions about using HopePath
             </p>
           </div>
 
@@ -182,11 +229,24 @@ export default function HelpSupport({ user }) {
       {activeTab === 'contact' && (
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Contact Support</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              {user?.firstName ? `Contact Support - ${user.firstName}` : 'Contact Support'}
+            </h3>
             <p className="text-gray-600 dark:text-gray-400">
               Get in touch with our support team. We typically respond within 24 hours.
             </p>
           </div>
+
+          {submitSuccess && (
+            <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400">
+              <div className="flex items-center space-x-2">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span>Thank you for contacting support! We&apos;ll get back to you soon.</span>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleContactSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -257,7 +317,7 @@ export default function HelpSupport({ user }) {
                 onChange={handleInputChange}
                 required
                 rows={6}
-                placeholder="Please describe your issue in detail..."
+                placeholder={`Please describe your issue in detail${user?.firstName ? `, ${user.firstName}` : ''}...`}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white resize-none"
               />
             </div>
@@ -277,9 +337,17 @@ export default function HelpSupport({ user }) {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full px-8 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-primary-400 text-white rounded-lg font-medium transition-colors shadow-sm hover:shadow-md"
+              className="w-full px-8 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-primary-400 text-white rounded-lg font-medium transition-colors shadow-sm hover:shadow-md disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Sending Message...' : 'Send Message to Support'}
+              {isSubmitting ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Sending Message...
+                </span>
+              ) : 'Send Message to Support'}
             </button>
           </form>
 
@@ -287,7 +355,7 @@ export default function HelpSupport({ user }) {
             <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
               <div className="text-2xl mb-2">📧</div>
               <div className="font-medium text-gray-900 dark:text-white">Email</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">support@mindcare.com</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">support@hopepath.com</div>
             </div>
             <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
               <div className="text-2xl mb-2">🕒</div>
@@ -307,9 +375,11 @@ export default function HelpSupport({ user }) {
       {activeTab === 'resources' && (
         <div className="space-y-8">
           <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Helpful Resources</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              {user?.firstName ? `${user.firstName}&apos;s Helpful Resources` : 'Helpful Resources'}
+            </h3>
             <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Additional resources to help you get the most out of MindCare
+              Additional resources to help you get the most out of HopePath
             </p>
           </div>
 
@@ -317,7 +387,7 @@ export default function HelpSupport({ user }) {
             {[
               {
                 title: 'User Guide',
-                description: 'Complete guide to all MindCare features',
+                description: 'Complete guide to all HopePath features',
                 icon: '📖',
                 link: '#',
                 color: 'from-blue-500 to-blue-600'
@@ -378,9 +448,11 @@ export default function HelpSupport({ user }) {
       {activeTab === 'status' && (
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">System Status</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              {user?.firstName ? `${user.firstName}&apos;s System Status` : 'System Status'}
+            </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Check the current status of MindCare services
+              Check the current status of HopePath services
             </p>
           </div>
 

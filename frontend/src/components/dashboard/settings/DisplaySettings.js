@@ -1,3 +1,4 @@
+// frontend/src/components/dashboard/settings/DisplaySettings.js
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -15,6 +16,7 @@ export default function DisplaySettings({ user }) {
   })
 
   const [isLoading, setIsLoading] = useState(false)
+  const [showWelcomeMessage, setShowWelcomeMessage] = useState(false)
 
   useEffect(() => {
     // Load saved settings from localStorage or API
@@ -22,7 +24,15 @@ export default function DisplaySettings({ user }) {
     if (savedSettings) {
       setDisplaySettings(prev => ({ ...prev, ...JSON.parse(savedSettings) }))
     }
-  }, [])
+    
+    // Show welcome message with user's name if available
+    if (user?.firstName) {
+      setShowWelcomeMessage(true)
+      // Auto-hide after 3 seconds
+      const timer = setTimeout(() => setShowWelcomeMessage(false), 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [user]) // Add user to dependency array
 
   const handleSettingChange = (key, value) => {
     const newSettings = { ...displaySettings, [key]: value }
@@ -46,7 +56,11 @@ export default function DisplaySettings({ user }) {
 
   const handleSave = async () => {
     setIsLoading(true)
-    // Simulate API call
+    // Simulate API call - in a real app, you might save user preferences to backend
+    if (user?.id) {
+      console.log(`Saving display settings for user ${user.id}`)
+      // await saveUserPreferences(user.id, displaySettings)
+    }
     await new Promise(resolve => setTimeout(resolve, 1000))
     setIsLoading(false)
   }
@@ -85,10 +99,19 @@ export default function DisplaySettings({ user }) {
 
   return (
     <div className="p-8">
+      {/* Welcome message using user prop */}
+      {showWelcomeMessage && user?.firstName && (
+        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400">
+          Welcome back, {user.firstName}! Your display settings have been loaded.
+        </div>
+      )}
+
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Display Settings</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Display Settings {user?.firstName && `- ${user.firstName}'s Preferences`}
+        </h2>
         <p className="text-gray-600 dark:text-gray-400 mt-2">
-          Customize the appearance and behavior of MindCare
+          Customize the appearance and behavior of your HopePath experience
         </p>
       </div>
 
@@ -289,12 +312,14 @@ export default function DisplaySettings({ user }) {
 
         {/* Preview Section */}
         <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-300 mb-4">Preview</h3>
+          <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-300 mb-4">
+            {user?.firstName ? `${user.firstName}'s Preview` : 'Preview'}
+          </h3>
           <div className="space-y-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-medium">
-                  U
+                  {user?.firstName?.[0] || 'U'}
                 </div>
                 <div>
                   <div className="font-medium text-gray-900 dark:text-white">Sample Prayer Request</div>
@@ -319,9 +344,17 @@ export default function DisplaySettings({ user }) {
           <button
             onClick={handleSave}
             disabled={isLoading}
-            className="px-8 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-primary-400 text-white rounded-lg font-medium transition-colors shadow-sm hover:shadow-md"
+            className="px-8 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-primary-400 text-white rounded-lg font-medium transition-colors shadow-sm hover:shadow-md disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Saving...' : 'Save Display Settings'}
+            {isLoading ? (
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
+              </span>
+            ) : 'Save Display Settings'}
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
+// frontend/src/components/dashboard/settings/NotificationSettings.js
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function NotificationSettings({ user }) {
   const [notificationSettings, setNotificationSettings] = useState({
@@ -32,6 +33,23 @@ export default function NotificationSettings({ user }) {
   })
 
   const [isLoading, setIsLoading] = useState(false)
+  const [showWelcomeMessage, setShowWelcomeMessage] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+
+  useEffect(() => {
+    // Show welcome message with user's name if available
+    if (user?.firstName) {
+      setShowWelcomeMessage(true)
+      const timer = setTimeout(() => setShowWelcomeMessage(false), 5000)
+      return () => clearTimeout(timer)
+    }
+
+    // Load user's saved notification preferences from localStorage
+    const savedSettings = localStorage.getItem(`notificationSettings_${user?.id}`)
+    if (savedSettings) {
+      setNotificationSettings(prev => ({ ...prev, ...JSON.parse(savedSettings) }))
+    }
+  }, [user])
 
   const handleSettingChange = (key, value) => {
     setNotificationSettings(prev => ({ ...prev, [key]: value }))
@@ -39,10 +57,25 @@ export default function NotificationSettings({ user }) {
 
   const handleSave = async () => {
     setIsLoading(true)
-    // Simulate API call
+    
+    // Simulate API call - include user info
+    console.log(`Saving notification settings for user ${user?.id || 'unknown'}:`, {
+      userId: user?.id,
+      userEmail: user?.email,
+      settings: notificationSettings
+    })
+    
+    // Save to localStorage with user-specific key
+    if (user?.id) {
+      localStorage.setItem(`notificationSettings_${user.id}`, JSON.stringify(notificationSettings))
+    }
+    
     await new Promise(resolve => setTimeout(resolve, 1000))
     setIsLoading(false)
-    // In a real app, you'd show a success message here
+    setSaveSuccess(true)
+    
+    // Hide success message after 3 seconds
+    setTimeout(() => setSaveSuccess(false), 3000)
   }
 
   const toggleAllEmail = (enabled) => {
@@ -70,11 +103,45 @@ export default function NotificationSettings({ user }) {
 
   return (
     <div className="p-8">
+      {/* Personalized Welcome Message */}
+      {showWelcomeMessage && user?.firstName && (
+        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-blue-700 dark:text-blue-400 animate-fade-in">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+              {user.firstName[0]}
+            </div>
+            <div>
+              <p className="font-medium">Welcome to Notification Settings, {user.firstName}!</p>
+              <p className="text-sm">Customize how and when you receive updates.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {saveSuccess && (
+        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400">
+          <div className="flex items-center space-x-2">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span>Notification settings saved successfully for {user?.email || 'your account'}!</span>
+          </div>
+        </div>
+      )}
+
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Notification Settings</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Notification Settings {user?.firstName && `- ${user.firstName}&apos;s Preferences`}
+        </h2>
         <p className="text-gray-600 dark:text-gray-400 mt-2">
-          Manage how and when you receive notifications from MindCare
+          Manage how and when you receive notifications from HopePath
         </p>
+        {user?.email && (
+          <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+            Notifications will be sent to {user.email}
+          </p>
+        )}
       </div>
 
       <div className="space-y-8">
@@ -84,7 +151,7 @@ export default function NotificationSettings({ user }) {
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Email Notifications</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Receive updates and reminders via email
+                Receive updates and reminders via email {user?.email && `at ${user.email}`}
               </p>
             </div>
             <div className="flex space-x-2">
@@ -140,7 +207,7 @@ export default function NotificationSettings({ user }) {
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Push Notifications</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Receive real-time notifications in your browser
+                Receive real-time notifications in your browser {user?.firstName && `, ${user.firstName}`}
               </p>
             </div>
             <div className="flex space-x-2">
@@ -202,6 +269,9 @@ export default function NotificationSettings({ user }) {
                 <div className="flex-1">
                   <h4 className="font-medium text-gray-900 dark:text-white">{label}</h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{description}</p>
+                  {key === 'smsDailyVerse' && user?.phone && (
+                    <p className="text-xs text-gray-500 mt-1">Will be sent to {user.phone}</p>
+                  )}
                 </div>
                 <button
                   onClick={() => handleSettingChange(key, !notificationSettings[key])}
@@ -222,7 +292,9 @@ export default function NotificationSettings({ user }) {
 
         {/* Frequency & Quiet Hours */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Notification Preferences</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
+            {user?.firstName ? `${user.firstName}&apos;s Notification Preferences` : 'Notification Preferences'}
+          </h3>
           
           <div className="space-y-6">
             {/* Digest Frequency */}
@@ -257,7 +329,7 @@ export default function NotificationSettings({ user }) {
               <div className="flex-1">
                 <h4 className="font-medium text-gray-900 dark:text-white">Quiet Hours</h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Pause notifications during specific hours
+                  Pause notifications during specific hours {user?.firstName && `for ${user.firstName}`}
                 </p>
               </div>
               <button
@@ -308,9 +380,17 @@ export default function NotificationSettings({ user }) {
           <button
             onClick={handleSave}
             disabled={isLoading}
-            className="px-8 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-primary-400 text-white rounded-lg font-medium transition-colors shadow-sm hover:shadow-md"
+            className="px-8 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-primary-400 text-white rounded-lg font-medium transition-colors shadow-sm hover:shadow-md disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Saving...' : 'Save Notification Settings'}
+            {isLoading ? (
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving {user?.firstName ? `for ${user.firstName}` : '...'}
+              </span>
+            ) : 'Save Notification Settings'}
           </button>
         </div>
       </div>
