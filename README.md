@@ -24,8 +24,8 @@ HopePath provides accessible mental health support tailored for the Jamaican com
 
 ## 🏗️ Project Structure
 
+```
 mental_health_app/
-
 ├── frontend/ # Next.js Web Application (Cloudflare Pages)
 │ ├── src/
 │ │ ├── app/
@@ -39,21 +39,21 @@ mental_health_app/
 │
 ├── paula_backend/ # FastAPI Backend (Railway)
 │ ├── app/
-│ │ ├── **init**.py
+│ │ ├── init.py
 │ │ ├── main.py # FastAPI Application
 │ │ ├── config.py # Environment Configuration
 │ │ ├── routes/
-│ │ │ ├── **init**.py
+│ │ │ ├── init.py
 │ │ │ └── chat.py # Chat API Endpoints
 │ │ ├── models/
-│ │ │ ├── **init**.py
+│ │ │ ├── init.py
 │ │ │ ├── chat.py # Chat Data Models
 │ │ │ └── message.py # Message Pydantic Models
 │ │ ├── db/
-│ │ │ ├── **init**.py
+│ │ │ ├── init.py
 │ │ │ └── mongo.py # MongoDB Connection
 │ │ └── ai/
-│ │ ├── **init**.py
+│ │ ├── init.py
 │ │ └── paula_client.py # Hugging Face API Integration
 │ ├── requirements.txt
 │ └── runtime.txt # Python Version
@@ -64,11 +64,12 @@ mental_health_app/
 │ ├── android/
 │ └── ios/
 │
-├── data/ # Training datasets & JSON files
-│ ├── health_facilities.json
+├── data/ # Training Datasets & JSON Files
+│ ├── health_facilities.json # Jamaican Health Facilities
 │ └── training_data/
 │
-└── .vscode/ # VS Code configuration
+└── .vscode/ # VS Code Configuration
+```
 
 ## 🚀 Technology Stack
 
