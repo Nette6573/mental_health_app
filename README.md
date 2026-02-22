@@ -218,4 +218,4 @@ Live Site: https://hopepath.online
 
 ---
 
-\*_Built with ❤️ for Jamaica_
+**uilt with ❤️ for Jamaica**
