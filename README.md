@@ -173,29 +173,29 @@ uvicorn app.main:app --reload
 
 ### Frontend (Cloudflare Pages)
 
-1.Push code to GitHub
-2.Connect repository to Cloudflare Pages
-3.Configure build settings:
-**Build command**: cd frontend && npm install && npm run build
-**Build output directory**: frontend/out
-4.Add NEXT_PUBLIC_API_URL environment variable with your Railway backend URL
-5.Deploy automatically on push
-6.Connect custom domain hopepath.online in Cloudflare Pages dashboard
+1. Push code to GitHub
+2. Connect repository to Cloudflare Pages
+3. Configure build settings:
+   **Build command**: cd frontend && npm install && npm run build
+   **Build output directory**: frontend/out
+4. Add NEXT_PUBLIC_API_URL environment variable with your Railway backend URL
+5. Deploy automatically on push
+6. Connect custom domain hopepath.online in Cloudflare Pages dashboard
 
 ### Backend (Railway)
 
-1.Push code to GitHub
-2.Connect repository to Railway
-3.Add environment variables in Railway dashboard
-4.Deploy automatically
+1. Push code to GitHub
+2. Connect repository to Railway
+3. Add environment variables in Railway dashboard
+4. Deploy automatically
 
 ## 🤝 Contributing
 
-1.Fork the repository
-2.Create your feature branch (git checkout -b feature/AmazingFeature)
-3.Commit changes (git commit -m 'Add AmazingFeature')
-4.Push to branch (git push origin feature/AmazingFeature)
-5.Open a Pull Request
+1. Fork the repository
+2. Create your feature branch (git checkout -b feature/AmazingFeature)
+3. Commit changes (git commit -m 'Add AmazingFeature')
+4. Push to branch (git push origin feature/AmazingFeature)
+5. Open a Pull Request
 
 ## 📄 License
 
@@ -219,7 +219,3 @@ Live Site: https://hopepath.online
 ---
 
 **Built with ❤️ for Jamaica**
-
-```
-
-```
