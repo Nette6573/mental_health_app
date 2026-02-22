@@ -148,18 +148,19 @@ uvicorn app.main:app --reload
 
 ### Frontend (.env.local)
 
-````env
+```env
   NEXT_PUBLIC_API_URL=https://your-backend.railway.app # Railway URL in production
-  ```
+```
+
 ### Backend (.env)
 
- ```env
+```env
   HF_TOKEN=hf_your_huggingface_token
   MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/dbname
   SECRET_KEY=your_secret_key_here
-  ```
-## 📡 API Endpoints
+```
 
+## 📡 API Endpoints
 
 | Method | Endpoint                                    | Description               |
 | ------ | ------------------------------------------- | ------------------------- |
@@ -217,5 +218,8 @@ Live Site: https://hopepath.online
 
 ---
 
-** Built with ❤️ for Jamaica**
-````
+**Built with ❤️ for Jamaica**
+
+```
+
+```
