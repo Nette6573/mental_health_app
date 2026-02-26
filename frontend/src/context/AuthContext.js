@@ -110,6 +110,7 @@ export function AuthProvider({ children }) {
     try {
       setIsLoading(true)
       const cred = await createUserWithEmailAndPassword(auth, email, password)
+      await sendEmailVerification(userCredential.user);
       const firebaseUser = cred.user
 
       // Update Firebase Auth Display Name
