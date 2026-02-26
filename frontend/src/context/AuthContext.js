@@ -53,23 +53,32 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const appUser = await buildUserFromFirebase(firebaseUser)
-        setUser(appUser)
+  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    if (firebaseUser) {
 
-        const path = window.location.pathname
-        if (path === '/' || path.includes('/login') || path.includes('/auth')) {
-          router.replace('/dashboard')
-        }
-      } else {
-        setUser(null)
+      // --------- CHECK EMAIL VERIFIED ---------
+      if (!firebaseUser.emailVerified) {
+        setUser(null)           // prevent unverified user from being stored
+        await signOut(auth)     // optional: sign them out
+        setIsLoading(false)
+        return
       }
-      setIsLoading(false)
-    })
+      //----------------------------------------
 
-    return () => unsubscribe()
-  }, [router])
+      const appUser = await buildUserFromFirebase(firebaseUser)
+      setUser(appUser)
+
+      const path = window.location.pathname
+      if (path === '/' || path.includes('/login') || path.includes('/auth')) {
+        router.replace('/dashboard')
+      }
+    } else {
+      setUser(null)
+    }
+    setIsLoading(false)
+  })
+  return () => unsubscribe()
+}, [router])
 
   // ----------------------------------
   // EMAIL/PASSWORD LOGIN (FIXED)
