@@ -10,6 +10,7 @@ import {
   updateProfile as firebaseUpdateProfile,
   sendPasswordResetEmail,
   signInWithPopup,
+  sendEmailVerification, // <-- ADDED
 } from 'firebase/auth'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { auth, db, googleProvider, facebookProvider } from '../lib/firebase'
@@ -68,11 +69,23 @@ export function AuthProvider({ children }) {
     return () => unsubscribe()
   }, [router])
 
-  // Email/password login
+  // ----------------------------------
+  // EMAIL/PASSWORD LOGIN (UPDATED)
+  // ----------------------------------
   const login = async (email, password) => {
     try {
       setIsLoading(true)
       const cred = await signInWithEmailAndPassword(auth, email, password)
+
+      // -------- EMAIL MUST BE VERIFIED --------
+      if (!cred.user.emailVerified) {
+        return {
+          success: false,
+          error: "Please verify your email before signing in.",
+        }
+      }
+      //-----------------------------------------
+
       const appUser = await buildUserFromFirebase(cred.user)
       setUser(appUser)
       return { success: true, user: appUser }
@@ -90,20 +103,44 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // Email/password signup
+  // ----------------------------------
+  // EMAIL/PASSWORD SIGNUP (UPDATED)
+  // ----------------------------------
   const signup = async ({ firstName, lastName, email, password, newsletter }) => {
     try {
       setIsLoading(true)
       const cred = await createUserWithEmailAndPassword(auth, email, password)
       const firebaseUser = cred.user
+
+      // Update Firebase Auth Display Name
       if (firstName || lastName) {
-        await firebaseUpdateProfile(firebaseUser, { displayName: `${firstName} ${lastName}`.trim() })
+        await firebaseUpdateProfile(firebaseUser, {
+          displayName: `${firstName} ${lastName}`.trim(),
+        })
       }
+
+      // Save user in Firestore
       const userDocRef = doc(db, 'users', firebaseUser.uid)
-      await setDoc(userDocRef, { firstName, lastName, email, newsletter: !!newsletter, joinDate: new Date().toISOString() }, { merge: true })
-      const appUser = await buildUserFromFirebase(firebaseUser)
-      setUser(appUser)
-      return { success: true, user: appUser }
+      await setDoc(
+        userDocRef,
+        {
+          firstName,
+          lastName,
+          email,
+          newsletter: !!newsletter,
+          joinDate: new Date().toISOString(),
+        },
+        { merge: true }
+      )
+
+      // -------- SEND VERIFICATION EMAIL --------
+      await sendEmailVerification(firebaseUser)
+      //------------------------------------------
+
+      return {
+        success: true,
+        message: "A verification link has been sent to your email.",
+      }
     } catch (error) {
       console.error('Signup error:', error)
       let message = 'Registration failed. Please try again.'
@@ -115,7 +152,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // Logout
+  // LOGOUT
   const logout = async () => {
     try {
       setIsLoading(true)
@@ -129,14 +166,16 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // Social login (popup)
+  // SOCIAL LOGIN (unchanged)
   const loginWithProvider = async (provider) => {
     try {
       setIsLoading(true)
       const result = await signInWithPopup(auth, provider)
       const firebaseUser = result.user
+
       const userDocRef = doc(db, 'users', firebaseUser.uid)
       const snap = await getDoc(userDocRef)
+
       if (!snap.exists()) {
         const [firstName = '', ...rest] = (firebaseUser.displayName || '').split(' ')
         await setDoc(userDocRef, {
@@ -147,9 +186,11 @@ export function AuthProvider({ children }) {
           joinDate: new Date().toISOString(),
         })
       }
+
       const appUser = await buildUserFromFirebase(firebaseUser)
       setUser(appUser)
       router.replace('/dashboard')
+
       return { success: true, user: appUser }
     } catch (error) {
       console.error('Social login error:', error)
@@ -164,20 +205,27 @@ export function AuthProvider({ children }) {
   const loginWithGoogle = () => loginWithProvider(googleProvider)
   const loginWithFacebook = () => loginWithProvider(facebookProvider)
 
-  // Update profile
+  // UPDATE PROFILE
   const updateProfile = async (updates) => {
     if (!user) return { success: false, error: 'Not authenticated' }
     try {
       const userDocRef = doc(db, 'users', user.id)
       await setDoc(userDocRef, updates, { merge: true })
+
       const updatedUser = { ...user, ...updates }
       setUser(updatedUser)
+
       if (updates.firstName || updates.lastName) {
         const firebaseUser = auth.currentUser
         if (firebaseUser) {
-          await firebaseUpdateProfile(firebaseUser, { displayName: `${updates.firstName || user.firstName} ${updates.lastName || user.lastName}`.trim() })
+          await firebaseUpdateProfile(firebaseUser, {
+            displayName: `${updates.firstName || user.firstName} ${
+              updates.lastName || user.lastName
+            }`.trim(),
+          })
         }
       }
+
       return { success: true, user: updatedUser }
     } catch (error) {
       console.error('Profile update error:', error)
@@ -185,23 +233,32 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // HELPERS
   const isAuthenticated = !!user
-  const getDisplayName = () => (user ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}` : 'User')
-  const getInitials = () => (user ? ((user.firstName?.[0] || '') + (user.lastName?.[0] || '')).toUpperCase() : 'U')
+  const getDisplayName = () =>
+    user ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}` : 'User'
+  const getInitials = () =>
+    user ? ((user.firstName?.[0] || '') + (user.lastName?.[0] || '')).toUpperCase() : 'U'
 
-  return <AuthContext.Provider value={{
-    user,
-    isLoading,
-    isAuthenticated,
-    login,
-    signup,
-    logout,
-    updateProfile,
-    loginWithGoogle,
-    loginWithFacebook,
-    getDisplayName,
-    getInitials,
-  }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isAuthenticated,
+        login,
+        signup,
+        logout,
+        updateProfile,
+        loginWithGoogle,
+        loginWithFacebook,
+        getDisplayName,
+        getInitials,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export const useAuth = () => {
