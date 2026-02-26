@@ -10,7 +10,7 @@ import {
   updateProfile as firebaseUpdateProfile,
   sendPasswordResetEmail,
   signInWithPopup,
-  sendEmailVerification, // <-- ADDED
+  sendEmailVerification
 } from 'firebase/auth'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { auth, db, googleProvider, facebookProvider } from '../lib/firebase'
@@ -28,6 +28,7 @@ export function AuthProvider({ children }) {
       const userDocRef = doc(db, 'users', firebaseUser.uid)
       const snap = await getDoc(userDocRef)
       const profile = snap.exists() ? snap.data() : {}
+
       return {
         id: firebaseUser.uid,
         firstName: profile.firstName || (firebaseUser.displayName?.split(' ')[0] || ''),
@@ -66,29 +67,33 @@ export function AuthProvider({ children }) {
       }
       setIsLoading(false)
     })
+
     return () => unsubscribe()
   }, [router])
 
   // ----------------------------------
-  // EMAIL/PASSWORD LOGIN (UPDATED)
+  // EMAIL/PASSWORD LOGIN (FIXED)
   // ----------------------------------
   const login = async (email, password) => {
     try {
       setIsLoading(true)
+
       const cred = await signInWithEmailAndPassword(auth, email, password)
 
-      // -------- EMAIL MUST BE VERIFIED --------
+      // ---------- EMAIL VERIFICATION BLOCK ----------
       if (!cred.user.emailVerified) {
+        await signOut(auth) // force logout
         return {
           success: false,
           error: "Please verify your email before signing in.",
         }
       }
-      //-----------------------------------------
+      //------------------------------------------------
 
       const appUser = await buildUserFromFirebase(cred.user)
       setUser(appUser)
-      return { success: true, user: appUser }
+
+      return { success: true, user: cred.user }
     } catch (error) {
       console.error('Login error:', error)
       let message = 'Login failed. Please try again.'
@@ -104,14 +109,17 @@ export function AuthProvider({ children }) {
   }
 
   // ----------------------------------
-  // EMAIL/PASSWORD SIGNUP (UPDATED)
+  // EMAIL/PASSWORD SIGNUP (FIXED)
   // ----------------------------------
   const signup = async ({ firstName, lastName, email, password, newsletter }) => {
     try {
       setIsLoading(true)
+
       const cred = await createUserWithEmailAndPassword(auth, email, password)
-      await sendEmailVerification(userCredential.user);
       const firebaseUser = cred.user
+
+      // Fix: wrong variable name before (userCredential.user)
+      await sendEmailVerification(firebaseUser)
 
       // Update Firebase Auth Display Name
       if (firstName || lastName) {
@@ -133,10 +141,6 @@ export function AuthProvider({ children }) {
         },
         { merge: true }
       )
-
-      // -------- SEND VERIFICATION EMAIL --------
-      await sendEmailVerification(firebaseUser)
-      //------------------------------------------
 
       return {
         success: true,
