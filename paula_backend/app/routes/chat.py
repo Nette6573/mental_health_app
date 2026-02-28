@@ -5,6 +5,7 @@ from bson import ObjectId
 from datetime import datetime
 from typing import Optional
 import logging
+import uuid
 
 from app.db.mongo import chats
 from app.ai.paula_client import ask_paula
@@ -60,10 +61,11 @@ async def send_message(
         history = updated_chat.get("messages", [])
 
         # -----------------------------
-        # GET AI RESPONSE
+        # GET AI RESPONSE WITH SESSION ID
         # -----------------------------
         try:
-            reply = ask_paula(data.text, history)
+            # Use chat_id as the session_id for context management
+            reply = ask_paula(data.text, history, session_id=chat_id)
             if not reply:
                 reply = "I'm here to listen. Please tell me more."
         except Exception as e:
@@ -99,3 +101,49 @@ async def send_message(
             chat_id=chat_id if chat_id else None,
             timestamp=datetime.utcnow()
         )
+
+
+@router.get("/history/{chat_id}")
+async def get_chat_history(chat_id: str):
+    """Get full chat history for a specific chat"""
+    try:
+        chat = chats.find_one({"_id": ObjectId(chat_id)})
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        
+        # Convert ObjectId to string for JSON serialization
+        chat["_id"] = str(chat["_id"])
+        return chat
+    except Exception as e:
+        logger.error(f"Error fetching chat history: {e}")
+        raise HTTPException(status_code=400, detail="Invalid chat ID")
+
+
+@router.delete("/{chat_id}")
+async def delete_chat(chat_id: str):
+    """Delete a chat session"""
+    try:
+        result = chats.delete_one({"_id": ObjectId(chat_id)})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        
+        return {"message": "Chat deleted successfully"}
+    except Exception as e:
+        logger.error(f"Error deleting chat: {e}")
+        raise HTTPException(status_code=400, detail="Invalid chat ID")
+
+
+@router.get("/user/{user_id}")
+async def get_user_chats(user_id: str):
+    """Get all chats for a specific user"""
+    try:
+        user_chats = list(chats.find({"user_id": user_id}).sort("created_at", -1))
+        
+        # Convert ObjectId to string for each chat
+        for chat in user_chats:
+            chat["_id"] = str(chat["_id"])
+        
+        return {"chats": user_chats}
+    except Exception as e:
+        logger.error(f"Error fetching user chats: {e}")
+        raise HTTPException(status_code=400, detail="Error fetching chats")

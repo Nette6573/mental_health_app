@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import Link from "next/link"; 
+import Link from "next/link";
 
 // -------------------
 // TYPES
@@ -21,18 +20,14 @@ interface AuthUser {
   email: string;
 }
 
-// Backend response type
 interface BackendResponse {
   response: string;
   chat_id: string;
   timestamp: string;
 }
 
-// Actual backend URL
 const API_BASE = process.env.NEXT_PUBLIC_API_URL!;
-
-// FIX: Remove any trailing slash from API_BASE
-const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+const baseUrl = API_BASE.endsWith("/") ? API_BASE.slice(0, -1) : API_BASE;
 
 export default function PaulaChat() {
   const { user, isLoading } = useAuth() as {
@@ -43,37 +38,12 @@ export default function PaulaChat() {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // -------------------
-  // STATE
-  // -------------------
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [chatId, setChatId] = useState<string | null>(null);
 
-  // Add after your state declarations
-useEffect(() => {
-  // Force clear any cached double-slash URLs
-  const appVersion = "1.0.2";
-  const storedVersion = localStorage.getItem('app_version');
-  
-  if (storedVersion !== appVersion) {
-    console.log("New version detected, clearing old data...");
-    localStorage.setItem('app_version', appVersion);
-    
-    // Clear any potentially cached chat data with double slashes
-    if (user?.id) {
-      const oldFormat = localStorage.getItem(`chat_history_${user.id}`);
-      if (oldFormat) {
-        // Keep messages but version is updated
-        console.log("Chat history preserved with new version");
-      }
-    }
-  }
-}, [user?.id]);
-
-  // Generate a consistent user ID from the auth user
-  const userId = user?.id || '';
+  const userId = user?.id || "";
 
   // -------------------
   // AUTH CHECK
@@ -85,39 +55,28 @@ useEffect(() => {
   }, [user, isLoading, router]);
 
   // -------------------
-  // LOAD HISTORY FROM LOCAL STORAGE
+  // LOAD HISTORY
   // -------------------
   useEffect(() => {
     if (!user?.id) return;
 
-    const loadHistory = () => {
-      try {
-        // Load messages from localStorage instead of backend
-        const storedMessages = localStorage.getItem(`chat_history_${user.id}`);
-        const storedChatId = localStorage.getItem(`chat_id_${user.id}`);
-        
-        if (storedMessages) {
-          setMessages(JSON.parse(storedMessages));
-        }
-        if (storedChatId) {
-          setChatId(storedChatId);
-        }
-      } catch (err) {
-        console.error("History load failed:", err);
-      }
-    };
+    const storedMessages = localStorage.getItem(`chat_history_${user.id}`);
+    const storedChatId = localStorage.getItem(`chat_id_${user.id}`);
 
-    loadHistory();
+    if (storedMessages) setMessages(JSON.parse(storedMessages));
+    if (storedChatId) setChatId(storedChatId);
   }, [user?.id]);
 
-  // Save messages to localStorage whenever they change
+  // Save history
   useEffect(() => {
     if (user?.id && messages.length > 0) {
-      localStorage.setItem(`chat_history_${user.id}`, JSON.stringify(messages));
+      localStorage.setItem(
+        `chat_history_${user.id}`,
+        JSON.stringify(messages)
+      );
     }
   }, [messages, user?.id]);
 
-  // Save chatId to localStorage
   useEffect(() => {
     if (user?.id && chatId) {
       localStorage.setItem(`chat_id_${user.id}`, chatId);
@@ -125,7 +84,7 @@ useEffect(() => {
   }, [chatId, user?.id]);
 
   // -------------------
-  // GREET ON ENTRY
+  // GREETING
   // -------------------
   useEffect(() => {
     if (!user?.id) return;
@@ -133,7 +92,6 @@ useEffect(() => {
     const greetedKey = `paula_greeted_${user.id}`;
     if (sessionStorage.getItem(greetedKey)) return;
 
-    // Only greet if there are no messages
     if (messages.length === 0) {
       const greeting: ChatMessage = {
         id: crypto.randomUUID(),
@@ -148,100 +106,82 @@ useEffect(() => {
   }, [user?.id, messages.length]);
 
   // -------------------
-  // AUTO-SCROLL
+  // AUTO SCROLL
   // -------------------
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
-// -------------------
-// SEND MESSAGE TO BACKEND
-// -------------------
-const sendMessage = async () => {
-  if (!input.trim() || !user || loading) return;
 
-  const userMessage: ChatMessage = {
-    id: crypto.randomUUID(),
-    sender: "user",
-    text: input,
-    timestamp: new Date().toISOString(),
-  };
+  // -------------------
+  // SEND MESSAGE
+  // -------------------
+  const sendMessage = async () => {
+    if (!input.trim() || !user || loading) return;
 
-  setMessages((prev) => [...prev, userMessage]);
-  setInput("");
-  setLoading(true);
-
-  try {
-    if (!API_BASE) throw new Error("API_BASE is not set");
-
-    // FIXED: Use baseUrl instead of API_BASE
-    let url = `${baseUrl}/api/send?user_id=${encodeURIComponent(userId)}`;
-    if (chatId) url += `&chat_id=${encodeURIComponent(chatId)}`;
-
-    console.log("Sending message to:", url);
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ text: userMessage.text }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("Backend error:", res.status, text);
-      throw new Error(`Backend responded with status ${res.status}`);
-    }
-
-    const data: BackendResponse = await res.json();
-    console.log("Backend response:", data);
-
-    if (data.chat_id) setChatId(data.chat_id);
-
-    const paulaReply: ChatMessage = {
+    const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
-      sender: "paula",
-      text: data.response,
-      timestamp: data.timestamp || new Date().toISOString(),
+      sender: "user",
+      text: input,
+      timestamp: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, paulaReply]);
-  } catch (err) {
-    console.error("Send message error:", err);
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setLoading(true);
 
-    const errorMessage = err instanceof Error && err.message.includes("Failed to fetch")
-      ? "Can't reach Paula right now. Check your internet connection."
-      : "Something went wrong. Try again in a likkle bit.";
+    try {
+      let url = `${baseUrl}/api/send?user_id=${encodeURIComponent(userId)}`;
+      if (chatId) url += `&chat_id=${encodeURIComponent(chatId)}`;
 
-    setMessages((prev) => [
-      ...prev,
-      {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: userMessage.text }),
+      });
+
+      if (!res.ok) throw new Error("Backend error");
+
+      const data: BackendResponse = await res.json();
+
+      if (data.chat_id) setChatId(data.chat_id);
+
+      const paulaReply: ChatMessage = {
         id: crypto.randomUUID(),
         sender: "paula",
-        text: errorMessage,
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-  } finally {
-    setLoading(false);
-  }
-};
+        text: data.response,
+        timestamp: data.timestamp || new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, paulaReply]);
+    } catch (err) {
+      console.error("Send message error:", err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          sender: "paula",
+          text: "Something went wrong. Try again in a likkle bit.",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // -------------------
-  // NEW CONVERSATION
+  // NEW CHAT
   // -------------------
-  const startNewConversation = async () => {
+  const startNewConversation = () => {
     if (!user) return;
 
-    // Clear local storage for this user
     sessionStorage.removeItem(`paula_greeted_${user.id}`);
     localStorage.removeItem(`chat_history_${user.id}`);
     localStorage.removeItem(`chat_id_${user.id}`);
-    
-    // Reset state
+
     setMessages([]);
     setChatId(null);
 
-    // Add a new greeting
     const greeting: ChatMessage = {
       id: crypto.randomUUID(),
       sender: "paula",
@@ -250,59 +190,57 @@ const sendMessage = async () => {
     };
 
     setMessages([greeting]);
-    sessionStorage.setItem(`paula_greeted_${user.id}`, "true");
   };
 
-  // -------------------
-  // BLOCK UI
-  // -------------------
   if (isLoading || !user) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-2xl mb-2">Loading Paula...</div>
-          <div className="text-sm text-gray-500">Just a moment</div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        Loading Paula...
       </div>
     );
   }
-// -------------------
-// UI
-// -------------------
-return (
-  <div className="flex flex-col items-center h-screen p-4 bg-gradient-to-b from-purple-100 to-gray-100">
-    
-    {/* Header with title and safety link */}
-    <div className="flex justify-between items-center w-full max-w-xl mb-2">
-      <h1 className="text-3xl font-bold text-purple-700">
-        Talk With Paula 💛
-      </h1>
-      <Link 
-        href="/safety" 
-        className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded-full hover:bg-red-200 transition-colors"
+
+  // -------------------
+  // UI
+  // -------------------
+  return (
+    <div className="flex flex-col items-center min-h-screen w-full p-4 bg-gradient-to-b from-purple-100 to-gray-100">
+
+      {/* Header */}
+      <div className="flex justify-between items-center w-full max-w-4xl mb-4">
+        <h1 className="text-3xl font-bold text-purple-700">
+          Talk With Paula 💛
+        </h1>
+
+        <Link
+          href="/safety"
+          className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded-full hover:bg-red-200"
+        >
+          🆘 Crisis Help
+        </Link>
+      </div>
+
+      <button
+        onClick={startNewConversation}
+        className="mb-4 px-4 py-2 border rounded bg-red-100 hover:bg-red-200"
       >
-        🆘 Crisis Help
-      </Link>
-    </div>
+        🔄 New Conversation
+      </button>
 
-    <button
-      onClick={startNewConversation}
-      className="mb-3 px-3 py-1 border rounded bg-red-100 hover:bg-red-200 transition-colors"
-    >
-      🔄 New Conversation
-    </button>
+      {/* Chat Window */}
+      <div className="w-full max-w-4xl bg-white rounded-xl shadow p-4 flex flex-col flex-1 min-h-[450px] overflow-y-auto">
 
-      <div className="w-full max-w-xl bg-white rounded-xl shadow p-4 flex flex-col overflow-y-auto h-[70%]">
         {messages.map((m) => (
           <div
             key={m.id}
-            className={`mb-2 p-3 rounded-lg max-w-[80%] ${
+            className={`mb-3 p-3 rounded-lg max-w-[70%] md:max-w-[60%] ${
               m.sender === "paula"
                 ? "bg-purple-200 self-start"
                 : "bg-blue-200 self-end"
             }`}
           >
             <div className="text-sm whitespace-pre-wrap">{m.text}</div>
+
             <div className="text-[10px] text-gray-500 mt-1">
               {new Date(m.timestamp).toLocaleTimeString()}
             </div>
@@ -310,42 +248,38 @@ return (
         ))}
 
         {loading && (
-          <div className="flex justify-start mb-2">
-            <div className="bg-purple-100 p-3 rounded-lg">
-              <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce animation-delay-200"></div>
-                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce animation-delay-400"></div>
-              </div>
-            </div>
+          <div className="bg-purple-100 p-3 rounded-lg w-fit">
+            Paula is typing...
           </div>
         )}
+
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="flex w-full max-w-xl mt-4 gap-2">
+      {/* Input */}
+      <div className="flex w-full max-w-4xl mt-4 gap-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           placeholder="Type your message…"
-          className="flex-1 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+          className="flex-1 p-3 border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
           disabled={loading}
         />
 
         <button
           onClick={sendMessage}
           disabled={loading || !input.trim()}
-          className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="px-6 py-3 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300"
         >
           Send
         </button>
       </div>
 
-      {/* Debug info - remove in production */}
       <div className="text-xs text-gray-400 mt-2">
-        {chatId ? `Chat ID: ${chatId.substring(0, 8)}...` : 'New chat'}
+        {chatId ? `Chat ID: ${chatId.substring(0, 8)}...` : "New chat"}
       </div>
+
     </div>
   );
 }
