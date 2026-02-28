@@ -30,17 +30,26 @@ export default function LoginForm() {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
+  e.preventDefault();
+  setError("");
 
-    const result = await login(formData.email, formData.password)
+  const result = await login(formData.email, formData.password);
 
-    if (result.success) {
-      router.push('/dashboard')
-    } else {
-      setError(result.error)
+  if (result.success) {
+    // 🚨 NEW: Block unverified users
+    if (!result.user.emailVerified) {
+      // Force logout so they can't access protected pages
+      await result.auth.signOut();
+
+      setError("Please verify your email before logging in. Check your inbox or spam folder.");
+      return;
     }
+
+    router.push("/dashboard");
+  } else {
+    setError(result.error);
   }
+};
 
   const handleGoogleLogin = async () => {
     setError('')
