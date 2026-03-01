@@ -1,721 +1,599 @@
-/* safety.module.css */
+/* safety.module.css - Updated with standard property */
 
 .container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #e9eef5 100%);
-  padding: 2rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
 }
 
 .header {
+  margin-bottom: 2rem;
   text-align: center;
-  margin-bottom: 3rem;
   position: relative;
 }
 
 .backLink {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: #4a5568;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
   position: absolute;
   left: 0;
   top: 0;
-  color: #4a5568;
-  text-decoration: none;
-  font-size: 1rem;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  transition: background-color 0.2s;
 }
 
 .backLink:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  color: #2d3748;
+  text-decoration: underline;
 }
 
 .title {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #2d3748;
   margin-bottom: 0.5rem;
+  color: #667eea; /* Fallback color */
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .subtitle {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   color: #4a5568;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 1rem;
 }
 
-.emergencyNumber {
-  color: #e53e3e;
+/* Emergency Section */
+.emergencySection {
+  background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
+  border-radius: 1rem;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  text-align: center;
+  border: 2px solid #fc8181;
+}
+
+.emergencyButton {
+  display: inline-block;
+  background: #e53e3e;
+  color: white;
   font-size: 1.5rem;
-  background-color: #fff5f5;
-  padding: 0.2rem 0.8rem;
-  border-radius: 2rem;
+  font-weight: 700;
+  padding: 1rem 2.5rem;
+  border-radius: 9999px;
+  text-decoration: none;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(229, 62, 62, 0.3);
+  transition: all 0.2s;
+  border: 2px solid white;
 }
 
-/* National Helpline */
-.nationalHelpline {
-  max-width: 800px;
-  margin: 0 auto 3rem auto;
+.emergencyButton:hover {
+  background: #c53030;
+  transform: scale(1.05);
+  box-shadow: 0 20px 25px -5px rgba(229, 62, 62, 0.4);
+}
+
+.emergencyText {
+  color: #742a2a;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* Helplines Section */
+.helplinesSection {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.helplinesSection h2 {
+  color: #2d3748;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+.helplinesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
 }
 
 .helplineCard {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1.5rem;
-  border-radius: 1rem;
-  display: flex;
-  gap: 1.5rem;
-  align-items: flex-start;
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+  background: #f7fafc;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  border-left: 4px solid #4299e1;
+  transition: transform 0.2s;
 }
 
-.helplineIcon {
-  font-size: 3rem;
-  background: rgba(255, 255, 255, 0.2);
-  width: 5rem;
-  height: 5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 1rem;
+.helplineCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.helplineName {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
+.helplineCard h3 {
+  color: #2d3748;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
 }
 
 .helplinePhone {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
+  color: #2b6cb0;
+  font-size: 1.1rem;
+  margin: 0.25rem 0;
 }
 
-.helplineDetails {
-  font-size: 0.95rem;
-  opacity: 0.9;
-  margin-bottom: 0.5rem;
-}
-
-.helplineNotes {
+.helplineDesc {
+  color: #4a5568;
   font-size: 0.9rem;
-  opacity: 0.8;
-  line-height: 1.5;
+  margin: 0.25rem 0;
 }
 
-/* Filters */
-.filters {
-  max-width: 800px;
-  margin: 0 auto 2rem auto;
-  display: flex;
-  gap: 2rem;
-  align-items: center;
-  justify-content: center;
+/* Organizations Section */
+.orgsSection {
   background: white;
-  padding: 1rem 2rem;
-  border-radius: 3rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-}
-
-.filterGroup {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.filterLabel {
-  font-size: 0.95rem;
-  color: #4a5568;
-  font-weight: 500;
-}
-
-.select {
-  padding: 0.5rem 2rem 0.5rem 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 2rem;
-  background-color: white;
-  font-size: 0.95rem;
-  color: #2d3748;
-  cursor: pointer;
-  outline: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234a5568' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  background-size: 1rem;
-}
-
-.select:hover {
-  border-color: #9f7aea;
-}
-
-.checkboxLabel {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.95rem;
-  color: #4a5568;
-  cursor: pointer;
-}
-
-.checkbox {
-  width: 1.2rem;
-  height: 1.2rem;
-  cursor: pointer;
-  accent-color: #8b5cf6;
-}
-
-/* Parish Grid */
-.parishGrid {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  gap: 2rem;
-}
-
-.parishCard {
-  background: white;
-  border-radius: 1.5rem;
+  border-radius: 1rem;
   padding: 2rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s, box-shadow 0.2s;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.parishCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-}
-
-.parishName {
-  font-size: 2rem;
-  font-weight: 700;
+.orgsSection h2 {
   color: #2d3748;
   margin-bottom: 1.5rem;
+  border-bottom: 2px solid #e2e8f0;
   padding-bottom: 0.5rem;
-  border-bottom: 3px solid #8b5cf6;
-  display: inline-block;
 }
 
-/* Sections */
-.section {
-  margin-top: 2rem;
+.orgsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
 }
 
-.sectionTitle {
-  font-size: 1.5rem;
-  font-weight: 600;
+.orgCard {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e6f2ff 100%);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  border: 1px solid #90cdf4;
+}
+
+.orgCard h3 {
+  color: #1e4e8c;
+  margin: 0 0 0.25rem 0;
+}
+
+.orgType {
   color: #4a5568;
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-style: italic;
+  margin-bottom: 0.75rem;
 }
 
-/* Facility Lists */
-.facilityList {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.facilityItem {
-  background: #f8fafc;
-  padding: 1.25rem;
-  border-radius: 1rem;
-  border-left: 4px solid #8b5cf6;
-  transition: background-color 0.2s;
-}
-
-.facilityItem:hover {
-  background: #f1f5f9;
-}
-
-.facilityHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.facilityName {
-  font-size: 1.1rem;
-  font-weight: 600;
+.orgServices {
+  margin-top: 0.75rem;
   color: #2d3748;
 }
 
-.facilityType {
-  font-size: 0.85rem;
-  background: #e9d8fd;
-  color: #553c9a;
-  padding: 0.25rem 0.75rem;
-  border-radius: 2rem;
-  text-transform: capitalize;
+/* Filters Section */
+.filtersSection {
+  margin-bottom: 2rem;
 }
 
-.facilityAddress,
-.facilityPhone,
-.facilityWebsite,
-.facilityNotes {
-  font-size: 0.95rem;
-  color: #4a5568;
-  margin: 0.25rem 0;
-  line-height: 1.5;
-}
-
-.facilityWebsite a {
-  color: #8b5cf6;
-  text-decoration: none;
-  word-break: break-all;
-}
-
-.facilityWebsite a:hover {
-  text-decoration: underline;
-}
-
-.servicesList {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-}
-
-.serviceTag {
+.filterToggle {
+  width: 100%;
+  padding: 1rem;
   background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
   color: #4a5568;
-  font-size: 0.85rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 2rem;
-  border: 1px solid #e2e8f0;
-  white-space: nowrap;
-}
-
-.serviceTag:hover {
-  background: #8b5cf6;
-  color: white;
-  border-color: #8b5cf6;
-}
-
-.noFacilities {
+  cursor: pointer;
+  transition: all 0.2s;
   text-align: center;
-  color: #a0aec0;
-  font-style: italic;
-  padding: 2rem;
+}
+
+.filterToggle:hover {
   background: #f7fafc;
-  border-radius: 1rem;
-  margin-top: 1rem;
+  border-color: #667eea;
 }
 
-/* Footer */
-.footer {
-  max-width: 800px;
-  margin: 4rem auto 0 auto;
-  text-align: center;
-  padding: 2rem;
+.filtersPanel {
   background: white;
-  border-radius: 1rem;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
-}
-
-.footerText {
-  font-size: 1.1rem;
-  color: #4a5568;
-  margin-bottom: 1rem;
-}
-
-.footerLink {
-  display: inline-block;
-  background: #8b5cf6;
-  color: white;
-  padding: 0.75rem 2rem;
-  border-radius: 2rem;
-  text-decoration: none;
-  font-weight: 500;
-  transition: background-color 0.2s;
-}
-
-.footerLink:hover {
-  background: #7c3aed;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .container {
-    padding: 1rem;
-  }
-
-  .header {
-    margin-bottom: 2rem;
-  }
-
-  .backLink {
-    position: static;
-    display: inline-block;
-    margin-bottom: 1rem;
-  }
-
-  .title {
-    font-size: 2rem;
-  }
-
-  .subtitle {
-    font-size: 1rem;
-  }
-
-  .filters {
-    flex-direction: column;
-    gap: 1rem;
-    border-radius: 1rem;
-    padding: 1rem;
-  }
-
-  .filterGroup {
-    width: 100%;
-  }
-
-  .select {
-    width: 100%;
-  }
-
-  .helplineCard {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-
-  .parishName {
-    font-size: 1.75rem;
-  }
-
-  .facilityHeader {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .servicesList {
-    white-space: normal;
-  }
-
-  .serviceTag {
-    white-space: normal;
-    text-align: center;
-  }
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .container {
-    background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
-  }
-
-  .title,
-  .parishName {
-    color: #f7fafc;
-  }
-
-  .subtitle {
-    color: #cbd5e0;
-  }
-
-  .backLink {
-    color: #cbd5e0;
-  }
-
-  .backLink:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .filters {
-    background: #2d3748;
-  }
-
-  .filterLabel,
-  .checkboxLabel {
-    color: #cbd5e0;
-  }
-
-  .select {
-    background-color: #1a202c;
-    border-color: #4a5568;
-    color: #f7fafc;
-  }
-
-  .parishCard {
-    background: #2d3748;
-  }
-
-  .facilityItem {
-    background: #1a202c;
-    border-left-color: #9f7aea;
-  }
-
-  .facilityName {
-    color: #f7fafc;
-  }
-
-  .facilityAddress,
-  .facilityPhone,
-  .facilityNotes {
-    color: #cbd5e0;
-  }
-
-  .serviceTag {
-    background: #2d3748;
-    border-color: #4a5568;
-    color: #cbd5e0;
-  }
-
-  .serviceTag:hover {
-    background: #9f7aea;
-    color: white;
-  }
-
-  .footer {
-    background: #2d3748;
-  }
-
-  .footerText {
-    color: #cbd5e0;
-  }
-
-  .noFacilities {
-    background: #1a202c;
-    color: #718096;
-  }
-
-  /* Add to safety.module.css */
-
-/* Emergency Contacts Grid */
-.emergencyGrid {
-  max-width: 1200px;
-  margin: 2rem auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1rem;
-  padding: 0 1rem;
-}
-
-.emergencyCard {
-  background: white;
-  border-radius: 1rem;
+  border-radius: 0.75rem;
   padding: 1.5rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
-  color: white;
-  position: relative;
-  overflow: hidden;
+  margin-top: 1rem;
+  border: 2px solid #e2e8f0;
+  animation: slideDown 0.3s ease;
 }
 
-.emergencyCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.priorityhighest {
-  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
-  grid-column: span 2;
+.searchBox {
+  margin-bottom: 1.5rem;
 }
 
-.priorityhigh {
-  background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
-}
-
-.prioritymedium {
-  background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
-}
-
-.emergencyHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.emergencyName {
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.urgentBadge {
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.25rem 0.75rem;
-  border-radius: 2rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.7; }
-  100% { opacity: 1; }
-}
-
-.emergencyPhone {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.phoneLink {
-  color: white;
-  text-decoration: none;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+.searchInput {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.75rem;
+  font-size: 1rem;
   transition: border-color 0.2s;
 }
 
-.phoneLink:hover {
-  border-bottom-color: white;
+.searchInput:focus {
+  outline: none;
+  border-color: #667eea;
 }
 
-.emergencyDescription {
-  font-size: 0.95rem;
-  opacity: 0.9;
-  line-height: 1.5;
-}
-
-/* Tips Section */
-.tipsSection {
-  max-width: 1200px;
-  margin: 3rem auto;
-  padding: 0 1rem;
-}
-
-.tipsTitle {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
-.tipsGrid {
+.filterRow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
 }
 
-.tipCard {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 1rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+.filterGroup {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  transition: transform 0.2s;
-}
-
-.tipCard:hover {
-  transform: translateX(5px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-
-.tipIcon {
-  font-size: 2rem;
-  min-width: 3rem;
-}
-
-.tipText {
-  font-size: 0.95rem;
-  color: #4a5568;
-  line-height: 1.5;
-  margin: 0;
-}
-
-.tipText strong {
-  color: #dc2626;
-}
-
-/* Footer Buttons */
-.footerButtons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  margin-top: 1.5rem;
-}
-
-.emergencyButton {
-  background: #dc2626;
-  color: white;
-  padding: 0.75rem 2rem;
-  border-radius: 2rem;
-  text-decoration: none;
-  font-weight: 600;
-  transition: background-color 0.2s;
-  display: inline-flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
 }
 
-.emergencyButton:hover {
-  background: #b91c1c;
+.filterGroup label {
+  font-weight: 600;
+  color: #4a5568;
 }
 
-/* Dark mode updates */
-@media (prefers-color-scheme: dark) {
-  .tipsTitle {
-    color: #f7fafc;
-  }
-
-  .tipCard {
-    background: #2d3748;
-  }
-
-  .tipText {
-    color: #cbd5e0;
-  }
-
-  .emergencyCard {
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  }
+.filterSelect {
+  padding: 0.75rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
 }
 
-/* Responsive adjustments */
+.filterSelect:hover,
+.filterSelect:focus {
+  border-color: #667eea;
+  outline: none;
+}
+
+/* Results Count */
+.resultsCount {
+  background: #ebf4ff;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  color: #2c5282;
+  font-weight: 500;
+  text-align: center;
+  border: 1px solid #bee3f8;
+}
+
+/* Resources Container */
+.resourcesContainer {
+  margin-bottom: 2rem;
+}
+
+.parishSection {
+  margin-bottom: 2.5rem;
+}
+
+.parishTitle {
+  color: #2d3748;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 3px solid #667eea;
+}
+
+.resourcesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.resourceCard {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+  border-left: 4px solid #cbd5e0;
+  display: flex;
+  flex-direction: column;
+  height: fit-content;
+}
+
+.resourceCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Category-specific border colors */
+.resourceCard.hospital {
+  border-left-color: #e53e3e;
+}
+.resourceCard.private_practice {
+  border-left-color: #38a169;
+}
+.resourceCard.community {
+  border-left-color: #3182ce;
+}
+.resourceCard.health_centre {
+  border-left-color: #d69e2e;
+}
+.resourceCard.specialized {
+  border-left-color: #9f7aea;
+}
+.resourceCard.rehabilitation {
+  border-left-color: #ed64a6;
+}
+.resourceCard.residential {
+  border-left-color: #dd6b20;
+}
+.resourceCard.online {
+  border-left-color: #4299e1;
+}
+.resourceCard.directory {
+  border-left-color: #718096;
+}
+
+.resourceHeader {
+  margin-bottom: 0.75rem;
+}
+
+.resourceHeader h3 {
+  color: #2d3748;
+  margin: 0 0 0.25rem 0;
+  font-size: 1.2rem;
+}
+
+.resourceType {
+  color: #718096;
+  font-size: 0.875rem;
+  font-style: italic;
+  display: block;
+}
+
+.practitioner {
+  color: #2b6cb0;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.resourceCard p {
+  margin: 0.25rem 0;
+  color: #4a5568;
+  font-size: 0.95rem;
+}
+
+.services {
+  margin: 0.75rem 0;
+}
+
+.services strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #2d3748;
+}
+
+.services ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #4a5568;
+}
+
+.services li {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.moreServices {
+  color: #718096;
+  font-style: italic;
+  list-style-type: none;
+}
+
+.notes {
+  background: #f0fff4;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: #22543d;
+  border-left: 3px solid #38a169;
+}
+
+.smallCallButton {
+  display: inline-block;
+  background: #4299e1;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  margin-top: 0.75rem;
+  transition: background 0.2s;
+  text-align: center;
+  align-self: flex-start;
+}
+
+.smallCallButton:hover {
+  background: #3182ce;
+}
+
+/* No Results */
+.noResults {
+  text-align: center;
+  padding: 3rem;
+  background: white;
+  border-radius: 1rem;
+  color: #718096;
+}
+
+.resetButton {
+  background: #667eea;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background 0.2s;
+}
+
+.resetButton:hover {
+  background: #5a67d8;
+}
+
+/* Guidance Section */
+.guidance {
+  background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%);
+  border-radius: 1rem;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border: 1px solid #4fd1c5;
+}
+
+.guidance h3 {
+  color: #234e52;
+  margin-bottom: 1rem;
+}
+
+.guidance ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.guidance li {
+  padding: 0.5rem 0 0.5rem 1.5rem;
+  position: relative;
+  color: #234e52;
+}
+
+.guidance li:before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #2c7a7b;
+  font-weight: bold;
+}
+
+/* Info Box */
+.infoBox {
+  background: #feebc8;
+  border-radius: 1rem;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border: 1px solid #fbd38d;
+}
+
+.infoBox h4 {
+  color: #7b341e;
+  margin-bottom: 1rem;
+}
+
+.infoBox ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: #744210;
+}
+
+.infoBox li {
+  margin: 0.5rem 0;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid #cbd5e0;
+  color: #718096;
+}
+
+.updateNote {
+  margin: 1rem 0;
+  color: #a0aec0;
+  font-size: 0.8rem;
+}
+
+.footerLink {
+  display: inline-block;
+  color: #4a5568;
+  text-decoration: none;
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  border-radius: 9999px;
+  background: #edf2f7;
+  transition: all 0.2s;
+}
+
+.footerLink:hover {
+  background: #e2e8f0;
+  color: #2d3748;
+}
+
+/* Mobile Responsiveness */
 @media (max-width: 768px) {
-  .priorityhighest {
-    grid-column: span 1;
+  .container {
+    padding: 1rem;
   }
-
-  .emergencyPhone {
-    font-size: 1.2rem;
-    word-break: break-all;
+  
+  .title {
+    font-size: 2rem;
+    margin-top: 2rem;
   }
-
-  .tipsGrid {
+  
+  .backLink {
+    position: relative;
+    display: block;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  
+  .emergencyButton {
+    font-size: 1.25rem;
+    padding: 0.75rem 1.5rem;
+  }
+  
+  .helplinesGrid,
+  .orgsGrid,
+  .resourcesGrid {
     grid-template-columns: 1fr;
   }
-
-  .footerButtons {
-    flex-direction: column;
-    align-items: center;
+  
+  .filterRow {
+    grid-template-columns: 1fr;
   }
-
-  .emergencyButton,
-  .footerLink {
-    width: 100%;
-    text-align: center;
-    justify-content: center;
+  
+  .resourceCard {
+    padding: 1rem;
   }
-}
-
-/* Print styles for safety cards */
-@media print {
-  .emergencyCard {
-    break-inside: avoid;
-    page-break-inside: avoid;
-    background: white !important;
-    color: black !important;
-    border: 2px solid #000;
-  }
-
-  .phoneLink {
-    color: black !important;
-  }
-
-  .emergencyButton,
-  .backLink,
-  .filters {
-    display: none;
-  }
-}
 }
