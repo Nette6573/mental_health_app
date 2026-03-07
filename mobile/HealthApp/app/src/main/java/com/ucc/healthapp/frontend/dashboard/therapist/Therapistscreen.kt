@@ -1,402 +1,607 @@
 package com.ucc.healthapp.frontend.dashboard.therapist
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Internal navigation state
+// ─────────────────────────────────────────────────────────────────────────────
+
+private sealed class TherapistNavState {
+    /** The therapist list, search, and support group view. */
+    object List : TherapistNavState()
+
+    /** Full profile detail for a therapist identified by [therapistId]. */
+    data class Profile(val therapistId: String) : TherapistNavState()
+
+    /** Booking flow for [profile], navigated back to [originId] on back press. */
+    data class Book(val profile: TherapistProfile, val originId: String) : TherapistNavState()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Root screen — owns the internal nav stack
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Top-level entry point for the Therapist feature.
+ *
+ * Manages an internal back-stack so the host (Activity / parent NavGraph) does
+ * not need to know about sub-screen routing. The host only receives semantically
+ * meaningful callbacks.
+ *
+ * @param onCallCrisisLine    Called when the user taps "Call Now" on the crisis banner.
+ * @param onBrowseGroups      Called when the user taps "Browse All Groups".
+ * @param onViewGroup         Called when the user taps an individual [SupportGroup].
+ * @param onBookingConfirmed  Called with a fully resolved [BookingResult] on success.
+ */
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun TherapistScreen(
+    onCallCrisisLine: () -> Unit = {},
+    onBrowseGroups: () -> Unit = {},
+    onViewGroup: (SupportGroup) -> Unit = {},
+    onBookingConfirmed: (BookingResult) -> Unit = {},
+) {
+    var navState by remember { mutableStateOf<TherapistNavState>(TherapistNavState.List) }
+
+    when (val state = navState) {
+
+        is TherapistNavState.List -> {
+            TherapistListContent(
+                onCallCrisisLine = onCallCrisisLine,
+                onBrowseGroups = onBrowseGroups,
+                onViewGroup = onViewGroup,
+                onViewProfile = { therapist ->
+                    navState = TherapistNavState.Profile(therapist.id)
+                },
+                onBookAppointment = { therapist ->
+                    val profile = sampleTherapistProfiles[therapist.id] ?: return@TherapistListContent
+                    navState = TherapistNavState.Book(profile, originId = therapist.id)
+                },
+            )
+        }
+
+        is TherapistNavState.Profile -> {
+            TherapistProfileScreen(
+                therapistId = state.therapistId,
+                onBack = { navState = TherapistNavState.List },
+                onBookAppointment = { profile ->
+                    navState = TherapistNavState.Book(profile, originId = profile.therapist.id)
+                },
+            )
+        }
+
+        is TherapistNavState.Book -> {
+            BookAppointmentScreen(
+                profile = state.profile,
+                onBack = { navState = TherapistNavState.Profile(state.originId) },
+                onBookingConfirmed = { date, slot, mode, notes ->
+                    onBookingConfirmed(
+                        BookingResult(
+                            therapistId = state.profile.therapist.id,
+                            therapistName = state.profile.therapist.name,
+                            date = date,
+                            timeSlot = slot,
+                            mode = mode,
+                            notes = notes,
+                        ),
+                    )
+                    navState = TherapistNavState.List
+                },
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// List content
+// ─────────────────────────────────────────────────────────────────────────────
+
+private val filterOptions = listOf("All", "Online", "In-Person", "Available Today")
 
 @Composable
-fun TherapistScreen() {
+private fun TherapistListContent(
+    onCallCrisisLine: () -> Unit,
+    onBrowseGroups: () -> Unit,
+    onViewGroup: (SupportGroup) -> Unit,
+    onViewProfile: (Therapist) -> Unit,
+    onBookAppointment: (Therapist) -> Unit,
+) {
+    var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableIntStateOf(0) }
-    val filters = listOf("All", "Online", "In-Person", "Available Today")
+
+    val displayedTherapists = remember(searchQuery, selectedFilter) {
+        sampleTherapists.filter { therapist ->
+            val matchesSearch = searchQuery.isBlank() ||
+                    therapist.name.contains(searchQuery, ignoreCase = true) ||
+                    therapist.specialty.contains(searchQuery, ignoreCase = true)
+            val matchesFilter = when (selectedFilter) {
+                1 -> therapist.isOnline
+                2 -> !therapist.isOnline
+                3 -> therapist.availableToday
+                else -> true
+            }
+            matchesSearch && matchesFilter
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(20.dp)
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
     ) {
-        // Header
-        item {
-            TherapistHeader()
+        item(key = "header") { TherapistHeader() }
+
+        item(key = "search") {
+            TherapistSearchBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+            )
         }
 
-        // Search Bar
-        item {
-            SearchBar()
-        }
-
-        // Filters
-        item {
-            FilterChips(
-                filters = filters,
+        item(key = "filters") {
+            FilterChipsRow(
+                filters = filterOptions,
                 selectedFilter = selectedFilter,
-                onFilterSelected = { selectedFilter = it }
+                onFilterSelected = { selectedFilter = it },
             )
         }
 
-        // Emergency Resources
-        item {
-            EmergencyResourcesCard()
-        }
+        item(key = "crisis") { CrisisSupportCard(onCall = onCallCrisisLine) }
 
-        // Featured Therapists
-        item {
-            Text(
-                text = "Featured Therapists",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+        item(key = "therapists_title") {
+            SectionTitle(
+                title = "Featured Therapists",
+                subtitle = if (displayedTherapists.isEmpty()) "No results — try adjusting your search" else null,
             )
         }
 
-        // Therapist Cards
-        items(5) { index ->
-            TherapistCard(
-                name = when(index) {
-                    0 -> "Dr. Sarah Mitchell"
-                    1 -> "Dr. James Chen"
-                    2 -> "Dr. Emily Rodriguez"
-                    3 -> "Dr. Michael Thompson"
-                    else -> "Dr. Lisa Anderson"
-                },
-                specialty = when(index) {
-                    0 -> "Anxiety & Depression"
-                    1 -> "Trauma & PTSD"
-                    2 -> "Relationships & Family"
-                    3 -> "Stress Management"
-                    else -> "Life Transitions"
-                },
-                rating = when(index) {
-                    0 -> 4.9
-                    1 -> 4.8
-                    2 -> 4.9
-                    3 -> 4.7
-                    else -> 4.8
-                },
-                reviewCount = when(index) {
-                    0 -> 127
-                    1 -> 94
-                    2 -> 156
-                    3 -> 78
-                    else -> 103
-                },
-                price = when(index) {
-                    0 -> 120
-                    1 -> 150
-                    2 -> 130
-                    3 -> 110
-                    else -> 140
-                },
-                available = index % 2 == 0,
-                isOnline = index != 2
+        if (displayedTherapists.isEmpty()) {
+            item(key = "empty") { EmptyStateCard() }
+        } else {
+            items(
+                count = displayedTherapists.size,
+                key = { displayedTherapists[it].id },
+            ) { index ->
+                val therapist = displayedTherapists[index]
+                TherapistCard(
+                    therapist = therapist,
+                    onBook = { onBookAppointment(therapist) },
+                    onViewProfile = { onViewProfile(therapist) },
+                )
+            }
+        }
+
+        item(key = "groups_title") {
+            Spacer(modifier = Modifier.height(4.dp))
+            SectionTitle(title = "Support Groups")
+        }
+
+        item(key = "groups") {
+            SupportGroupsCard(
+                groups = sampleSupportGroups,
+                onBrowseAll = onBrowseGroups,
+                onViewGroup = onViewGroup,
             )
         }
 
-        // Support Groups
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Support Groups",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        item {
-            SupportGroupsCard()
-        }
+        item(key = "bottom_spacer") { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Header
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Composable
 private fun TherapistHeader() {
-    Column {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = "Find a Therapist",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
         )
         Text(
             text = "Connect with licensed mental health professionals",
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Search bar
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Composable
-private fun SearchBar() {
+private fun TherapistSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+) {
     OutlinedTextField(
-        value = "",
-        onValueChange = {},
+        value = query,
+        onValueChange = onQueryChange,
         modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("Search by name, specialty, or location...") },
+        placeholder = { Text("Search by name or specialty…") },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Default.Search,
-                contentDescription = "Search"
+                contentDescription = "Search",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
         trailingIcon = {
-            IconButton(onClick = { /* Advanced filters */ }) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Filters"
-                )
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Default.Clear,
+                        contentDescription = "Clear search",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         },
+        singleLine = true,
         shape = RoundedCornerShape(12.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-        )
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+        ),
     )
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Filter chips
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Composable
-private fun FilterChips(
+private fun FilterChipsRow(
     filters: List<String>,
     selectedFilter: Int,
-    onFilterSelected: (Int) -> Unit
+    onFilterSelected: (Int) -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        filters.forEachIndexed { index, filter ->
+        filters.forEachIndexed { index, label ->
             FilterChip(
                 selected = selectedFilter == index,
                 onClick = { onFilterSelected(index) },
-                label = { Text(filter) },
+                label = { Text(label) },
                 leadingIcon = if (selectedFilter == index) {
                     {
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(FilterChipDefaults.IconSize),
                         )
                     }
-                } else null
+                } else null,
             )
         }
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Crisis support banner
+// ─────────────────────────────────────────────────────────────────────────────
+
+private val CrisisRed = Color(0xFFD32F2F)
+private val CrisisRedBg = Color(0xFFFFEBEE)
+private val CrisisRedText = Color(0xFFB71C1C)
+
 @Composable
-private fun EmergencyResourcesCard() {
+private fun CrisisSupportCard(onCall: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFFEBEE)
-        )
+        colors = CardDefaults.cardColors(containerColor = CrisisRedBg),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFD32F2F)),
-                contentAlignment = Alignment.Center
+                    .background(CrisisRed),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Default.AccountBox,
+                    imageVector = Icons.Default.Phone,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
                 )
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Crisis Support",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFB71C1C)
+                    color = CrisisRedText,
                 )
                 Text(
-                    text = "Available 24/7 for immediate help",
+                    text = "Call 988 · Available 24/7",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFB71C1C).copy(alpha = 0.8f)
+                    color = CrisisRedText.copy(alpha = 0.85f),
                 )
             }
 
             Button(
-                onClick = { /* Call crisis line */ },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFD32F2F)
-                ),
-                shape = RoundedCornerShape(12.dp)
+                onClick = onCall,
+                colors = ButtonDefaults.buttonColors(containerColor = CrisisRed),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
             ) {
-                Text(text = "Call")
+                Icon(
+                    imageVector = Icons.Default.Phone,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = "Call Now", fontWeight = FontWeight.SemiBold)
             }
         }
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Section title
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Composable
-private fun TherapistCard(
-    name: String,
-    specialty: String,
-    rating: Double,
-    reviewCount: Int,
-    price: Int,
-    available: Boolean,
-    isOnline: Boolean
-) {
+private fun SectionTitle(title: String, subtitle: String? = null) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        if (subtitle != null) {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Empty state
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun EmptyStateCard() {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { /* View therapist profile */ },
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp)
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "No therapists found",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "Try a different search term or filter",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Therapist card
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun TherapistCard(
+    therapist: Therapist,
+    onBook: () -> Unit,
+    onViewProfile: () -> Unit,
+) {
+    val initials = initialsFrom(therapist.name)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            // ── Avatar + Info + Price ──────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // Profile Picture Placeholder
                 Box(
                     modifier = Modifier
-                        .size(60.dp)
+                        .size(64.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = name.split(" ").map { it.first() }.joinToString(""),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Text(
-                        text = specialty,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = null,
-                            tint = Color(0xFFFFC107),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "$rating",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = " ($reviewCount reviews)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Column(
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Text(
-                        text = "$$price",
+                        text = initials,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = therapist.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        text = "per session",
+                        text = therapist.specialty,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    StarRating(rating = therapist.rating, reviewCount = therapist.reviewCount)
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "$${therapist.pricePerSession}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = "/ session",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Tags
+            // ── Tags ────────────────────────────────────────────────────────
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
             ) {
-                if (isOnline) {
-                    Tag(text = "Online", color = Color(0xFF2196F3))
+                if (therapist.isOnline) {
+                    StatusTag(text = "Online", color = Color(0xFF1565C0))
                 } else {
-                    Tag(text = "In-Person", color = Color(0xFF4CAF50))
+                    StatusTag(text = "In-Person", color = Color(0xFF2E7D32))
                 }
-
-                if (available) {
-                    Tag(text = "Available Today", color = Color(0xFF4CAF50))
+                if (therapist.availableToday) {
+                    StatusTag(text = "Available Today", color = Color(0xFF2E7D32))
                 }
-
-                Tag(text = "Licensed", color = MaterialTheme.colorScheme.tertiary)
+                StatusTag(text = "Licensed", color = MaterialTheme.colorScheme.tertiary)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
+            // ── Actions ─────────────────────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedButton(
-                    onClick = { /* View profile */ },
+                    onClick = onViewProfile,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    border = ButtonDefaults.outlinedButtonBorder,
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(text = "View Profile")
                 }
 
                 Button(
-                    onClick = { /* Book appointment */ },
+                    onClick = onBook,
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(text = "Book Now")
                 }
             }
@@ -405,152 +610,194 @@ private fun TherapistCard(
 }
 
 @Composable
-private fun Tag(
-    text: String,
-    color: Color
-) {
-    Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = color.copy(alpha = 0.1f)
-    ) {
+private fun StarRating(rating: Double, reviewCount: Int) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = Icons.Default.Star,
+            contentDescription = null,
+            tint = Color(0xFFFFC107),
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            color = color,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            fontWeight = FontWeight.Medium
+            text = rating.toString(),
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = " ($reviewCount reviews)",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Support groups card
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Composable
-private fun SupportGroupsCard() {
+private fun SupportGroupsCard(
+    groups: List<SupportGroup>,
+    onBrowseAll: () -> Unit,
+    onViewGroup: (SupportGroup) -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = "Join a Support Group",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "Join a Support Group",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Connect with others who understand what you're going through",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            Text(
-                text = "Connect with others who understand what you're going through",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            listOf(
-                Triple("Anxiety Support Circle", "Tuesdays, 6 PM", "12 members"),
-                Triple("Depression Recovery Group", "Thursdays, 7 PM", "8 members"),
-                Triple("Stress Management Workshop", "Saturdays, 10 AM", "15 members")
-            ).forEach { (name, time, members) ->
-                SupportGroupItem(name, time, members)
-                Spacer(modifier = Modifier.height(12.dp))
+            groups.forEach { group ->
+                SupportGroupItem(group = group, onClick = { onViewGroup(group) })
             }
 
             Button(
-                onClick = {},
+                onClick = onBrowseAll,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
             ) {
                 Icon(
-                    imageVector = Icons.Default.Person,
+                    imageVector = Icons.Default.Group,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Browse All Groups")
+                Text(text = "Browse All Groups", fontWeight = FontWeight.SemiBold)
             }
         }
     }
 }
 
 @Composable
-private fun SupportGroupItem(
-    name: String,
-    time: String,
-    members: String
-) {
-    Row(
+private fun SupportGroupItem(group: SupportGroup, onClick: () -> Unit) {
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .clickable { /* View group details */ }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        tonalElevation = 1.dp,
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = name,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Default.DateRange,
+                    imageVector = Icons.Default.Group,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = time,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = members,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(22.dp),
                 )
             }
-        }
 
-        Icon(
-            imageVector = Icons.Default.ArrowForward,
-            contentDescription = "View",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = group.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Text(
+                        text = group.schedule,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        imageVector = Icons.Default.Group,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(13.dp),
+                    )
+                    Text(
+                        text = group.members,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "View group",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Previews
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun TherapistScreenPreview() {
+    MaterialTheme {
+        TherapistScreen()
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TherapistCardPreview() {
+    MaterialTheme {
+        TherapistCard(
+            therapist = sampleTherapists.first(),
+            onBook = {},
+            onViewProfile = {},
         )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun CrisisSupportCardPreview() {
+    MaterialTheme {
+        CrisisSupportCard(onCall = {})
     }
 }

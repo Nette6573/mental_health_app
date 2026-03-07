@@ -18,21 +18,24 @@ import com.ucc.healthapp.frontend.dashboard.faith.FaithScreen
 import com.ucc.healthapp.frontend.dashboard.mood.MoodScreen
 import com.ucc.healthapp.frontend.dashboard.nonbeliever.NonBelieverScreen
 import com.ucc.healthapp.frontend.dashboard.overview.OverviewScreen
-//import com.ucc.healthapp.frontend.dashboard.progress.ProgressScreen
+import com.ucc.healthapp.frontend.dashboard.paula.PaulaFab
 import com.ucc.healthapp.frontend.dashboard.resources.ResourcesScreen
 import com.ucc.healthapp.frontend.dashboard.settings.SettingsScreen
 import com.ucc.healthapp.frontend.dashboard.therapist.TherapistScreen
 
+// ─── Screen Definitions ───────────────────────────────────────────────────────
+
 sealed class DashboardScreens(val route: String, val title: String, val icon: Int) {
-    object Overview : DashboardScreens("overview", "Overview", R.drawable.ic_home)
-    object Faith : DashboardScreens("faith", "Faith", R.drawable.ic_faith)
-    object Mood : DashboardScreens("mood", "Mood", R.drawable.ic_mood)
-    object Progress : DashboardScreens("progress", "Progress", R.drawable.ic_progress)
-    object Resources : DashboardScreens("resources", "Resources", R.drawable.ic_resources)
-    object Therapist : DashboardScreens("therapist", "Therapist", R.drawable.ic_therapist)
-    object Settings : DashboardScreens("settings", "Settings", R.drawable.ic_settings)
-    object NonBeliever : DashboardScreens("nonbeliever", "Mindfulness", R.drawable.ic_mindfulness)
+    object Overview    : DashboardScreens("overview",    "Overview",    R.drawable.ic_home)
+    object Faith       : DashboardScreens("faith",       "Faith",       R.drawable.ic_faith)
+    object Mood        : DashboardScreens("mood",        "Mood",        R.drawable.ic_mood)
+    object Resources   : DashboardScreens("resources",   "Resources",   R.drawable.ic_resources)
+    object Therapist   : DashboardScreens("therapist",   "Therapist",   R.drawable.ic_therapist)
+    object Settings    : DashboardScreens("settings",    "Settings",    R.drawable.ic_settings)
+    object NonBeliever : DashboardScreens("nonbeliever", "Philosophical", R.drawable.ic_mindfulness)
 }
+
+// ─── Layout ───────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,22 +47,19 @@ fun DashboardLayout(
         topBar = {
             DashboardTopBar(
                 title = getCurrentScreenTitle(navController),
-                onMenuClick = { /* Open drawer */ },
-                onNotificationClick = { /* Navigate to notifications */ },
+                onMenuClick = { /* open drawer */ },
+                onNotificationClick = { /* notifications */ },
                 onProfileClick = { navController.navigate(DashboardScreens.Settings.route) }
             )
         },
         bottomBar = {
-            BottomNavigationBar(
-                navController = navController,
-                items = listOf(
-                    DashboardScreens.Overview,
-                    DashboardScreens.Faith,
-                    DashboardScreens.Mood,
-                    DashboardScreens.Resources,
-                )
-            )
-        }
+            BottomNavigationBar(navController = navController)
+        },
+        // ── Paula FAB — visible on every screen ──────────────────────────────
+        floatingActionButton = {
+            PaulaFab()
+        },
+        floatingActionButtonPosition = FabPosition.End
     ) { paddingValues ->
         NavHost(
             navController = navController,
@@ -67,46 +67,23 @@ fun DashboardLayout(
             modifier = Modifier.padding(paddingValues)
         ) {
             composable(DashboardScreens.Overview.route) {
-                OverviewScreen(
-                    onNavigateToFeature = { route ->
-                        navController.navigate(route)
-                    }
-                )
+                OverviewScreen(onNavigateToFeature = { route -> navController.navigate(route) })
             }
-
             composable(DashboardScreens.Faith.route) {
-                FaithScreen(
-                    onNavigateToPrayer = { /* Navigate to prayer detail */ },
-                    onNavigateToMeditation = { /* Navigate to meditation */ }
-                )
+                FaithScreen(onNavigateToPrayer = {}, onNavigateToMeditation = {})
             }
-
             composable(DashboardScreens.Mood.route) {
-                MoodScreen(
-                    onMoodSelected = { mood ->
-                        // Handle mood selection
-                    }
-                )
+                MoodScreen(onMoodSelected = {})
             }
-
-//            composable(DashboardScreens.Progress.route) {
-//                ProgressScreen()
-//            }
-
             composable(DashboardScreens.Resources.route) {
                 ResourcesScreen()
             }
-
             composable(DashboardScreens.Therapist.route) {
                 TherapistScreen()
             }
-
             composable(DashboardScreens.Settings.route) {
-                SettingsScreen(
-                    onLogout = onLogout
-                )
+                SettingsScreen(onLogout = onLogout)
             }
-
             composable(DashboardScreens.NonBeliever.route) {
                 NonBelieverScreen()
             }
@@ -114,23 +91,7 @@ fun DashboardLayout(
     }
 }
 
-@Composable
-private fun getCurrentScreenTitle(navController: NavController): String {
-    val currentBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = currentBackStackEntry?.destination?.route
-
-    return when (currentRoute) {
-        DashboardScreens.Overview.route -> DashboardScreens.Overview.title
-        DashboardScreens.Faith.route -> DashboardScreens.Faith.title
-        DashboardScreens.Mood.route -> DashboardScreens.Mood.title
-        DashboardScreens.Progress.route -> DashboardScreens.Progress.title
-        DashboardScreens.Resources.route -> DashboardScreens.Resources.title
-        DashboardScreens.Therapist.route -> DashboardScreens.Therapist.title
-        DashboardScreens.Settings.route -> DashboardScreens.Settings.title
-        DashboardScreens.NonBeliever.route -> DashboardScreens.NonBeliever.title
-        else -> "HopePath"
-    }
-}
+// ─── Top Bar ──────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -141,37 +102,34 @@ private fun DashboardTopBar(
     onProfileClick: () -> Unit
 ) {
     TopAppBar(
-        title = {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge
-            )
-        },
+        title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         navigationIcon = {
-            IconButton(onClick = onMenuClick) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Menu"
-                )
-            }
+            IconButton(onClick = onMenuClick) { Icon(Icons.Default.Menu, "Menu") }
         },
         actions = {
-            IconButton(onClick = onNotificationClick) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "Notifications"
-                )
-            }
-            IconButton(onClick = onProfileClick) {
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "Profile"
-                )
-            }
+            IconButton(onClick = onNotificationClick) { Icon(Icons.Default.Notifications, "Notifications") }
+            IconButton(onClick = onProfileClick) { Icon(Icons.Default.AccountCircle, "Profile") }
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface
         )
     )
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+@Composable
+private fun getCurrentScreenTitle(navController: NavController): String {
+    val entry by navController.currentBackStackEntryAsState()
+    return when (entry?.destination?.route) {
+        DashboardScreens.Overview.route    -> DashboardScreens.Overview.title
+        DashboardScreens.Faith.route       -> DashboardScreens.Faith.title
+        DashboardScreens.Mood.route        -> DashboardScreens.Mood.title
+        DashboardScreens.Resources.route   -> DashboardScreens.Resources.title
+        DashboardScreens.Therapist.route   -> DashboardScreens.Therapist.title
+        DashboardScreens.Settings.route    -> DashboardScreens.Settings.title
+        DashboardScreens.NonBeliever.route -> DashboardScreens.NonBeliever.title
+        else -> "HopePath"
+    }
 }

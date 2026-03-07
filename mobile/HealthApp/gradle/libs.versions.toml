@@ -14,6 +14,7 @@ facebook-login = "16.3.0"
 coroutines = "1.7.3"
 google-services = "4.4.1"
 media3Exoplayer = "1.9.2"
+places = "5.1.1"
 
 
 [libraries]
@@ -45,6 +46,7 @@ facebook-login = { group = "com.facebook.android", name = "facebook-login", vers
 
 coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3Exoplayer" }
+places = { group = "com.google.android.libraries.places", name = "places", version.ref = "places" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

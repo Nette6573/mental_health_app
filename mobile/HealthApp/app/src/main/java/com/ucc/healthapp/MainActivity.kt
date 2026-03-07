@@ -7,8 +7,9 @@ import androidx.compose.runtime.*
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.ucc.healthapp.frontend.auth.LoginScreen
+import com.ucc.healthapp.frontend.auth.AuthNavGraph
 import com.ucc.healthapp.frontend.dashboard.layout.DashboardLayout
+import com.ucc.healthapp.frontend.splash.SplashScreen
 import com.ucc.healthapp.frontend.theme.HealthAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -25,48 +26,42 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun HealthApp() {
     val navController = rememberNavController()
-    var isAuthenticated by remember { mutableStateOf(false) }
 
     NavHost(
         navController = navController,
-        startDestination = if (isAuthenticated) "dashboard" else "login"
+        startDestination = "splash"
     ) {
-        composable("login") {
-            LoginScreen(
-                navController = navController,
-                onLoginSuccess = {
-                    isAuthenticated = true
-                    navController.navigate("dashboard") {
-                        popUpTo("login") { inclusive = true }
+        // 1. Splash — shown on launch, auto-redirects to auth
+        composable("splash") {
+            SplashScreen(
+                onSplashComplete = {
+                    navController.navigate("auth") {
+                        popUpTo("splash") { inclusive = true }
                     }
-                },
-                onSignupClick = {
-                    navController.navigate("signup")
-                },
-                onForgotPasswordClick = {
-                    navController.navigate("forgot-password")
                 }
             )
         }
 
+        // 2. Auth — login / signup / reset password
+        composable("auth") {
+            AuthNavGraph(
+                onAuthComplete = {
+                    navController.navigate("dashboard") {
+                        popUpTo("auth") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // 3. Dashboard — main app
         composable("dashboard") {
             DashboardLayout(
                 onLogout = {
-                    isAuthenticated = false
-                    navController.navigate("login") {
+                    navController.navigate("auth") {
                         popUpTo("dashboard") { inclusive = true }
                     }
                 }
             )
-        }
-
-        // Add other destinations
-        composable("signup") {
-            // SignUpScreen()
-        }
-
-        composable("forgot-password") {
-            // ForgotPasswordScreen()
         }
     }
 }

@@ -1,19 +1,33 @@
 package com.ucc.healthapp.frontend.dashboard.overview
 
+import android.graphics.Canvas
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ucc.healthapp.R
@@ -21,555 +35,448 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-
 @Composable
-fun OverviewScreen(
-    onNavigateToFeature: (String) -> Unit = {}
-) {
+fun OverviewScreen(onNavigateToFeature: (String) -> Unit = {}) {
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(bottom = 24.dp)
+        contentPadding = PaddingValues(bottom = 28.dp)
     ) {
-        // Welcome Card
-        item {
-            WelcomeCard(
-                userName = "Sarah",
-                onNotificationClick = {}
-            )
-        }
-
-        // Quick Stats
-        item {
-            HealthStatsCard()
-        }
-
-        // Daily Inspiration
-        item {
-            DailyQuoteCard()
-        }
-
-        // Quick Actions
-        item {
-            QuickActionsGrid(
-                onActionClick = onNavigateToFeature
-            )
-        }
-
-        // Recent Activity
-        item {
-            RecentActivityCard()
-        }
-
-        // Recommended Content
-        item {
-            RecommendedForYouCard()
-        }
+        item { WelcomeHeroCard(onNavigateToFeature) }
+        item { WellnessStatsRow() }
+        item { MoodWeekCard() }
+        item { WellnessRingsCard() }
+        item { QuickActionsGrid(onNavigateToFeature) }
+        item { DailyQuoteCard() }
+        item { RecentActivityCard(onNavigateToFeature) }
+        item { SleepActivityCard() }
+        item { RecommendedForYouCard(onNavigateToFeature) }
     }
 }
 
-@Composable
-fun WelcomeCard(
-    userName: String,
-    onNotificationClick: () -> Unit
-) {
-    val currentTime = Calendar.getInstance()
-    val timeFormatter = SimpleDateFormat("h:mm a", Locale.getDefault())
-    val timeString = timeFormatter.format(currentTime.time)
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Good ${getGreeting()}",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "$userName, it's $timeString",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                )
-            }
-
-            IconButton(onClick = onNotificationClick) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_notifications),
-                    contentDescription = "Notifications",
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-        }
-    }
-}
+// ─── Welcome Hero ─────────────────────────────────────────────────────────────
 
 @Composable
-fun HealthStatsCard() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            Text(
-                text = "Today's Wellness",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+private fun WelcomeHeroCard(onNavigateToFeature: (String) -> Unit) {
+    val cal = Calendar.getInstance()
+    val time = SimpleDateFormat("h:mm a", Locale.getDefault()).format(cal.time)
+    val date = SimpleDateFormat("EEEE, MMM d", Locale.getDefault()).format(cal.time)
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                StatItem(
-                    icon = R.drawable.ic_mood,
-                    value = "Good",
-                    label = "Mood",
-                    color = Color(0xFF4CAF50)
-                )
-
-                StatItem(
-                    icon = R.drawable.ic_body_scan,
-                    value = "7h 23m",
-                    label = "Sleep",
-                    color = Color(0xFF2196F3)
-                )
-
-                StatItem(
-                    icon = R.drawable.ic_breathing,
-                    value = "15m",
-                    label = "Meditation",
-                    color = Color(0xFF9C27B0)
-                )
-
-                StatItem(
-                    icon = R.drawable.ic_apple,
-                    value = "3,421",
-                    label = "Steps",
-                    color = Color(0xFFFF9800)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatItem(
-    icon: Int,
-    value: String,
-    label: String,
-    color: Color
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
         Box(
             modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(color.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(id = icon),
-                contentDescription = label,
-                tint = color,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold
-        )
-
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-fun DailyQuoteCard() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
-    ) {
-        Column(
-            modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_mood),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.size(32.dp)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = "\"Peace is not the absence of chaos, but the presence of calm within it.\"",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = 18.sp
-                ),
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "— Anonymous",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-            )
-        }
-    }
-}
-
-@Composable
-fun QuickActionsGrid(
-    onActionClick: (String) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-    ) {
-        Text(
-            text = "Quick Actions",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            QuickActionButton(
-                title = "Mood Check",
-                icon = R.drawable.ic_mood_check,
-                color = Color(0xFF4CAF50),
-                onClick = { onActionClick("mood") },
-                modifier = Modifier.weight(1f)
-            )
-
-            QuickActionButton(
-                title = "Meditate",
-                icon = R.drawable.ic_meditate,
-                color = Color(0xFF9C27B0),
-                onClick = { onActionClick("faith") },
-                modifier = Modifier.weight(1f)
-            )
-
-            QuickActionButton(
-                title = "Journal",
-                icon = R.drawable.ic_journal,
-                color = Color(0xFFFF9800),
-                onClick = { /* Navigate to journal */ },
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            QuickActionButton(
-                title = "Resources",
-                icon = R.drawable.ic_resources,
-                color = Color(0xFF2196F3),
-                onClick = { onActionClick("resources") },
-                modifier = Modifier.weight(1f)
-            )
-
-            QuickActionButton(
-                title = "Therapist",
-                icon = R.drawable.ic_therapist,
-                color = Color(0xFFF44336),
-                onClick = { onActionClick("therapist") },
-                modifier = Modifier.weight(1f)
-            )
-
-            QuickActionButton(
-                title = "Progress",
-                icon = R.drawable.ic_progress,
-                color = Color(0xFF607D8B),
-                onClick = { onActionClick("progress") },
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun QuickActionButton(
-    title: String,
-    icon: Int,
-    color: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .aspectRatio(1f)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = color.copy(alpha = 0.1f)
-        )
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                painter = painterResource(id = icon),
-                contentDescription = title,
-                tint = color,
-                modifier = Modifier.size(28.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodySmall,
-                color = color,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-fun RecentActivityCard() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(listOf(
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.8f)
+                    )),
+                    RoundedCornerShape(24.dp)
+                )
                 .padding(20.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Recent Activity",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                TextButton(onClick = {}) {
-                    Text(text = "View All")
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column {
+                        Text("Good ${getGreeting()}, Sarah 👋",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("$date · $time",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.75f))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Surface(shape = CircleShape, color = Color.White.copy(alpha = 0.2f),
+                            modifier = Modifier.size(38.dp)) {
+                            IconButton(onClick = {}) {
+                                Icon(painterResource(R.drawable.ic_notifications), "Notifications",
+                                    tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                        Surface(shape = CircleShape, color = Color.White.copy(alpha = 0.2f),
+                            modifier = Modifier.size(38.dp)) {
+                            IconButton(onClick = { onNavigateToFeature("settings") }) {
+                                Icon(painterResource(R.drawable.ic_settings), "Settings",
+                                    tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            val activities = listOf(
-                "Completed 10-minute meditation" to "2 hours ago",
-                "Logged mood: Calm" to "5 hours ago",
-                "Read 'Finding Peace' article" to "Yesterday"
-            )
-
-            activities.forEachIndexed { index, (activity, time) ->
-                ActivityItem(activity = activity, time = time)
-                if (index < activities.size - 1) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant
-                    )
+                Spacer(Modifier.height(20.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = { onNavigateToFeature("mood") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(painterResource(R.drawable.ic_mood_check), null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Log Mood", fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelMedium)
+                    }
+                    OutlinedButton(
+                        onClick = { onNavigateToFeature("faith") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f))
+                    ) {
+                        Icon(painterResource(R.drawable.ic_breathing), null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Meditate", style = MaterialTheme.typography.labelMedium)
+                    }
                 }
             }
         }
     }
 }
 
-@Composable
-private fun ActivityItem(
-    activity: String,
-    time: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = activity,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = time,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+// ─── Wellness Stats Row ───────────────────────────────────────────────────────
 
-        Icon(
-            painter = painterResource(id = R.drawable.ic_resources),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(20.dp)
-        )
+@Composable
+private fun WellnessStatsRow() {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        items(wellnessStats) { stat -> StatCard(stat) }
     }
 }
 
+// SAFE: Animatable declared at top of composable, NOT inside .let{}
 @Composable
-fun RecommendedForYouCard() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            Text(
-                text = "Recommended For You",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                RecommendationCard(
-                    title = "Mindfulness for Beginners",
-                    duration = "10 min",
-                    image = R.drawable.img_mindfulness,
-                    modifier = Modifier.weight(1f)
-                )
-
-                RecommendationCard(
-                    title = "Understanding Anxiety",
-                    duration = "15 min",
-                    image = R.drawable.img_anxiety,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
+private fun StatCard(stat: WellnessStat) {
+    val progressAnim = remember(stat.label) { Animatable(0f) }
+    LaunchedEffect(stat.label) {
+        progressAnim.animateTo(stat.progress, tween(800, easing = FastOutSlowInEasing))
     }
-}
+    val animProgress by progressAnim.asState()
 
-@Composable
-private fun RecommendationCard(
-    title: String,
-    duration: String,
-    image: Int,
-    modifier: Modifier = Modifier
-) {
     Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        modifier = Modifier.width(100.dp), shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp)
-        ) {
+        Column(modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(80.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp))
+                    .background(stat.color.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_mic),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
+                Icon(painterResource(stat.icon), null, tint = stat.color, modifier = Modifier.size(22.dp))
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                maxLines = 2
-            )
-
-            Text(
-                text = duration,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Spacer(Modifier.height(8.dp))
+            Text(stat.value, style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            Text(stat.label, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(8.dp))
+            Box(
+                modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape)
+                    .background(stat.color.copy(alpha = 0.15f))
+            ) {
+                Box(modifier = Modifier.fillMaxWidth(animProgress).fillMaxHeight()
+                    .clip(CircleShape).background(stat.color))
+            }
         }
     }
 }
 
-private fun getGreeting(): String {
-    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    return when (hour) {
-        in 0..11 -> "Morning"
-        in 12..16 -> "Afternoon"
-        else -> "Evening"
+// ─── Mood Week Chart ──────────────────────────────────────────────────────────
+
+@Composable
+private fun MoodWeekCard() {
+    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(2.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text("Mood This Week", style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold)
+                    Text("Your emotional journey over 7 days",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFF4CAF50).copy(alpha = 0.12f)) {
+                    Text("↑ 12%", style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            MoodLineChart(points = weeklyMoodData, lineColor = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth().height(90.dp))
+            Spacer(Modifier.height(6.dp))
+            MoodChartDayLabels(points = weeklyMoodData, modifier = Modifier.padding(horizontal = 4.dp))
+        }
     }
+}
+
+// ─── Wellness Rings ───────────────────────────────────────────────────────────
+
+@Composable
+private fun WellnessRingsCard() {
+    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(2.dp)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Wellness Score", style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold)
+                Text("Mind, Body & Spirit balance",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(16.dp))
+                RingLegend(rings = wellnessRings, modifier = Modifier.fillMaxWidth())
+            }
+            Spacer(Modifier.width(16.dp))
+            WellnessRingsChart(rings = wellnessRings, modifier = Modifier.size(130.dp))
+        }
+    }
+}
+
+// ─── Quick Actions ────────────────────────────────────────────────────────────
+
+@Composable
+private fun QuickActionsGrid(onActionClick: (String) -> Unit) {
+    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+        Text("Quick Actions", style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+        val rows = quickActions.chunked(3)
+        rows.forEachIndexed { rowIdx, rowActions ->
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                rowActions.forEach { action ->
+                    QuickActionTile(action, { onActionClick(action.route) }, Modifier.weight(1f))
+                }
+                repeat(3 - rowActions.size) { Spacer(Modifier.weight(1f)) }
+            }
+            if (rowIdx < rows.lastIndex) Spacer(Modifier.height(10.dp))
+        }
+    }
+}
+
+@Composable
+private fun QuickActionTile(action: QuickAction, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Card(modifier = modifier.aspectRatio(1f).clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = action.color.copy(alpha = 0.10f)),
+        elevation = CardDefaults.cardElevation(0.dp)) {
+        Column(modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center) {
+            Surface(shape = RoundedCornerShape(10.dp), color = action.color.copy(alpha = 0.18f),
+                modifier = Modifier.size(42.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(painterResource(action.icon), action.title, tint = action.color,
+                        modifier = Modifier.size(22.dp))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(action.title, style = MaterialTheme.typography.labelSmall, color = action.color,
+                fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, maxLines = 1,
+                overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 4.dp))
+        }
+    }
+}
+
+// ─── Daily Quote ──────────────────────────────────────────────────────────────
+
+@Composable
+private fun DailyQuoteCard() {
+    val quote = dailyQuotes.first()
+    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("\u201C", fontSize = 48.sp, fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.secondary, lineHeight = 32.sp,
+                modifier = Modifier.align(Alignment.Start))
+            Text(quote.first, style = MaterialTheme.typography.bodyLarge, fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                textAlign = TextAlign.Center, lineHeight = 24.sp)
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                HorizontalDivider(modifier = Modifier.width(20.dp),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f))
+                Spacer(Modifier.width(8.dp))
+                Text("— ${quote.second}", style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Medium)
+            }
+        }
+    }
+}
+
+// ─── Recent Activity ──────────────────────────────────────────────────────────
+
+@Composable
+private fun RecentActivityCard(onNavigateToFeature: (String) -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(2.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically) {
+                Text("Recent Activity", style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold)
+                TextButton(onClick = {}) { Text("View All") }
+            }
+            Spacer(Modifier.height(8.dp))
+            recentActivities.forEachIndexed { i, activity ->
+                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = RoundedCornerShape(10.dp),
+                        color = activity.color.copy(alpha = 0.12f), modifier = Modifier.size(40.dp)) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(painterResource(activity.icon), null, tint = activity.color,
+                                modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(activity.title, style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis)
+                        Text(activity.time, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Icon(Icons.Default.ChevronRight, null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                }
+                if (i < recentActivities.lastIndex) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                }
+            }
+        }
+    }
+}
+
+// ─── Sleep & Activity Charts ──────────────────────────────────────────────────
+
+@Composable
+private fun SleepActivityCard() {
+    val sleepBars = listOf("Mon" to 0.82f,"Tue" to 0.70f,"Wed" to 0.90f,
+        "Thu" to 0.55f,"Fri" to 0.78f,"Sat" to 0.95f,"Sun" to 0.88f)
+    val stepsBars = listOf("Mon" to 0.60f,"Tue" to 0.45f,"Wed" to 0.80f,
+        "Thu" to 0.30f,"Fri" to 0.70f,"Sat" to 0.55f,"Sun" to 0.65f)
+
+    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(2.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+            Text("Weekly Activity", style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold)
+            Text("Sleep & steps breakdown", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Canvas(Modifier.size(8.dp)) { drawCircle(Color(0xFF2196F3)) }
+                        Spacer(Modifier.width(4.dp))
+                        Text("Sleep", style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold, color = Color(0xFF2196F3))
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    MiniBarChart(bars = sleepBars, barColor = Color(0xFF2196F3),
+                        modifier = Modifier.fillMaxWidth())
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Canvas(Modifier.size(8.dp)) { drawCircle(Color(0xFFFF9800)) }
+                        Spacer(Modifier.width(4.dp))
+                        Text("Steps", style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold, color = Color(0xFFFF9800))
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    MiniBarChart(bars = stepsBars, barColor = Color(0xFFFF9800),
+                        modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
+    }
+}
+
+// ─── Recommended For You ──────────────────────────────────────────────────────
+
+@Composable
+private fun RecommendedForYouCard(onNavigateToFeature: (String) -> Unit) {
+    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically) {
+            Text("Recommended For You", style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold)
+            TextButton(onClick = { onNavigateToFeature("resources") }) { Text("See All") }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            RecommendationTile("Mindfulness for Beginners", "10 min · Article",
+                Color(0xFF9C27B0), R.drawable.ic_mindfulness,
+                { onNavigateToFeature("resources") }, Modifier.weight(1f))
+            RecommendationTile("Understanding Anxiety", "15 min · Guide",
+                Color(0xFF2196F3), R.drawable.ic_breathing,
+                { onNavigateToFeature("resources") }, Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(10.dp))
+        Card(modifier = Modifier.fillMaxWidth().clickable { onNavigateToFeature("therapist") },
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF44336).copy(alpha = 0.08f))) {
+            Row(modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFFF44336).copy(alpha = 0.15f),
+                    modifier = Modifier.size(44.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(painterResource(R.drawable.ic_therapist), null,
+                            tint = Color(0xFFF44336), modifier = Modifier.size(22.dp))
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Talk to a Therapist", style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold, color = Color(0xFFF44336))
+                    Text("Book a session with a professional",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Icon(Icons.Default.ArrowForward, null, tint = Color(0xFFF44336),
+                    modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecommendationTile(title: String, duration: String, color: Color, icon: Int,
+                               onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Card(modifier = modifier.clickable(onClick = onClick), shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().height(72.dp)
+                .clip(RoundedCornerShape(10.dp)).background(color.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center) {
+                Icon(painterResource(icon), null, tint = color, modifier = Modifier.size(32.dp))
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(title, style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(duration, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+private fun getGreeting() = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+    in 0..11 -> "Morning"; in 12..16 -> "Afternoon"; else -> "Evening"
 }

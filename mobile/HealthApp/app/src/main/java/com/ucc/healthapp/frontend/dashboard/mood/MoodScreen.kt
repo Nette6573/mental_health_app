@@ -19,15 +19,16 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.ucc.healthapp.R
+import androidx.lifecycle.viewmodel.compose.viewModel
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 @Composable
 fun MoodScreen(
-    onMoodSelected: (Mood) -> Unit = {}
+    onMoodSelected: (Mood) -> Unit = {},
+    vm: MoodViewModel = viewModel()
 ) {
-    var selectedMood by remember { mutableStateOf<Mood?>(null) }
-    var journalEntry by remember { mutableStateOf("") }
+    val state by vm.uiState.collectAsState()
 
     LazyColumn(
         modifier = Modifier
@@ -36,69 +37,46 @@ fun MoodScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(20.dp)
     ) {
-        // Header
-        item {
-            MoodHeader()
-        }
+        item { MoodHeader() }
 
-        // Mood Check-in
+        // Mood selection
         item {
             MoodCheckInCard(
-                selectedMood = selectedMood,
+                selectedMood = state.selectedMood,
                 onMoodSelected = {
-                    selectedMood = it
+                    vm.selectMood(it)
                     onMoodSelected(it)
                 }
             )
         }
 
-        // Mood Journal
-        if (selectedMood != null) {
+        // Journal + AI — only shown after mood is selected
+        if (state.selectedMood != null) {
             item {
                 MoodJournalCard(
-                    journalEntry = journalEntry,
-                    onJournalChange = { journalEntry = it },
-                    onSave = {
-                        // Save mood entry with journal
-                        selectedMood = null
-                        journalEntry = ""
-                    }
+                    journalEntry = state.journalEntry,
+                    onJournalChange = vm::updateJournal
+                )
+            }
+
+            item {
+                MoodAiInsightCard(
+                    aiState = state.aiState,
+                    selectedMood = state.selectedMood,
+                    onAnalyse = vm::analyseWithAi,
+                    onRetry = vm::retryAnalysis,
+                    onSave = vm::saveEntry
                 )
             }
         }
 
-        // Mood History
-        item {
-            MoodHistoryCard()
-        }
-
-        // Mood Insights
-        item {
-            MoodInsightsCard()
-        }
-
-        // Mood Trends
-        item {
-            MoodTrendsCard()
-        }
+        item { MoodHistoryCard() }
+        item { MoodInsightsCard() }
+        item { MoodTrendsCard() }
     }
 }
 
-data class Mood(
-    val name: String,
-    val icon: Int,
-    val color: Color,
-    val description: String
-)
-
-val moodList = listOf(
-    Mood("Great", R.drawable.ic_mood_great, Color(0xFF4CAF50), "Feeling excellent"),
-    Mood("Good", R.drawable.ic_mood_good, Color(0xFF8BC34A), "Feeling positive"),
-    Mood("Okay", R.drawable.ic_mood_okay, Color(0xFFFFC107), "Feeling neutral"),
-    Mood("Sad", R.drawable.ic_mood_sad, Color(0xFF2196F3), "Feeling down"),
-    Mood("Anxious", R.drawable.ic_mood_anxious, Color(0xFFFF9800), "Feeling worried"),
-    Mood("Angry", R.drawable.ic_mood_angry, Color(0xFFF44336), "Feeling frustrated")
-)
+// ─── Header ───────────────────────────────────────────────────────────────────
 
 @Composable
 private fun MoodHeader() {
@@ -117,6 +95,8 @@ private fun MoodHeader() {
     }
 }
 
+// ─── Mood Check-in ────────────────────────────────────────────────────────────
+
 @Composable
 private fun MoodCheckInCard(
     selectedMood: Mood?,
@@ -129,47 +109,41 @@ private fun MoodCheckInCard(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
             Text(
                 text = "Today's Mood Check-in",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Select your mood:",
+                text = "Select your mood to get a personalised insight",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            Text(
+                text = "How do you feel right now?",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
             )
-
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Mood Grid
             val columns = 3
             val rows = (moodList.size + columns - 1) / columns
-
             for (row in 0 until rows) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     for (col in 0 until columns) {
                         val index = row * columns + col
                         if (index < moodList.size) {
-                            val mood = moodList[index]
                             MoodButton(
-                                mood = mood,
-                                isSelected = selectedMood == mood,
-                                onClick = { onMoodSelected(mood) },
+                                mood = moodList[index],
+                                isSelected = selectedMood == moodList[index],
+                                onClick = { onMoodSelected(moodList[index]) },
                                 modifier = Modifier.weight(1f)
                             )
                         } else {
@@ -190,19 +164,13 @@ private fun MoodButton(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier
-            .aspectRatio(1f)
-            .clickable(onClick = onClick),
+        modifier = modifier.aspectRatio(1f).clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected)
-                mood.color.copy(alpha = 0.2f)
-            else
-                MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (isSelected) mood.color.copy(alpha = 0.2f)
+            else MaterialTheme.colorScheme.surfaceVariant
         ),
-        border = if (isSelected) {
-            BorderStroke(2.dp, mood.color)
-        } else null
+        border = if (isSelected) BorderStroke(2.dp, mood.color) else null
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -226,129 +194,80 @@ private fun MoodButton(
     }
 }
 
+// ─── Journal ──────────────────────────────────────────────────────────────────
+
 @Composable
 private fun MoodJournalCard(
     journalEntry: String,
-    onJournalChange: (String) -> Unit,
-    onSave: () -> Unit
+    onJournalChange: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
             Text(
                 text = "Journal Entry",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Optional — adding context helps the AI give better insights",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(modifier = Modifier.height(12.dp))
-
             OutlinedTextField(
                 value = journalEntry,
                 onValueChange = onJournalChange,
                 placeholder = {
                     Text(
-                        text = "Write about how you're feeling...",
+                        text = "What's on your mind? What happened today?",
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
+                modifier = Modifier.fillMaxWidth().height(120.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline
                 )
             )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = onSave,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Save Entry")
-            }
         }
     }
 }
 
+// ─── History ──────────────────────────────────────────────────────────────────
+
 @Composable
 private fun MoodHistoryCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Recent Moods",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                TextButton(onClick = {}) {
-                    Text(text = "View All")
-                }
+                Text("Recent Moods", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                TextButton(onClick = {}) { Text("View All") }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Recent mood entries
-            listOf(
-                "Today" to "Good",
-                "Yesterday" to "Great",
-                "2 days ago" to "Okay",
-                "3 days ago" to "Anxious"
-            ).forEach { (date, mood) ->
+            sampleHistory.forEach { (date, mood) ->
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = date,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            modifier = Modifier.size(12.dp),
-                            shape = CircleShape,
-                            color = getMoodColor(mood)
-                        ) {}
+                    Text(text = date, style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(modifier = Modifier.size(12.dp), shape = CircleShape,
+                            color = getMoodColor(mood)) {}
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = mood,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Text(text = mood, style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -356,105 +275,55 @@ private fun MoodHistoryCard() {
     }
 }
 
+// ─── Insights ─────────────────────────────────────────────────────────────────
+
 @Composable
 private fun MoodInsightsCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(24.dp)
-                )
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.CheckCircle, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(24.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Insights",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
+                Text("Insights", style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "• You're feeling more positive this week",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "• Your mood often improves after meditation",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "• Sleep quality affects your morning mood",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
+            listOf(
+                "You're feeling more positive this week",
+                "Your mood often improves after meditation",
+                "Sleep quality affects your morning mood"
+            ).forEach {
+                Text("• $it", style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(bottom = 4.dp))
+            }
         }
     }
 }
+
+// ─── Trends ───────────────────────────────────────────────────────────────────
 
 @Composable
 private fun MoodTrendsCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            Text(
-                text = "Weekly Trends",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+            Text("Weekly Trends", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(20.dp))
-
-            // Simple mood trend visualization
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                DayMoodBar("Mon", "Great")
-                DayMoodBar("Tue", "Good")
-                DayMoodBar("Wed", "Okay")
-                DayMoodBar("Thu", "Anxious")
-                DayMoodBar("Fri", "Good")
-                DayMoodBar("Sat", "Great")
-                DayMoodBar("Sun", "Great")
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                weekDayMoods.forEach { (day, mood) -> DayMoodBar(day, mood) }
             }
         }
     }
 }
 
 @Composable
-private fun DayMoodBar(
-    day: String,
-    mood: String
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+private fun DayMoodBar(day: String, mood: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
                 .width(20.dp)
@@ -463,34 +332,29 @@ private fun DayMoodBar(
                 .background(getMoodColor(mood))
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = day,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Text(text = day, style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
-private fun getMoodColor(mood: String): Color {
-    return when (mood.lowercase()) {
-        "great" -> Color(0xFF4CAF50)
-        "good" -> Color(0xFF8BC34A)
-        "okay" -> Color(0xFFFFC107)
-        "sad" -> Color(0xFF2196F3)
-        "anxious" -> Color(0xFFFF9800)
-        "angry" -> Color(0xFFF44336)
-        else -> Color.Gray
-    }
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+fun getMoodColor(mood: String): Color = when (mood.lowercase()) {
+    "great"   -> Color(0xFF4CAF50)
+    "good"    -> Color(0xFF8BC34A)
+    "okay"    -> Color(0xFFFFC107)
+    "sad"     -> Color(0xFF2196F3)
+    "anxious" -> Color(0xFFFF9800)
+    "angry"   -> Color(0xFFF44336)
+    else      -> Color.Gray
 }
 
-private fun getMoodHeight(mood: String): Dp {
-    return when (mood.lowercase()) {
-        "great" -> 48.dp
-        "good" -> 40.dp
-        "okay" -> 32.dp
-        "sad" -> 24.dp
-        "anxious" -> 28.dp
-        "angry" -> 20.dp
-        else -> 24.dp
-    }
+private fun getMoodHeight(mood: String): Dp = when (mood.lowercase()) {
+    "great"   -> 48.dp
+    "good"    -> 40.dp
+    "okay"    -> 32.dp
+    "sad"     -> 24.dp
+    "anxious" -> 28.dp
+    "angry"   -> 20.dp
+    else      -> 24.dp
 }
