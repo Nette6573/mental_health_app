@@ -9,7 +9,7 @@ export default function PrivacyPage() {
       <h1>Privacy Policy – HopePath</h1>
 
       <p>
-        HopePath is extremely committed to protecting the privacy and security of all its users’ data and inputted information. 
+        HopePath is extremely committed to protecting the privacy and security of all its users&apos; data and inputted information. 
         This document serves as the official Privacy Policy, which explains how user data is collected, stored, used, and safeguarded, particularly that of personally identifiable information. 
         HopePath systems, storage mechanisms, and designs comply with the Jamaica Data Protection Act (2020) and the Cybercrimes Act (2010, last amended 2015).
       </p>
@@ -24,7 +24,7 @@ export default function PrivacyPage() {
         <li><strong>Personally Identifiable Information (PII):</strong> Full names, email, phone number (for registration).</li>
         <li><strong>Usage Data:</strong> Mood tracking logs, chat information with Paula, and journaling entries.</li>
         <li><strong>Technical Data:</strong> Browser information, IP address, and device type.</li>
-        <li><strong>Optional Faith Data:</strong> Only if the user opts in, data surrounding scripture-based content and encouragements will be collected, to ensure that the information provided is accurate to the user’s expectations.</li>
+        <li><strong>Optional Faith Data:</strong> Only if the user opts in, data surrounding scripture-based content and encouragements will be collected, to ensure that the information provided is accurate to the user&apos;s expectations.</li>
       </ul>
       <p>
         Information that is considered to be sensitive and/or private, such as mental health notes, is handled with the highest confidentiality and the strictest of security.
@@ -32,8 +32,8 @@ export default function PrivacyPage() {
 
       <h2>Legal Basis for Collection</h2>
       <ul>
-        <li>With users' consent whenever they opt in to our programs, such as faith-based support or journaling.</li>
-        <li>For legitimate operation needs, e.g., crisis escalation, authentication, etc.</li>
+        <li>With users&apos; consent whenever they opt in to our programs, such as faith-based support or journaling.</li>
+        <li>For legitimate operation needs, e.g.&sbquo; crisis escalation, authentication, etc.</li>
         <li>In compliance with the Cybercrimes Act, HopePath will prohibit unauthorized access, misuse, and modification of data.</li>
       </ul>
 
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
         <li>To maintain compliance with the legislation that governs data use, software, and storage in Jamaica.</li>
         <li>Provide secure access to HopePath Services.</li>
         <li>Escalate crises to Jamaican mental health hotlines when necessary.</li>
-        <li>Improve HopePath’s platform and systems to enhance performance and safety.</li>
+        <li>Improve HopePath&apos;s platform and systems to enhance performance and safety.</li>
         <li>Deliver empathetic conversational support via Paula.</li>
       </ul>
 
@@ -85,7 +85,7 @@ export default function PrivacyPage() {
 
       <h2>Policy Updates</h2>
       <p>
-        This Privacy Policy will be updated periodically. All users will be notified of any and all changes via HopePath’s platforms or other specified communication methods.
+        This Privacy Policy will be updated periodically. All users will be notified of any and all changes via HopePath&apos;s platforms or other specified communication methods.
       </p>
 
       <h2>Contact Information</h2>
