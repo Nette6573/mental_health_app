@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -28,11 +27,16 @@ interface BackendResponse {
   timestamp: string;
 }
 
-// Actual backend URL
-const API_BASE = process.env.NEXT_PUBLIC_API_URL!;
+// Get API URL from environment - this should be your Railway backend URL
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
-// FIX: Remove any trailing slash from API_BASE
-const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+// Validate that API_BASE is set
+if (!API_BASE) {
+  console.error("NEXT_PUBLIC_API_URL is not set in environment variables");
+}
+
+// FIX: Remove any trailing slash from API_BASE and ensure it's properly formatted
+const baseUrl = API_BASE ? (API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE) : '';
 
 export default function PaulaChat() {
   const { user, isLoading } = useAuth() as {
@@ -50,27 +54,28 @@ export default function PaulaChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [chatId, setChatId] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Add after your state declarations
-useEffect(() => {
-  // Force clear any cached double-slash URLs
-  const appVersion = "1.0.2";
-  const storedVersion = localStorage.getItem('app_version');
-  
-  if (storedVersion !== appVersion) {
-    console.log("New version detected, clearing old data...");
-    localStorage.setItem('app_version', appVersion);
+  useEffect(() => {
+    // Force clear any cached double-slash URLs
+    const appVersion = "1.0.3"; // Incremented version for the fix
+    const storedVersion = localStorage.getItem('app_version');
     
-    // Clear any potentially cached chat data with double slashes
-    if (user?.id) {
-      const oldFormat = localStorage.getItem(`chat_history_${user.id}`);
-      if (oldFormat) {
-        // Keep messages but version is updated
-        console.log("Chat history preserved with new version");
+    if (storedVersion !== appVersion) {
+      console.log("New version detected, clearing old data...");
+      localStorage.setItem('app_version', appVersion);
+      
+      // Clear any potentially cached chat data with double slashes
+      if (user?.id) {
+        const oldFormat = localStorage.getItem(`chat_history_${user.id}`);
+        if (oldFormat) {
+          // Keep messages but version is updated
+          console.log("Chat history preserved with new version");
+        }
       }
     }
-  }
-}, [user?.id]);
+  }, [user?.id]);
 
   // Generate a consistent user ID from the auth user
   const userId = user?.id || '';
@@ -153,79 +158,119 @@ useEffect(() => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
-// -------------------
-// SEND MESSAGE TO BACKEND
-// -------------------
-const sendMessage = async () => {
-  if (!input.trim() || !user || loading) return;
 
-  const userMessage: ChatMessage = {
-    id: crypto.randomUUID(),
-    sender: "user",
-    text: input,
-    timestamp: new Date().toISOString(),
-  };
+  // -------------------
+  // SEND MESSAGE TO BACKEND
+  // -------------------
+  const sendMessage = async () => {
+    if (!input.trim() || !user || loading) return;
 
-  setMessages((prev) => [...prev, userMessage]);
-  setInput("");
-  setLoading(true);
+    // Clear any previous connection errors
+    setConnectionError(null);
 
-  try {
-    if (!API_BASE) throw new Error("API_BASE is not set");
-
-    // FIXED: Use baseUrl instead of API_BASE
-    let url = `${baseUrl}/api/send?user_id=${encodeURIComponent(userId)}`;
-    if (chatId) url += `&chat_id=${encodeURIComponent(chatId)}`;
-
-    console.log("Sending message to:", url);
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ text: userMessage.text }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("Backend error:", res.status, text);
-      throw new Error(`Backend responded with status ${res.status}`);
-    }
-
-    const data: BackendResponse = await res.json();
-    console.log("Backend response:", data);
-
-    if (data.chat_id) setChatId(data.chat_id);
-
-    const paulaReply: ChatMessage = {
+    const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
-      sender: "paula",
-      text: data.response,
-      timestamp: data.timestamp || new Date().toISOString(),
+      sender: "user",
+      text: input,
+      timestamp: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, paulaReply]);
-  } catch (err) {
-    console.error("Send message error:", err);
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setLoading(true);
 
-    const errorMessage = err instanceof Error && err.message.includes("Failed to fetch")
-      ? "Can't reach Paula right now. Check your internet connection."
-      : "Something went wrong. Try again in a likkle bit.";
+    try {
+      // Check if API_BASE is configured
+      if (!baseUrl) {
+        throw new Error("API_BASE is not configured. Please check your environment variables.");
+      }
 
-    setMessages((prev) => [
-      ...prev,
-      {
+      // FIXED: Use the correct API endpoint structure
+      // This should point to your Railway backend
+      let url = `${baseUrl}/api/send?user_id=${encodeURIComponent(userId)}`;
+      if (chatId) url += `&chat_id=${encodeURIComponent(chatId)}`;
+
+      console.log("🚀 Sending message to backend:", url);
+      console.log("📝 Message content:", userMessage.text);
+
+      // Add timeout to fetch to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // Add API key if your backend requires it
+          "X-API-Key": process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
+        },
+        body: JSON.stringify({ text: userMessage.text }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("❌ Backend error:", res.status, text);
+        
+        // Provide more specific error messages based on status
+        if (res.status === 404) {
+          throw new Error("Backend endpoint not found. Check if your Railway backend is running and the path is correct.");
+        } else if (res.status === 405) {
+          throw new Error("Method not allowed. Check if your backend accepts POST requests at this endpoint.");
+        } else if (res.status === 401 || res.status === 403) {
+          throw new Error("Authentication failed. Check your API key.");
+        } else {
+          throw new Error(`Backend responded with status ${res.status}: ${text.substring(0, 100)}`);
+        }
+      }
+
+      const data: BackendResponse = await res.json();
+      console.log("✅ Backend response:", data);
+
+      if (data.chat_id) setChatId(data.chat_id);
+
+      const paulaReply: ChatMessage = {
         id: crypto.randomUUID(),
         sender: "paula",
-        text: errorMessage,
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-  } finally {
-    setLoading(false);
-  }
-};
+        text: data.response,
+        timestamp: data.timestamp || new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, paulaReply]);
+    } catch (err) {
+      console.error("❌ Send message error:", err);
+
+      let errorMessage = "Something went wrong. Try again in a likkle bit.";
+      
+      if (err instanceof Error) {
+        if (err.name === 'AbortError') {
+          errorMessage = "Request timed out. Check your connection and try again.";
+        } else if (err.message.includes("Failed to fetch")) {
+          errorMessage = "Can't reach Paula right now. Make sure your backend is running at: " + baseUrl;
+        } else {
+          errorMessage = err.message;
+        }
+      }
+
+      // Set connection error for display
+      setConnectionError(errorMessage);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          sender: "paula",
+          text: errorMessage,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // -------------------
   // NEW CONVERSATION
   // -------------------
@@ -240,6 +285,7 @@ const sendMessage = async () => {
     // Reset state
     setMessages([]);
     setChatId(null);
+    setConnectionError(null);
 
     // Add a new greeting
     const greeting: ChatMessage = {
@@ -251,6 +297,32 @@ const sendMessage = async () => {
 
     setMessages([greeting]);
     sessionStorage.setItem(`paula_greeted_${user.id}`, "true");
+  };
+
+  // -------------------
+  // TEST CONNECTION FUNCTION
+  // -------------------
+  const testConnection = async () => {
+    if (!baseUrl) {
+      alert("API_BASE is not configured. Please check your .env.local file.");
+      return;
+    }
+
+    try {
+      setConnectionError("Testing connection...");
+      const testUrl = `${baseUrl}/api/send?user_id=test`;
+      const res = await fetch(testUrl, {
+        method: "OPTIONS", // Use OPTIONS to test CORS
+      });
+      
+      if (res.ok) {
+        setConnectionError("✅ Connection successful!");
+      } else {
+        setConnectionError(`❌ Connection test failed with status: ${res.status}`);
+      }
+    } catch (err) {
+      setConnectionError(`❌ Cannot connect to ${baseUrl}. Make sure your Railway backend is running.`);
+    }
   };
 
   // -------------------
@@ -266,31 +338,52 @@ const sendMessage = async () => {
       </div>
     );
   }
-// -------------------
-// UI
-// -------------------
-return (
-  <div className="flex flex-col items-center h-screen p-4 bg-gradient-to-b from-purple-100 to-gray-100">
-    
-    {/* Header with title and safety link */}
-    <div className="flex justify-between items-center w-full max-w-xl mb-2">
-      <h1 className="text-3xl font-bold text-purple-700">
-        Talk With Paula 💛
-      </h1>
-      <Link 
-        href="/safety" 
-        className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded-full hover:bg-red-200 transition-colors"
-      >
-        🆘 Crisis Help
-      </Link>
-    </div>
 
-    <button
-      onClick={startNewConversation}
-      className="mb-3 px-3 py-1 border rounded bg-red-100 hover:bg-red-200 transition-colors"
-    >
-      🔄 New Conversation
-    </button>
+  // -------------------
+  // UI
+  // -------------------
+  return (
+    <div className="flex flex-col items-center h-screen p-4 bg-gradient-to-b from-purple-100 to-gray-100">
+      
+      {/* Header with title and safety link */}
+      <div className="flex justify-between items-center w-full max-w-xl mb-2">
+        <h1 className="text-3xl font-bold text-purple-700">
+          Talk With Paula 💛
+        </h1>
+        <Link 
+          href="/safety" 
+          className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded-full hover:bg-red-200 transition-colors"
+        >
+          🆘 Crisis Help
+        </Link>
+      </div>
+
+      <button
+        onClick={startNewConversation}
+        className="mb-3 px-3 py-1 border rounded bg-red-100 hover:bg-red-200 transition-colors"
+      >
+        🔄 New Conversation
+      </button>
+
+      {/* Connection info - helpful for debugging */}
+      {baseUrl && (
+        <div className="text-xs text-gray-500 mb-2 max-w-xl w-full">
+          <span>Backend: {baseUrl}</span>
+          <button 
+            onClick={testConnection}
+            className="ml-2 text-blue-500 hover:underline"
+          >
+            Test Connection
+          </button>
+        </div>
+      )}
+
+      {/* Connection error display */}
+      {connectionError && connectionError.includes("❌") && (
+        <div className="text-xs text-red-500 mb-2 max-w-xl w-full bg-red-50 p-2 rounded">
+          {connectionError}
+        </div>
+      )}
 
       <div className="w-full max-w-xl bg-white rounded-xl shadow p-4 flex flex-col overflow-y-auto h-[70%]">
         {messages.map((m) => (
