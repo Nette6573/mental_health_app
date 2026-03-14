@@ -1,6 +1,5 @@
 # app/routes/chat.py
-
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from bson import ObjectId
 from datetime import datetime
 from typing import Optional
@@ -18,44 +17,36 @@ router = APIRouter()
 
 @router.post("/send", response_model=MessageOut)
 async def send_message(
+    request: Request,
     data: MessageIn,
     user_id: str = Query(...),
     chat_id: Optional[str] = Query(None)
 ):
-
     try:
-
+        logger.info(f"📨 Received message from user {user_id}: {data.text[:50]}...")
+        
         # -------------------
         # CREATE OR LOAD CHAT
         # -------------------
 
         if chat_id:
-
             try:
-
                 chat_obj_id = ObjectId(chat_id)
-
                 chat = chats.find_one({"_id": chat_obj_id})
 
                 if not chat:
                     raise HTTPException(status_code=404, detail="Chat not found")
-
-            except Exception:
+                logger.info(f"📝 Loaded existing chat: {chat_id}")
+            except Exception as e:
+                logger.error(f"Invalid chat ID: {chat_id}")
                 raise HTTPException(status_code=400, detail="Invalid chat id")
-
         else:
-
             chat = new_chat(user_id)
-
             result = chats.insert_one(chat)
-
             chat_obj_id = result.inserted_id
-
             chat_id = str(chat_obj_id)
-
             chat["_id"] = chat_obj_id
-
-            logger.info(f"Created chat {chat_id}")
+            logger.info(f"🆕 Created new chat: {chat_id}")
 
         # -------------------
         # SAVE USER MESSAGE
@@ -72,10 +63,11 @@ async def send_message(
             {"$push": {"messages": user_message}}
         )
 
+        # Get updated chat with history
         updated_chat = chats.find_one({"_id": chat_obj_id})
-
         raw_history = updated_chat.get("messages", [])
 
+        # Format history for AI
         history = [
             {
                 "role": m.get("role"),
@@ -89,34 +81,32 @@ async def send_message(
         # -------------------
 
         summary = None
-
         if len(history) > 12:
-
             summary = summarize_memory(history[:-6])
-
-            history = history[-6:]
+            history = history[-6:]  # Keep last 6 for context
+            logger.info(f"📝 Using memory summary: {summary[:50]}...")
 
         # -------------------
         # AI EMOTION DETECTION
         # -------------------
 
         emotion = detect_emotion_ai(data.text)
-
-        logger.info(f"Detected emotion: {emotion}")
+        logger.info(f"😊 Detected emotion: {emotion}")
 
         # -------------------
         # GET AI RESPONSE
         # -------------------
 
+        # IMPORTANT: Match the function signature in your paula_client.py
         reply = ask_paula(
             user_message=data.text,
             chat_history=history,
-            session_id=chat_id,
+            session_id=chat_id,  # Your paula_client.py uses session_id
             summary=summary
         )
 
         if not reply:
-            reply = "I'm here with you. Tell me more."
+            reply = "Mi deh yah fi yuh. Tell me more? 💛"
 
         # -------------------
         # SAVE AI MESSAGE
@@ -138,8 +128,7 @@ async def send_message(
         # MOOD TRACKING
         # -------------------
 
-        if emotion:
-
+        if emotion and emotion != "neutral":
             chats.update_one(
                 {"_id": chat_obj_id},
                 {
@@ -152,6 +141,8 @@ async def send_message(
                 }
             )
 
+        logger.info(f"✅ Response sent for chat {chat_id}")
+        
         return MessageOut(
             response=reply,
             chat_id=chat_id,
@@ -160,13 +151,39 @@ async def send_message(
 
     except HTTPException:
         raise
-
     except Exception as e:
-
-        logger.error("Unexpected error", exc_info=True)
-
+        logger.error(f"❌ Unexpected error: {str(e)}", exc_info=True)
         return MessageOut(
-            response="Something went wrong. Please try again.",
-            chat_id=chat_id,
+            response="Mi sorry, something went wrong. Try again in a likkle bit? 💛",
+            chat_id=chat_id if chat_id else "",
             timestamp=datetime.utcnow()
         )
+
+
+@router.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy", 
+        "message": "Paula ready fi chat! 💛",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
+@router.get("/chat/{chat_id}")
+async def get_chat_history(chat_id: str):
+    """Get chat history by ID"""
+    try:
+        chat_obj_id = ObjectId(chat_id)
+        chat = chats.find_one({"_id": chat_obj_id})
+        
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        
+        # Convert ObjectId to string for JSON
+        chat["_id"] = str(chat["_id"])
+        
+        return chat
+    except Exception as e:
+        logger.error(f"Error fetching chat {chat_id}: {e}")
+        raise HTTPException(status_code=400, detail="Invalid chat ID")
