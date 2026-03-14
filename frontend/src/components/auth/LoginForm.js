@@ -190,7 +190,7 @@ export default function LoginForm() {
         {/* NEW LINE ADDED BELOW */}
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
           <Link
-            href="/providers/login.html"
+            href="/public/login.html"
             className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
           >
             Log In as a Service Provider
