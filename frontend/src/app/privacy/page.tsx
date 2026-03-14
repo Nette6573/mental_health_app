@@ -32,7 +32,7 @@ export default function PrivacyPage() {
 
       <h2>Legal Basis for Collection</h2>
       <ul>
-        <li>With users' consent whenever they opt in to our programs, such as faith-based support or journaling.</li>
+        <li>With users consent whenever they opt in to our programs, such as faith-based support or journaling.</li>
         <li>For legitimate operation needs, e.g., crisis escalation, authentication, etc.</li>
         <li>In compliance with the Cybercrimes Act, HopePath will prohibit unauthorized access, misuse, and modification of data.</li>
       </ul>
