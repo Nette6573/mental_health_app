@@ -227,6 +227,15 @@ export default function SignupForm() {
             Sign in
           </Link>
         </p>
+              {/* NEW LINE ADDED BELOW */}
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+          <Link
+            href="/provider-dashboard/signup"
+            className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
+          >
+            Sign up as a Service Provider
+          </Link>
+        </p>
       </div>
     </form>
   )
