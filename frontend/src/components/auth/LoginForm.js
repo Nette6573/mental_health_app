@@ -30,26 +30,26 @@ export default function LoginForm() {
   }
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
+    e.preventDefault();
+    setError("");
 
-  const result = await login(formData.email, formData.password);
+    const result = await login(formData.email, formData.password);
 
-  if (result.success) {
-    // 🚨 NEW: Block unverified users
-    if (!result.user.emailVerified) {
-      // Force logout so they can't access protected pages
-      await result.auth.signOut();
+    if (result.success) {
+      // 🚨 NEW: Block unverified users
+      if (!result.user.emailVerified) {
+        // Force logout so they can't access protected pages
+        await result.auth.signOut();
 
-      setError("Please verify your email before logging in. Check your inbox or spam folder.");
-      return;
+        setError("Please verify your email before logging in. Check your inbox or spam folder.");
+        return;
+      }
+
+      router.push("/dashboard");
+    } else {
+      setError(result.error);
     }
-
-    router.push("/dashboard");
-  } else {
-    setError(result.error);
-  }
-};
+  };
 
   const handleGoogleLogin = async () => {
     setError('')
@@ -178,12 +178,22 @@ export default function LoginForm() {
 
       <div className="text-center">
         <p className="text-sm text-gray-600 dark:text-gray-400">
-         {"Don't have an account?"}{' '}
+          {"Don't have an account?"}{' '}
           <Link
             href="/auth/signup"
             className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
           >
             Sign up
+          </Link>
+        </p>
+
+        {/* NEW LINE ADDED BELOW */}
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+          <Link
+            href="/public/login.html"
+            className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
+          >
+            Log In as a Service Provider
           </Link>
         </p>
       </div>
