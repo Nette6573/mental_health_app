@@ -79,17 +79,21 @@ export default function ProviderSignupPage() {
         password,
       };
 
-      // Assuming your handleProviderSignup function returns an object with an optional error
-      // const result = await handleProviderSignup(formData);
-      // if (result?.error) {
-      //   alert(result.error || "Signup failed");
-      //   return;
-      // }
+      // --- THE FIX: Uncomment and handle the result ---
+      const result = await handleProviderSignup(formData);
+      
+      if (result && result.error) {
+        // This will trigger if Firebase Auth or Firestore fails
+        alert("Signup Error: " + result.error);
+        return;
+      }
 
+      // Only show success if the database write actually succeeded
       setShowSuccessModal(true);
-    } catch (error) {
-      console.error(error);
-      alert("Something went wrong. Please try again.");
+      
+    } catch (error: any) {
+      console.error("Submission error:", error);
+      alert("Something went wrong: " + (error.message || "Unknown error"));
     } finally {
       setIsSubmitting(false);
     }
