@@ -16,16 +16,16 @@ export const handleProviderSignup = async (formData: any) => {
 
     // 2. Save provider data in Firestore
     await setDoc(doc(db, "providers", user.uid), {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      phone: formData.phone,
+      firstName: formData.first_name,
+      lastName: formData.last_name,
+      email: formData.professional_email,
+      phone: formData.phone_number,
       parish: formData.parish,
-      title: formData.title,
+      title: formData.professional_title,
       license: formData.license,
       specialization: formData.specialization,
       experience: formData.experience,
-      practiceAreas: formData.practiceAreas,
+      practiceAreas: formData.practice_areas,
       role: "provider",
       status: "pending",
       createdAt: new Date()
