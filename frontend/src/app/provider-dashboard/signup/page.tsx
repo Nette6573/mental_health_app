@@ -6,7 +6,6 @@ import { handleProviderSignup } from "@/lib/providersignup";
 import Link from 'next/link'
 import {
 Check,
-@@ -93,604 +95,106 @@ export default function ProviderSignupPage() {
 setCurrentStep(step)
 }
 
