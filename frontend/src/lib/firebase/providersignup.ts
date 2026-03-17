@@ -8,8 +8,8 @@ export const handleProviderSignup = async (formData: any) => {
     // 1. Create auth account
     const userCredential = await createUserWithEmailAndPassword(
       auth,
-      data.professional_email,
-      data.password
+      formData.professional_email,
+      formData.password
     );
 
     const user = userCredential.user;
