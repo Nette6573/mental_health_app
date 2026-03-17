@@ -1,7 +1,13 @@
 // src/lib/firebase/firebaseClient.ts
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+// Change getFirestore to include initializeFirestore and CACHE settings
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  terminate, 
+  clearIndexedDbPersistence 
+} from 'firebase/firestore';
 import { GoogleAuthProvider, FacebookAuthProvider } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -13,12 +19,14 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase only once
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize services
+// FIX: Use initializeFirestore instead of getFirestore to force a fresh connection
+const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true, // This bypasses many network/firewall blocks
+});
+
 const auth = getAuth(app);
-const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 const facebookProvider = new FacebookAuthProvider();
 
