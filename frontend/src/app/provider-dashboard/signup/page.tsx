@@ -1,7 +1,6 @@
 'use client'
 "use client";
 
-import { FormEvent, useState } from 'react'
 import { useState, FormEvent } from "react";
 import { handleProviderSignup } from "@/lib/providersignup";
 import Link from 'next/link'
@@ -11,17 +10,42 @@ Check,
 setCurrentStep(step)
 }
 
-  const handleSubmit = (e: FormEvent) => {
-  // ✅ FIREBASE CONNECTED SUBMIT
   const handleSubmit = async (e: FormEvent) => {
-e.preventDefault()
+  e.preventDefault()
 
-if (!validateStep(3)) return
+  if (!validateStep(3)) return
 
-setIsSubmitting(true)
+  setIsSubmitting(true)
 
-    setTimeout(() => {
-      setIsSubmitting(false)
+  try {
+    const formData = {
+      firstName,
+      lastName,
+      email,
+      phone,
+      parish,
+      title,
+      license,
+      specialization,
+      experience,
+      practiceAreas,
+      password,
+    }
+
+   
+
+  
+      setShowSuccessModal(true)
+
+    alert(result.error || "Signup failed")
+    }
+  
+    console.error(error)
+    alert("Something went wrong. Please try again.")
+  }
+
+  
+}
       setShowSuccessModal(true)
     }, 2000)
   }
@@ -60,7 +84,7 @@ setIsSubmitting(true)
               <rect width="100%" height="100%" fill="url(#grid)" />
             </svg>
           </div>
-      const result = await handleProviderSignup(formData)
+      
 
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-8">
@@ -74,12 +98,12 @@ setIsSubmitting(true)
                 <p className="text-sky-100 text-sm">Provider Portal</p>
               </div>
             </div>
-      if (result.success) {
+      
         setShowSuccessModal(true)
-      } else {
-        alert(result.error || "Signup failed")
+
+            alert(result.error || "Signup failed")
       }
-    } catch (error: any) {
+    
       console.error(error)
       alert("Something went wrong. Please try again.")
     }
@@ -93,7 +117,7 @@ setIsSubmitting(true)
               Create your provider account to connect with individuals seeking
               faith-integrated mental health support across Jamaica.
             </p>
-    setIsSubmitting(false)
+    
   }
 
             <div className="space-y-6">
@@ -165,7 +189,7 @@ setIsSubmitting(true)
                 information is kept secure and confidential.
               </p>
             </div>
-        <form onSubmit={handleSubmit} className="space-y-6">
+      
 
             {/* Progress */}
             <div className="flex items-center gap-2 mb-8">
@@ -645,7 +669,6 @@ setIsSubmitting(true)
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 text-center">
 
             <h3 className="text-xl font-bold text-slate-800 mb-2">
