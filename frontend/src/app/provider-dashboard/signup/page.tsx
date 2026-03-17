@@ -1,13 +1,9 @@
-'use client'
-"use client";
+'use client';
 
 import { useState, FormEvent } from "react";
 import { handleProviderSignup } from "@/lib/providersignup";
 import Link from 'next/link'
-import {
-Check,
-setCurrentStep(step)
-}
+import { Check, setCurrentStep } from "@/lib/providersignup";
 
   const handleSubmit = async (e: FormEvent) => {
   e.preventDefault()
@@ -210,6 +206,7 @@ setCurrentStep(step)
                 <div
                   className="h-full bg-sky-600 transition-all duration-300"
                   style={{ width: currentStep > 1 ? '100%' : '0%' }}
+                  >
               <div>
                 <label>Password</label>
                 <input
