@@ -65,30 +65,31 @@ export default function ProviderSignupPage() {
     setIsSubmitting(true);
 
     try {
+      // MAPPING LOCAL STATE TO DATABASE FIELDS
+      // This ensures no 'undefined' values are sent to Firebase
       const formData = {
-        firstName,
-        lastName,
-        email,
-        phone,
-        parish,
-        title,
-        license,
-        specialization,
-        experience,
-        practiceAreas,
-        password,
+        first_name: firstName || "",
+        last_name: lastName || "",
+        professional_email: email || "", // Matches your database record
+        phone_number: phone || "",       // Matches your database record
+        parish: parish || "",
+        professional_title: title || "", // Matches your database record
+        license: license || "",
+        specialization: specialization || "",
+        experience: experience || "",
+        practice_areas: practiceAreas.join(", ") || "", // Convert array to string
+        role: "provider",
+        password: password, // Still need this for the Auth part
+        created_at: new Date(),
       };
 
-      // --- THE FIX: Uncomment and handle the result ---
       const result = await handleProviderSignup(formData);
       
       if (result && result.error) {
-        // This will trigger if Firebase Auth or Firestore fails
         alert("Signup Error: " + result.error);
         return;
       }
 
-      // Only show success if the database write actually succeeded
       setShowSuccessModal(true);
       
     } catch (error: any) {
@@ -98,6 +99,7 @@ export default function ProviderSignupPage() {
       setIsSubmitting(false);
     }
   };
+  
 
   return (
     <div className="min-h-screen p-4 relative overflow-hidden font-sans bg-gradient-to-br from-sky-50 via-cyan-50 to-slate-50">
