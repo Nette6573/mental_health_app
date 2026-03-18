@@ -22,8 +22,7 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 // FIX: Use initializeFirestore instead of getFirestore to force a fresh connection
-const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true, // This bypasses many network/firewall blocks
+const db = getFirestore(app); // This bypasses many network/firewall blocks
 });
 
 const auth = getAuth(app);
