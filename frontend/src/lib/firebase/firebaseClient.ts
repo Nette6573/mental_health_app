@@ -6,7 +6,7 @@ import { auth, db } from "./firebaseClient"; // ✅ use firebaseClient exports
 /**
  * Sign up a new provider user
  */
-export async function providersignup(email: string, password: string, name: string) {
+export async function providerSignup(email: string, password: string, name: string) {
   try {
     // 1. Create user in Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
