@@ -84,7 +84,7 @@ export default function ProviderSignupPage() {
         created_at: new Date(),
       };
 
-      const result = await providerSignup(formData);
+      const result = await providersignup(formData);
       
       if (result && result.error) {
         alert("Signup Error: " + result.error);
