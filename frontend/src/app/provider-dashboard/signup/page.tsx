@@ -5,7 +5,8 @@ import Link from 'next/link';
 // I am assuming you are using lucide-react for icons based on the component names. 
 // If you use a different library, adjust these imports!
 import { Check, CheckCircle, Eye, EyeOff, Info, ArrowRight } from "lucide-react"; 
-import { handleProviderSignup } from "@/lib/firebase/providersignup";
+import { providerSignup } from "@/lib/firebase/providersignup";
+
 
 export default function ProviderSignupPage() {
   // Navigation & UI State
