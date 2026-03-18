@@ -1,27 +1,42 @@
-// src/lib/firebase/firebaseClient.ts
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, FacebookAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+// src/lib/firebase/providersignup.ts
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "./firebaseClient"; // ✅ use firebaseClient exports
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+/**
+ * Sign up a new provider user
+ */
+export async function providerSignup(email: string, password: string, name: string) {
+  try {
+    // 1. Create user in Firebase Auth
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
-// Initialize Firebase App
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    // 2. Create Firestore document in /users
+    await setDoc(doc(db, "users", user.uid), {
+      uid: user.uid,
+      name,
+      email: user.email,
+      createdAt: new Date().toISOString(),
+      emailVerified: user.emailVerified,
+    });
 
-// Initialize Services
-const auth = getAuth(app);
-const db = getFirestore(app);
+    // 3. Create Firestore document in /providers
+    await setDoc(doc(db, "providers", user.uid), {
+      uid: user.uid,
+      name,
+      email: user.email,
+      createdAt: new Date().toISOString(),
+      emailVerified: user.emailVerified,
+    });
 
-// Providers
-const googleProvider = new GoogleAuthProvider();
-const facebookProvider = new FacebookAuthProvider();
+    // 4. Send email verification (optional but recommended)
+    await sendEmailVerification(user);
 
-// Export everything
-export { app, auth, db, googleProvider, facebookProvider };
+    console.log("User created and Firestore docs written:", user.uid);
+    return user;
+  } catch (err) {
+    console.error("Signup error:", err);
+    throw err;
+  }
+}
