@@ -1,9 +1,9 @@
 // src/lib/firebase/firebaseClient.ts
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { GoogleAuthProvider, FacebookAuthProvider } from 'firebase/auth';
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
+// Your Firebase config
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -13,13 +13,9 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase only once
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
-// Initialize services
-const auth = getAuth(app);
-const db = getFirestore(app);
-const googleProvider = new GoogleAuthProvider();
-const facebookProvider = new FacebookAuthProvider();
-
-export { app, auth, db, googleProvider, facebookProvider };
+// Export auth and firestore
+export const auth = getAuth(app);
+export const db = getFirestore(app);
