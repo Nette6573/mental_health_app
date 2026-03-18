@@ -1,7 +1,7 @@
 // src/lib/firebase/providersignup.ts
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
-import { auth, db } from "./firebase"; // adjust path if needed
+import { auth, db } from "./firebaseClient"; // adjust path if needed
 
 /**
  * Sign up a new provider user
