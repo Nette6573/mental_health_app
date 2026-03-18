@@ -1,10 +1,21 @@
+# app/ai/paula_client.py
+
 import os
 import requests
+import logging
 from typing import List, Dict, Optional
 from datetime import datetime
+from app.config import HF_TOKEN
 
-HF_API_TOKEN = os.getenv("HF_API_TOKEN")
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Use HF_TOKEN from config
+HF_API_TOKEN = HF_TOKEN
 MODEL_ID = "meta-llama/Meta-Llama-3-8B-Instruct"
+# Alternative models if Llama-3 isn't accessible:
+# MODEL_ID = "mistralai/Mistral-7B-Instruct-v0.1"
+# MODEL_ID = "HuggingFaceH4/zephyr-7b-beta"
 
 # Crisis keywords for immediate detection
 CRISIS_KEYWORDS = [
@@ -107,6 +118,13 @@ class PaulaClient:
             "Authorization": f"Bearer {HF_API_TOKEN}",
             "Content-Type": "application/json"
         }
+        
+        # Log if token is missing
+        if not HF_API_TOKEN:
+            logger.error("❌ HF_API_TOKEN is missing!")
+        else:
+            logger.info(f"✅ Hugging Face client initialized with model: {model}")
+            
         # Store referral contexts for users (in production, use a better session store)
         self.referral_contexts = {}
 
@@ -116,11 +134,14 @@ class PaulaClient:
         conversation_history: List[Dict] = None,
         max_tokens: int = 600,
         temperature: float = 0.7,
-        session_id: str = None
+        session_id: str = None,
+        summary: str = None
     ) -> str:
-
+        """Generate a response using Hugging Face API"""
+        
         # Crisis detection FIRST - always prioritize
         if self._is_crisis(user_message):
+            logger.info(f"🚨 Crisis detected in message from session {session_id}")
             return self._crisis_response()
 
         # Check if we're in the middle of a referral conversation
@@ -194,8 +215,8 @@ class PaulaClient:
         if conversation_history:
             for msg in conversation_history[-6:]:
                 messages.append({
-                    "role": msg.get("role"),
-                    "content": msg.get("content")
+                    "role": msg.get("role", "user"),
+                    "content": msg.get("content", "")
                 })
 
         # Add latest user message
@@ -205,30 +226,98 @@ class PaulaClient:
         })
 
         try:
+            logger.info(f"📤 Sending request to Hugging Face API with {len(messages)} messages")
+            
+            # Check if token exists
+            if not HF_API_TOKEN:
+                logger.error("❌ HF_API_TOKEN is missing")
+                return self._get_fallback_response(user_message)
+            
+            # Make API request
             response = requests.post(
                 self.endpoint,
                 headers=self.headers,
                 json={
-                    "model": self.model,
-                    "messages": messages,
-                    "max_tokens": max_tokens,
-                    "temperature": temperature
+                    "inputs": self._format_chat_template(messages),
+                    "parameters": {
+                        "max_new_tokens": 500,
+                        "temperature": 0.7,
+                        "top_p": 0.95,
+                        "do_sample": True,
+                        "return_full_text": False
+                    }
                 },
-                timeout=60
+                timeout=30
             )
 
-            if response.status_code != 200:
-                # Fallback response if API fails
-                return self._get_fallback_response(user_message)
-
-            result = response.json()
-            return result["choices"][0]["message"]["content"].strip()
+            logger.info(f"📥 Hugging Face API response status: {response.status_code}")
             
-        except Exception:
+            if response.status_code == 200:
+                result = response.json()
+                
+                # Parse different response formats
+                if isinstance(result, list) and len(result) > 0:
+                    if isinstance(result[0], dict) and 'generated_text' in result[0]:
+                        return result[0]['generated_text'].strip()
+                    elif isinstance(result[0], str):
+                        return result[0].strip()
+                elif isinstance(result, dict) and 'generated_text' in result:
+                    return result['generated_text'].strip()
+                else:
+                    logger.warning(f"Unexpected response format: {result}")
+                    return self._get_fallback_response(user_message)
+                    
+            elif response.status_code == 503:
+                # Model is loading
+                logger.info("⏳ Model is loading, waiting...")
+                import time
+                time.sleep(5)
+                # Retry once
+                return self._get_empathetic_response(user_message, conversation_history)
+            else:
+                logger.error(f"❌ Hugging Face API error: {response.status_code} - {response.text}")
+                return self._get_fallback_response(user_message)
+                
+        except requests.exceptions.Timeout:
+            logger.error("⏰ Hugging Face API timeout")
             return self._get_fallback_response(user_message)
+        except Exception as e:
+            logger.error(f"❌ Error in _get_empathetic_response: {str(e)}")
+            return self._get_fallback_response(user_message)
+
+    def _format_chat_template(self, messages: List[Dict]) -> str:
+        """Format messages for models that don't support the chat API"""
+        formatted = ""
+        for msg in messages:
+            if msg["role"] == "system":
+                formatted += f"<|system|>\n{msg['content']}\n"
+            elif msg["role"] == "user":
+                formatted += f"<|user|>\n{msg['content']}\n"
+            elif msg["role"] == "assistant":
+                formatted += f"<|assistant|>\n{msg['content']}\n"
+        formatted += "<|assistant|>\n"
+        return formatted
 
     def _get_fallback_response(self, user_message: str) -> str:
         """Provide a fallback response if the API fails"""
+        logger.info("🔄 Using fallback response")
+        
+        # Simple rule-based responses for common patterns
+        user_message_lower = user_message.lower()
+        
+        if any(word in user_message_lower for word in ["hello", "hi", "hey"]):
+            return "Hello! I'm Paula, your emotional support assistant. How are you feeling today?"
+        
+        if "how are you" in user_message_lower:
+            return "I'm here and ready to listen. More importantly, how are you doing today?"
+        
+        if "thank" in user_message_lower:
+            return "You're welcome! I'm glad I could help. Is there anything else you'd like to talk about?"
+        
+        if any(word in user_message_lower for word in ["sad", "depressed", "down"]):
+            return "I hear that you're feeling sad, and that's completely valid. These feelings can be heavy to carry alone. Would you like to talk more about what's bringing you down?"
+        
+        # Default fallback
         return (
             "I hear you, and I want you to know that your feelings are valid. "
             "While I'm here to listen, I also want to remind you that speaking with "
@@ -500,6 +589,7 @@ class PaulaClient:
 
 _paula_client = None
 
+
 def ask_paula(user_message: str, chat_history=None, session_id: str = None, summary: str = None) -> str:
     """Public function for routes to call"""
     global _paula_client
@@ -507,10 +597,22 @@ def ask_paula(user_message: str, chat_history=None, session_id: str = None, summ
     if _paula_client is None:
         try:
             _paula_client = PaulaClient()
+            logger.info("✅ PaulaClient initialized successfully")
         except Exception as e:
+            logger.error(f"❌ Failed to initialize PaulaClient: {e}")
             return "I'm having trouble connecting right now. Please try again in a moment. If this persists, you can reach out to the Jamaica Mental Health Helpline at 888-NEW-LIFE (639-5433) for immediate support."
 
-    return _paula_client.generate_response(user_message, chat_history, session_id=session_id)
+    try:
+        return _paula_client.generate_response(
+            user_message=user_message,
+            conversation_history=chat_history,
+            session_id=session_id,
+            summary=summary
+        )
+    except Exception as e:
+        logger.error(f"❌ Error in ask_paula: {e}")
+        return "Mi sorry, something went wrong. Try again? 💛"
+
 
 def detect_emotion_ai(text: str) -> str:
     """Simple emotion detection based on keywords"""
@@ -530,6 +632,7 @@ def detect_emotion_ai(text: str) -> str:
             return emotion
     
     return "neutral"
+
 
 def summarize_memory(history: List[Dict]) -> str:
     """Summarize conversation history for memory"""

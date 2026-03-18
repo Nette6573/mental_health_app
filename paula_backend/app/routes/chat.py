@@ -187,3 +187,37 @@ async def get_chat_history(chat_id: str):
     except Exception as e:
         logger.error(f"Error fetching chat {chat_id}: {e}")
         raise HTTPException(status_code=400, detail="Invalid chat ID")
+
+@router.get("/debug")
+async def debug_info():
+    """Debug endpoint to check configuration"""
+    from app.config import HF_TOKEN, MONGO_URI, SECRET_KEY
+    from app.ai.paula_client import _paula_client
+    
+    # Test MongoDB connection
+    mongo_status = "unknown"
+    try:
+        from app.db.mongo import client
+        client.admin.command('ping')
+        mongo_status = "connected"
+    except Exception as e:
+        mongo_status = f"error: {str(e)}"
+    
+    # Test if Paula client is initialized
+    paula_status = "initialized" if _paula_client else "not initialized"
+    
+    return {
+        "status": "debug",
+        "environment": {
+            "hf_token": "set" if HF_TOKEN else "missing",
+            "hf_token_length": len(HF_TOKEN) if HF_TOKEN else 0,
+            "hf_token_preview": f"{HF_TOKEN[:5]}...{HF_TOKEN[-5:]}" if HF_TOKEN else None,
+            "mongo_uri": "set" if MONGO_URI else "missing",
+            "secret_key": "set" if SECRET_KEY else "using temporary",
+        },
+        "connections": {
+            "mongodb": mongo_status,
+            "paula_client": paula_status,
+        },
+        "timestamp": datetime.utcnow().isoformat()
+    }

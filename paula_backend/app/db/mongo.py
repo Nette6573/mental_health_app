@@ -3,7 +3,7 @@
 import os
 import logging
 from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -11,41 +11,57 @@ logger = logging.getLogger(__name__)
 MONGO_URI = os.getenv("MONGO_URI")
 
 if not MONGO_URI:
-    raise ValueError(
+    error_msg = (
         "MONGO_URI environment variable is not set. "
-        "Add it to HuggingFace Space Secrets."
+        "If running on Hugging Face Spaces, add it to Secrets.\n"
+        "If running locally, create a .env file with MONGO_URI=your_connection_string"
     )
+    logger.error(error_msg)
+    # Don't raise here, let the app try to connect and fail gracefully
+    client = None
+    db = None
+    chats = None
+else:
+    try:
+        # Add connection options for better reliability
+        client = MongoClient(
+            MONGO_URI,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=30000,
+            maxPoolSize=10,
+            minPoolSize=1
+        )
 
-if not (
-    MONGO_URI.startswith("mongodb://")
-    or MONGO_URI.startswith("mongodb+srv://")
-):
-    raise ValueError("Invalid Mongo URI")
+        # Test connection
+        client.admin.command("ping")
+        logger.info("✅ Connected to MongoDB Atlas")
 
-try:
+        DATABASE_NAME = os.getenv("MONGODB_DB_NAME", "paulachats_db")
+        db = client[DATABASE_NAME]
+        COLLECTION_NAME = "paulachats"
+        chats = db[COLLECTION_NAME]
 
-    client = MongoClient(
-        MONGO_URI,
-        serverSelectionTimeoutMS=5000,
-        connectTimeoutMS=10000
-    )
+        # Create indexes for better performance
+        chats.create_index("session_id", unique=True, sparse=True)
+        chats.create_index("user_id")
+        chats.create_index("created_at")
+        
+        logger.info(f"✅ Using database: {DATABASE_NAME}")
+        logger.info(f"✅ Using collection: {COLLECTION_NAME}")
+        logger.info(f"✅ Indexes created")
 
-    client.admin.command("ping")
-    print("✅ Connected to MongoDB Atlas")
+    except (ConnectionFailure, ServerSelectionTimeoutError) as e:
+        logger.error(f"❌ MongoDB connection failed: {e}")
+        # Set to None so the app can handle gracefully
+        client = None
+        db = None
+        chats = None
+    except Exception as e:
+        logger.error(f"❌ Unexpected MongoDB error: {e}")
+        client = None
+        db = None
+        chats = None
 
-    DATABASE_NAME = os.getenv("MONGODB_DB_NAME", "paulachats_db")
-
-    db = client[DATABASE_NAME]
-
-    COLLECTION_NAME = "paulachats"
-    chats = db[COLLECTION_NAME]
-
-    print(f"✅ Using database: {DATABASE_NAME}")
-    print(f"✅ Using collection: {COLLECTION_NAME}")
-
-    logger.info(f"Available DBs: {client.list_database_names()}")
-    logger.info(f"Collections: {db.list_collection_names()}")
-
-except ConnectionFailure as e:
-    print(f"❌ MongoDB connection failed: {e}")
-    raise
+# Export these for use in other modules
+__all__ = ['client', 'db', 'chats']
