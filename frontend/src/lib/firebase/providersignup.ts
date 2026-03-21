@@ -1,16 +1,13 @@
-// lib/firebase/providersignup.ts
 import { auth, db } from "./firebaseClient";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
-
-// Simple delay helper
-function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 export const providerSignup = async (formData: any) => {
   try {
-    // 1. CREATE AUTH USER
+    // 1. FORCE PERSISTENCE (stay signed in)
+    await setPersistence(auth, browserLocalPersistence);
+
+    // 2. CREATE AUTH USER
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       formData.professional_email,
@@ -20,12 +17,10 @@ export const providerSignup = async (formData: any) => {
     const user = userCredential.user;
     console.log("Auth UID:", user.uid);
 
-    // 2. WAIT ~10 seconds before Firestore write
-    console.log("Waiting 10 seconds before Firestore write...");
-    await delay(10000);
+    // 3. ENSURE AUTH SESSION IS ACTIVE
+    console.log("Auth currentUser:", auth.currentUser?.uid);
 
-    // 3. SAVE TO FIRESTORE USING UID
-    console.log("About to write provider doc:", user.uid);
+    // 4. SAVE TO FIRESTORE USING UID
     await setDoc(doc(db, "providers", user.uid), {
       first_name: formData.first_name,
       last_name: formData.last_name,
