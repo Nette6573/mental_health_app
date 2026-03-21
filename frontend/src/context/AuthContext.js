@@ -58,10 +58,10 @@ export function AuthProvider({ children }) {
   const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
 
-      // --------- CHECK EMAIL VERIFIED ---------
+      
       if (!firebaseUser.emailVerified) {
-        setUser(null)           // prevent unverified user from being stored
-        await signOut(auth)     // optional: sign them out
+        // Allow user to exist, just don't redirect them
+        setUser(null)
         setIsLoading(false)
         return
       }
