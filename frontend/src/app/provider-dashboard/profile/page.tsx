@@ -88,6 +88,8 @@ type PhotoState = {
 };
 
 export default function ProviderProfilePage() {
+  //This is to get the logged in user
+  const { user } = useAuth() as any;
   const [darkMode, setDarkMode] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
