@@ -1,4 +1,5 @@
 // lib/firebase/providersignup.ts
+console.log("Auth currentUser:", auth.currentUser?.uid);
 
 import { auth, db } from "./firebaseClient";
 import { createUserWithEmailAndPassword } from "firebase/auth";
