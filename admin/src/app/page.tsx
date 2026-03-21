@@ -397,13 +397,13 @@ export default function AdminLandingPage() {
                   { num: '48',    label: 'Active Counselors' },
                   { num: '99.9%', label: 'Uptime' },
                 ].map((s, i) => (
-                  <>
+                  <div key={s.label} className="flex items-center">
                     {i > 0 && <div key={`d${i}`} className="stat-divider" />}
                     <div key={s.label} className="stat">
                       <div className="stat-num">{s.num}</div>
                       <div className="stat-label">{s.label}</div>
                     </div>
-                  </>
+                  </div>
                 ))}
               </div>
             </div>
