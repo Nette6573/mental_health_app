@@ -104,9 +104,7 @@ export default function ProviderProfilePage() {
     ""
   );
 
-  const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>([
-    "",
-  ]);
+  const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>([]);
 
   const [languages, setLanguages] = useState<string[]>(["", ""]);
   const [languageInput, setLanguageInput] = useState("");
