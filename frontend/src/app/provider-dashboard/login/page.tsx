@@ -1,5 +1,5 @@
 'use client'
-
+import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState, FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -21,7 +21,7 @@ import {
 
 export default function ProviderLoginPage() {
   const router = useRouter()
-
+  const { login } = useAuth();
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
@@ -59,22 +59,32 @@ export default function ProviderLoginPage() {
     return () => document.removeEventListener('keydown', handleEscape)
   }, [])
 
-  const handleLogin = (e: FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+ const handleLogin = async (e: FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
 
-    if (rememberMe) {
-      localStorage.setItem('hopepath_email', email)
-    } else {
-      localStorage.removeItem('hopepath_email')
-    }
-
-    setTimeout(() => {
-      setIsLoading(false)
-      router.push('/provider-dashboard')
-    }, 1500)
+  if (rememberMe) {
+    localStorage.setItem('hopepath_email', email);
+  } else {
+    localStorage.removeItem('hopepath_email');
   }
 
+  try {
+    const result = await login(email, password);
+
+    if (!result.success) {
+      alert(result.error);
+      return;
+    }
+
+    router.push('/provider-dashboard');
+
+  } catch (error: any) {
+    alert("Login failed: " + error.message);
+  } finally {
+    setIsLoading(false);
+  }
+  };
   const handleForgotSubmit = (e: FormEvent) => {
     e.preventDefault()
     alert('Password reset link sent to your email!')
