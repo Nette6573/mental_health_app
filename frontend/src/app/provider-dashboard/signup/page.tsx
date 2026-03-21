@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import Link from 'next/link';
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 // I am assuming you are using lucide-react for icons based on the component names. 
 // If you use a different library, adjust these imports!
 import { Check, CheckCircle, Eye, EyeOff, Info, ArrowRight } from "lucide-react"; 
@@ -81,7 +82,7 @@ export default function ProviderSignupPage() {
         practice_areas: practiceAreas.join(", ") || "", // Convert array to string
         role: "provider",
         password: password, // Still need this for the Auth part
-        created_at: new Date(),
+        created_at: serverTimestamp(),
       };
 
       const result = await providerSignup(formData);
