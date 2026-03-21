@@ -19,7 +19,7 @@ export const providerSignup = async (formData: any) => {
     }
 
     // 🔥 WRITE TO FIRESTORE
-    await setDoc(doc(db, "Providers", user.uid), {
+    await setDoc(doc(db, "providers", user.uid), {
       ...formData,
       role: "provider",
       created_at: new Date(),
