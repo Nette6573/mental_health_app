@@ -82,7 +82,7 @@ export default function ProviderSignupPage() {
         practice_areas: practiceAreas.join(", ") || "", // Convert array to string
         role: "provider",
         password: password, // Still need this for the Auth part
-        created_at: serverTimestamp(),
+      
       };
 
       const result = await providerSignup(formData);
