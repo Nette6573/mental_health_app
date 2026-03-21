@@ -9,7 +9,7 @@ from app.config import HF_TOKEN
 logger = logging.getLogger(__name__)
 
 HF_API_TOKEN = HF_TOKEN
-MODEL_ID = "microsoft/DialoGPT-medium"  # Changed to a more reliable model
+MODEL_ID = "microsoft/DialoGPT-medium"
 
 # -----------------------------
 # 🔥 CORE DATA
@@ -28,7 +28,6 @@ JAMAICAN_PARISHES = [
     "st. mary", "st mary", "portland", "st. thomas", "st thomas"
 ]
 
-# Parish-based directory
 DIRECTORY = {
     "Kingston": [
         {
@@ -79,9 +78,6 @@ def detect_intent(text: str) -> str:
     if any(k in t for k in ["therapist", "counselor", "psychologist", "help near me"]):
         return "referral"
 
-    if any(k in t for k in ["sad", "tired", "empty", "stressed", "overwhelmed"]):
-        return "emotional"
-
     return "general"
 
 
@@ -96,6 +92,8 @@ def detect_emotion(text: str) -> str:
         return "angry"
     if "tired" in t or "exhausted" in t:
         return "tired"
+    if "heavy" in t or "overwhelmed" in t:
+        return "overwhelmed"
 
     return "neutral"
 
@@ -116,10 +114,6 @@ class PaulaClient:
         logger.info(f"✅ PaulaClient initialized with model: {MODEL_ID}")
         logger.info(f"🔗 Endpoint: {self.endpoint}")
 
-    # -----------------------------
-    # MAIN ENTRY
-    # -----------------------------
-
     def generate_response(self, user_message: str, history=None, session_id=None, summary=None):
 
         intent = detect_intent(user_message)
@@ -130,11 +124,13 @@ class PaulaClient:
         if intent == "referral":
             return self._handle_referral(user_message, session_id)
 
-        return self._ai_response(user_message, history)
-
-    # -----------------------------
-    # AI RESPONSE
-    # -----------------------------
+        # Try AI first, fallback to enhanced context-aware responses
+        ai_response = self._ai_response(user_message, history)
+        if ai_response and "Tell me a little more" not in ai_response:
+            return ai_response
+        
+        # If AI failed or gave generic response, use enhanced fallback
+        return self._enhanced_fallback(user_message, history)
 
     def _ai_response(self, message: str, history: List[Dict]):
 
@@ -142,7 +138,7 @@ class PaulaClient:
         conversation = self._system_prompt() + "\n\n"
         
         if history:
-            for msg in history[-8:]:  # Use last 8 messages for context
+            for msg in history[-8:]:
                 if msg.get("role") == "user":
                     conversation += f"User: {msg.get('content')}\n"
                 else:
@@ -175,25 +171,111 @@ class PaulaClient:
                 result = response.json()
                 if isinstance(result, list) and len(result) > 0:
                     generated = result[0].get('generated_text', '')
-                    if generated:
-                        # Clean up the response
+                    if generated and len(generated) > 10:
                         generated = generated.replace("User:", "").replace("Paula:", "").strip()
                         return generated
-                return self._fallback(message)
+                return None
             else:
-                logger.error(f"API Error: {response.status_code} - {response.text}")
-                return self._fallback(message)
+                logger.error(f"API Error: {response.status_code}")
+                return None
 
         except Exception as e:
             logger.error(f"Error in _ai_response: {e}")
-            return self._fallback(message)
+            return None
 
-    # -----------------------------
-    # REFERRAL SYSTEM
-    # -----------------------------
+    def _enhanced_fallback(self, message: str, history: List[Dict] = None) -> str:
+        """Enhanced context-aware fallback with varied responses"""
+        
+        msg_lower = message.lower()
+        
+        # Track how many times we've responded to avoid repetition
+        if history:
+            recent_responses = [m.get("content", "") for m in history[-3:] if m.get("role") == "assistant"]
+            last_response = recent_responses[-1] if recent_responses else ""
+        
+        # Responses based on emotional keywords
+        if "tired" in msg_lower or "exhausted" in msg_lower:
+            responses = [
+                "I hear that tiredness. Sometimes rest is exactly what we need. Have you been able to get any quiet time for yourself lately? 💛",
+                "Feeling tired can really weigh you down. Is it physical tiredness, or more like emotional exhaustion?",
+                "That tired feeling can be so heavy. Remember it's okay to rest when you need to. What usually helps you recharge?"
+            ]
+            return responses[hash(message) % len(responses)]
+        
+        if "heavy" in msg_lower or "overwhelmed" in msg_lower:
+            responses = [
+                "That heaviness you're carrying sounds really difficult. Sometimes just naming it helps lighten the load a bit. What's weighing on you most right now?",
+                "When everything feels heavy, it can be hard to know where to start. Take a deep breath with me. We can work through this together. 💛",
+                "I hear that heaviness. You're not alone in feeling this way. Would you like to share what's making things feel so overwhelming?"
+            ]
+            return responses[hash(message) % len(responses)]
+        
+        if "sad" in msg_lower or "depressed" in msg_lower:
+            responses = [
+                "I hear that sadness, and it's completely okay to feel that way. What's been on your mind lately?",
+                "Sadness can feel so isolating, but you're not alone. I'm here with you. Want to tell me more about what's been happening?",
+                "Those sad feelings are valid. Sometimes talking about them can help lighten the load just a bit. I'm listening."
+            ]
+            return responses[hash(message) % len(responses)]
+        
+        if "friend" in msg_lower or "people" in msg_lower:
+            responses = [
+                "Relationships can be so complicated. It sounds like something's happened with people close to you. Would you like to share?",
+                "I hear that something's going on with people around you. That can be really tough to navigate. I'm here to listen.",
+                "Dealing with people we care about can be hard. Want to tell me what's been happening?"
+            ]
+            return responses[hash(message) % len(responses)]
+        
+        if "betray" in msg_lower or "trust" in msg_lower:
+            responses = [
+                "Betrayal cuts deep. When people we trust let us down, it's incredibly painful. I'm sorry you're going through this.",
+                "Trust is so precious, and when it's broken, it hurts deeply. I'm here for you. Would you like to talk about what happened?",
+                "That feeling of betrayal is so hard to carry alone. I'm listening if you want to share more."
+            ]
+            return responses[hash(message) % len(responses)]
+        
+        # If user is just saying hi or starting conversation
+        if any(word in msg_lower for word in ["hello", "hi", "hey", "greetings"]):
+            responses = [
+                "Hello! I'm here with you. How are you feeling today? 💛",
+                "Hey there! I'm glad you reached out. What's on your mind?",
+                "Hi! I'm here to listen. How has your day been?"
+            ]
+            return responses[hash(message) % len(responses)]
+        
+        # If this is a follow-up to a previous response
+        if history and len(history) > 1:
+            previous_user = None
+            for msg in reversed(history):
+                if msg.get("role") == "user" and msg.get("content") != message:
+                    previous_user = msg.get("content")
+                    break
+            
+            if previous_user:
+                responses = [
+                    f"I remember you mentioned earlier: '{previous_user[:80]}...' Let's continue from there. How are you feeling about that now?",
+                    f"Earlier you were sharing about something that was on your mind. Would you like to talk more about that?",
+                    f"I'm here to listen about what you shared before, or if something new is on your mind, I'm here for that too."
+                ]
+                return responses[hash(message) % len(responses)]
+        
+        # Default varied responses
+        default_responses = [
+            "I'm here with you. What's been on your mind lately? 💛",
+            "I'm listening. Would you like to share more about what you're feeling?",
+            "Tell me what's on your heart right now. I'm here to listen.",
+            "I'm here for you. What would be helpful to talk about?"
+        ]
+        
+        # Avoid repeating the same response
+        if history and last_response in default_responses:
+            for resp in default_responses:
+                if resp != last_response:
+                    return resp
+        
+        return default_responses[hash(message) % len(default_responses)]
 
     def _handle_referral(self, message: str, session_id: str):
-
         parish = self._extract_parish(message)
 
         if not parish:
@@ -203,7 +285,6 @@ class PaulaClient:
             return "I couldn't find a listing for that parish yet, but I can still help you explore options."
 
         doctors = DIRECTORY[parish]
-
         response = f"Here are professionals in {parish}:\n\n"
 
         for d in doctors:
@@ -213,12 +294,7 @@ class PaulaClient:
                 f"📞 {d['contact']}\n"
                 f"Focus: {', '.join(d['specialties'])}\n\n"
             )
-
         return response
-
-    # -----------------------------
-    # HELPERS
-    # -----------------------------
 
     def _extract_parish(self, text: str) -> Optional[str]:
         t = text.lower()
@@ -236,89 +312,56 @@ class PaulaClient:
             "You don't have to go through this alone. Please talk to someone who can help right now."
         )
 
-    def _fallback(self, message: str):
-        # Context-aware fallback
-        msg_lower = message.lower()
-        
-        if "sad" in msg_lower or "depressed" in msg_lower:
-            return "I hear that you're feeling sad. That's completely valid. Would you like to talk more about what's bringing you down?"
-        elif "betray" in msg_lower or "trust" in msg_lower:
-            return "Betrayal by people you trust is incredibly painful. I'm here to listen if you want to share more about what happened."
-        elif "friend" in msg_lower:
-            return "It sounds like you're dealing with something involving people close to you. That can be really tough. I'm here to support you."
-        elif "frustrated" in msg_lower or "angry" in msg_lower:
-            return "It sounds like you're dealing with some frustration. That's completely understandable. What's been bothering you?"
-        elif "anxious" in msg_lower or "worried" in msg_lower:
-            return "I hear that you're feeling anxious. That can be really difficult. Would you like to talk about what's making you feel this way?"
-        
-        return "I'm here with you. Tell me a little more about what you're dealing with."
-
     def _system_prompt(self):
         return (
             "You are Paula, a warm and compassionate emotional support assistant.\n"
             "Be natural, warm, and human. Keep responses to 2-3 sentences.\n"
             "Do not sound robotic or repeat phrases.\n"
             "Do not diagnose or label conditions.\n"
-            "Focus on understanding the user's feelings and providing support."
+            "Focus on understanding the user's feelings and providing support.\n"
+            "Use Jamaican warmth and empathy in your tone."
         )
 
 
 # -----------------------------
-# PUBLIC FUNCTIONS (These must exist!)
+# PUBLIC FUNCTIONS
 # -----------------------------
 
 _client = None
 
 def ask_paula(user_message: str, chat_history=None, session_id=None, summary=None):
-    """Main public function for routes to call"""
     global _client
 
     if _client is None:
         _client = PaulaClient()
         logger.info("✅ PaulaClient initialized successfully")
 
-    # Log context info
     if chat_history:
         logger.info(f"📚 Using conversation history with {len(chat_history)} messages")
-    if summary:
-        logger.info(f"📝 Using memory summary: {summary[:100] if summary else 'None'}")
 
     return _client.generate_response(user_message, chat_history, session_id, summary)
 
 
 def detect_emotion_ai(text: str) -> str:
-    """Public function for emotion detection (required by chat.py)"""
     emotion = detect_emotion(text)
     logger.info(f"🎭 Emotion detected: {emotion}")
     return emotion
 
 
 def summarize_memory(history: List[Dict]) -> str:
-    """Public function for summarizing conversation history (required by chat.py)"""
     if not history:
         return ""
     
     topics = set()
-    for msg in history[-10:]:  # Look at last 10 messages
+    for msg in history[-10:]:
         content = msg.get("content", "").lower()
-        if "work" in content or "job" in content:
-            topics.add("work")
-        if "family" in content or "mother" in content or "father" in content:
-            topics.add("family")
-        if "friend" in content or "friends" in content:
-            topics.add("friends")
-        if "relationship" in content or "partner" in content:
+        if "friend" in content or "relationship" in content:
             topics.add("relationships")
-        if "betray" in content or "trust" in content:
-            topics.add("trust issues")
-        if "sad" in content or "depressed" in content:
-            topics.add("sadness")
-        if "anxious" in content or "worried" in content:
-            topics.add("anxiety")
+        if "sad" in content or "tired" in content or "heavy" in content:
+            topics.add("emotional struggles")
+        if "work" in content or "job" in content:
+            topics.add("work concerns")
     
     if topics:
-        summary = f"Previous conversation covered: {', '.join(topics)}"
-        logger.info(f"📝 Memory summary created: {summary}")
-        return summary
-    
+        return f"Previous conversation covered: {', '.join(topics)}"
     return "Previous conversation context available"
