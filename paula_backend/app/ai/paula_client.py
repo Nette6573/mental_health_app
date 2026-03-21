@@ -50,19 +50,6 @@ PARISH_RESOURCES = {
     "st. thomas": "Princess Margaret Hospital - 876-982-2200"
 }
 
-# Bible verses for gentle encouragement
-BIBLE_VERSES = {
-    "anxiety": ["Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God. - Philippians 4:6",
-                "Cast all your anxiety on him because he cares for you. - 1 Peter 5:7"],
-    "sadness": ["The Lord is close to the brokenhearted and saves those who are crushed in spirit. - Psalm 34:18",
-                "He heals the brokenhearted and binds up their wounds. - Psalm 147:3"],
-    "strength": ["I can do all things through Christ who strengthens me. - Philippians 4:13",
-                 "My grace is sufficient for you, for my power is made perfect in weakness. - 2 Corinthians 12:9"],
-    "hope": ["For I know the plans I have for you, plans to prosper you and not to harm you, plans to give you hope and a future. - Jeremiah 29:11",
-             "But those who hope in the Lord will renew their strength. - Isaiah 40:31"],
-    "peace": ["Peace I leave with you; my peace I give you. I do not give to you as the world gives. Do not let your hearts be troubled and do not be afraid. - John 14:27"]
-}
-
 # Coping strategies by emotion
 COPING_STRATEGIES = {
     "anxious": [
@@ -88,16 +75,10 @@ COPING_STRATEGIES = {
         "Sometimes tiredness is our body telling us we need to slow down. Can you take a short break?",
         "Be kind to yourself today. You're doing the best you can."
     ],
-    "lost": [
-        "Feeling lost is so hard. Sometimes just naming where we are helps. What's one thing you know for sure right now?",
-        "When everything feels unclear, focusing on one small step can help. What's one thing you can do today?",
-        "It's okay not to have all the answers right now. You don't have to figure everything out at once."
-    ],
-    "overwhelmed": [
-        "When everything feels like too much, try focusing on just one thing at a time.",
-        "Can you take 5 minutes just for yourself right now? Sometimes a short pause helps.",
-        "Would breaking things down into smaller pieces make it feel more manageable?",
-        "You don't have to carry all of this alone. Is there someone you can reach out to?"
+    "misunderstood": [
+        "Feeling misunderstood can be one of the loneliest feelings. It takes courage to keep trying to express yourself when it feels like no one's listening.",
+        "That feeling of not being understood - I hear you. Your intentions matter, even when others don't see them clearly.",
+        "It hurts when people don't see your heart. I want you to know that I see you trying, and that counts for something."
     ]
 }
 
@@ -141,7 +122,7 @@ class PaulaClient:
         response = self._build_response(user_message, emotion, intent, history)
         
         # Add appropriate support footer for emotional concerns
-        if emotion in ["sad", "anxious", "angry", "overwhelmed", "lost"]:
+        if emotion in ["sad", "anxious", "angry", "overwhelmed", "misunderstood"]:
             response += f"\n\n{SUPPORT_FOOTER}"
         
         return response
@@ -165,6 +146,9 @@ You don't have to carry this alone. Please reach out to a trusted family member,
     def _detect_emotion(self, text: str) -> str:
         text_lower = text.lower()
         
+        # Check for misunderstood/not understood
+        if any(word in text_lower for word in ["misunderstood", "no one understand", "doesn't understand", "don't understand", "not understood", "they don't see", "can't see my"]):
+            return "misunderstood"
         if any(word in text_lower for word in ["lost", "don't know what to do", "no direction"]):
             return "lost"
         if any(word in text_lower for word in ["overwhelmed", "too much", "can't cope"]):
@@ -177,8 +161,6 @@ You don't have to carry this alone. Please reach out to a trusted family member,
             return "angry"
         if any(word in text_lower for word in ["tired", "exhausted", "drained", "no energy"]):
             return "tired"
-        if any(word in text_lower for word in ["falling behind", "behind", "not enough"]):
-            return "overwhelmed"
         
         return "neutral"
     
@@ -188,10 +170,6 @@ You don't have to carry this alone. Please reach out to a trusted family member,
         # Check for referral intent
         if any(word in text_lower for word in ["therapist", "counselor", "psychologist", "help near me", "where can i go", "professional help"]):
             return "referral"
-        
-        # Check for coping strategy request
-        if any(word in text_lower for word in ["what can i do", "help me", "advice", "suggestion"]):
-            return "coping"
         
         return "conversation"
     
@@ -212,7 +190,7 @@ You don't have to carry this alone. Please reach out to a trusted family member,
             conversation = self._system_prompt() + "\n\n"
             
             if history:
-                for msg in history[-6:]:
+                for msg in history[-8:]:
                     if msg.get("role") == "user":
                         conversation += f"User: {msg.get('content')}\n"
                     else:
@@ -226,8 +204,8 @@ You don't have to carry this alone. Please reach out to a trusted family member,
                 json={
                     "inputs": conversation,
                     "parameters": {
-                        "temperature": 0.8,
-                        "max_new_tokens": 120,
+                        "temperature": 0.85,
+                        "max_new_tokens": 150,
                         "top_p": 0.9,
                         "do_sample": True,
                         "return_full_text": False
@@ -242,7 +220,7 @@ You don't have to carry this alone. Please reach out to a trusted family member,
                     generated = result[0].get('generated_text', '')
                     if generated:
                         generated = generated.replace("User:", "").replace("Paula:", "").strip()
-                        if len(generated) > 10:
+                        if len(generated) > 15:
                             return generated
             return None
             
@@ -253,18 +231,15 @@ You don't have to carry this alone. Please reach out to a trusted family member,
     def _crafted_response(self, message: str, emotion: str, intent: str, history: List[Dict]) -> str:
         """Create crafted responses when AI fails"""
         
-        msg_lower = message.lower()
-        
         # Handle referral intent
         if intent == "referral":
             return self._handle_referral(message)
         
-        # Handle coping strategy requests
-        if intent == "coping":
-            return self._get_coping_strategy(emotion, message)
+        # Handle specific emotions with deeper engagement
+        if emotion == "misunderstood":
+            return self._handle_misunderstood(message, history)
         
-        # Handle different emotions with natural conversation flow
-        if emotion == "lost":
+        elif emotion == "lost":
             return self._handle_lost(message, history)
         
         elif emotion == "overwhelmed":
@@ -282,8 +257,22 @@ You don't have to carry this alone. Please reach out to a trusted family member,
         elif emotion == "tired":
             return self._handle_tired(message, history)
         
+        # Check if this is a follow-up to a previous conversation
+        if history and len(history) > 2:
+            return self._handle_follow_up(message, history)
+        
         # Default empathetic response
         return self._default_response(message, history)
+    
+    def _handle_misunderstood(self, message: str, history: List[Dict]) -> str:
+        """Handle when user feels misunderstood"""
+        responses = [
+            "That feeling of being misunderstood cuts deep. When you're trying your best and people still don't see your heart - that's painful. Tell me more about what you wish they could understand.",
+            "It hurts when people don't see your intentions clearly. I want you to know that I hear you trying to express yourself, and that matters. What's the most important thing you wish they'd understand about you right now?",
+            "Feeling like no one understands - that's one of the hardest things to carry. Your intentions matter, even if others don't see them. What's been happening that makes you feel this way?",
+            f"{random.choice(COPING_STRATEGIES['misunderstood'])} Would you like to share more about what's been going on?"
+        ]
+        return random.choice(responses)
     
     def _handle_lost(self, message: str, history: List[Dict]) -> str:
         """Handle when user feels lost"""
@@ -299,49 +288,62 @@ You don't have to carry this alone. Please reach out to a trusted family member,
         responses = [
             "When everything feels like too much, it helps to take a breath and focus on just one thing. What's the one thing weighing on you most right now?",
             "That feeling of being overwhelmed is so real. You don't have to carry all of this alone. Would breaking things down into smaller pieces help?",
-            "I hear you. Life can feel so heavy sometimes. What would feel most helpful right now - talking it through, or finding a small step forward?",
-            f"{random.choice(COPING_STRATEGIES['overwhelmed'])}"
+            "I hear you. Life can feel so heavy sometimes. What would feel most helpful right now - talking it through, or finding a small step forward?"
         ]
         return random.choice(responses)
     
     def _handle_sad(self, message: str, history: List[Dict]) -> str:
         """Handle when user feels sad"""
         responses = [
-            "I hear that sadness, and it's completely okay to feel this way. Sadness tells us that something matters to us. What's been on your heart lately?",
-            "You're not alone in this. Even on the hard days, you matter. Is there anything that usually brings you a little comfort when you're feeling this way?",
-            "It takes courage to share when you're feeling down. I'm here with you. Would talking about what's weighing on you help lighten the load even a little?"
+            "I hear that sadness, and it's completely okay to feel this way. What's been weighing on your heart lately?",
+            "You're not alone in this. Even on the hard days, you matter. Would talking about what's been happening help lighten the load a bit?",
+            "It takes courage to share when you're feeling down. I'm here with you. What's been on your mind most these days?"
         ]
         return random.choice(responses)
     
     def _handle_anxious(self, message: str, history: List[Dict]) -> str:
         """Handle when user feels anxious"""
-        coping = random.choice(COPING_STRATEGIES['anxious'])
         responses = [
-            f"That anxiety is real and valid. {coping}",
+            "That anxiety is real and valid. Sometimes naming what we're anxious about helps it feel less big. What's the thought that's been circling your mind most?",
             "When anxiety shows up, it's your mind trying to protect you. Can we take a moment to breathe together? In... and out... What's one thing you notice around you right now?",
-            "I hear that worry in your voice. Sometimes naming what we're anxious about helps it feel less big. What's the thought that's been circling your mind most?"
+            "I hear that worry in your voice. Would talking through what's on your mind help?"
         ]
         return random.choice(responses)
     
     def _handle_angry(self, message: str, history: List[Dict]) -> str:
         """Handle when user feels angry"""
-        coping = random.choice(COPING_STRATEGIES['angry'])
         responses = [
-            f"Your anger makes sense. That energy needs somewhere to go. {coping}",
-            "Anger often tells us that something important has been hurt or crossed. What's the thing that feels most unfair right now?",
-            "I hear that frustration. You have every right to feel what you're feeling. Would moving your body for a few minutes help release some of that energy?"
+            "Your anger makes sense. That energy needs somewhere to go. What's the thing that feels most unfair right now?",
+            "Anger often tells us that something important has been hurt or crossed. I hear that frustration. Would talking about it help?"
         ]
         return random.choice(responses)
     
     def _handle_tired(self, message: str, history: List[Dict]) -> str:
         """Handle when user feels tired"""
-        coping = random.choice(COPING_STRATEGIES['tired'])
         responses = [
-            f"That tiredness sounds deep. {coping}",
-            "When you're this tired, everything feels harder. Is there any way you can give yourself permission to rest right now, even for a few minutes?",
+            "That tiredness sounds deep. When you're this tired, everything feels harder. Is there any way you can give yourself permission to rest right now, even for a few minutes?",
             "Your body and mind are telling you they need care. What's the kindest thing you could do for yourself in this moment?"
         ]
         return random.choice(responses)
+    
+    def _handle_follow_up(self, message: str, history: List[Dict]) -> str:
+        """Handle follow-up responses to previous conversation"""
+        # Find the last thing the user shared
+        last_user_message = None
+        for msg in reversed(history):
+            if msg.get("role") == "user":
+                last_user_message = msg.get("content")
+                break
+        
+        if last_user_message:
+            responses = [
+                f"You mentioned earlier about {last_user_message[:80]}... I want to come back to that because it matters. How are you feeling about that now?",
+                f"I remember you were sharing about {last_user_message[:60]}... Would you like to talk more about that, or is there something new on your mind?",
+                f"Earlier you were talking about feeling this way. I'm here to keep listening - what's been happening since then?"
+            ]
+            return random.choice(responses)
+        
+        return self._default_response(message, history)
     
     def _handle_referral(self, message: str) -> str:
         """Handle requests for professional help"""
@@ -369,14 +371,6 @@ Taking this step shows real strength. Would you like me to share more about what
 
 If you're comfortable sharing which parish you're in, I can give you more specific resources. Would that help?"""
     
-    def _get_coping_strategy(self, emotion: str, message: str) -> str:
-        """Provide coping strategies based on emotion"""
-        if emotion in COPING_STRATEGIES:
-            strategy = random.choice(COPING_STRATEGIES[emotion])
-            return f"{strategy} What feels manageable for you right now?"
-        
-        return "Sometimes taking just one small step can help. Is there one thing - even a tiny thing - you could do for yourself right now? 💛"
-    
     def _default_response(self, message: str, history: List[Dict]) -> str:
         """Default empathetic response"""
         responses = [
@@ -398,6 +392,8 @@ If you're comfortable sharing which parish you're in, I can give you more specif
 
 Your role:
 - Listen actively and validate feelings
+- Show understanding by reflecting what the user shares
+- Ask meaningful follow-up questions that show you're really listening
 - Offer gentle coping strategies when appropriate
 - Guide users toward real-world support when needed
 - Be natural and conversational, not robotic
@@ -407,14 +403,7 @@ Your role:
 You are not a therapist, doctor, or crisis service. You don't diagnose or provide medical treatment.
 For crisis situations, provide emergency resources immediately.
 
-Be caring, present, and helpful. Respond like a supportive friend who truly cares."""
-    
-    def _extract_parish(self, text: str) -> Optional[str]:
-        text_lower = text.lower()
-        for parish in JAMAICAN_PARISHES:
-            if parish in text_lower:
-                return parish
-        return None
+Be caring, present, and helpful. Respond like a supportive friend who truly cares and remembers what was shared before."""
 
 
 # -----------------------------
@@ -444,6 +433,8 @@ def summarize_memory(history: List[Dict]) -> str:
     topics = set()
     for msg in history[-8:]:
         content = msg.get("content", "").lower()
+        if "misunderstood" in content or "understand" in content:
+            topics.add("feeling misunderstood")
         if "work" in content or "job" in content:
             topics.add("work")
         if "family" in content or "friend" in content:
