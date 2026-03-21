@@ -1,9 +1,13 @@
 // lib/firebase/providersignup.ts
-console.log("About to write provider doc:", user.uid);
 
 import { auth, db } from "./firebaseClient";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
+
+// Simple delay helper
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 export const providerSignup = async (formData: any) => {
   try {
@@ -15,8 +19,14 @@ export const providerSignup = async (formData: any) => {
     );
 
     const user = userCredential.user;
+    console.log("Auth UID:", user.uid);
 
-    // 2. SAVE TO FIRESTORE USING UID
+    // 2. WAIT ~10 seconds before Firestore write
+    console.log("Waiting 10 seconds before Firestore write...");
+    await delay(10000);
+
+    // 3. SAVE TO FIRESTORE USING UID
+    console.log("About to write provider doc:", user.uid);
     await setDoc(doc(db, "providers", user.uid), {
       first_name: formData.first_name,
       last_name: formData.last_name,
@@ -30,11 +40,10 @@ export const providerSignup = async (formData: any) => {
       practice_areas: formData.practice_areas,
       role: "provider",
       created_at: new Date(),
-
-      // optional default fields
       login_location: null,
     });
 
+    console.log("Provider doc written successfully!");
     return { success: true };
 
   } catch (error: any) {
