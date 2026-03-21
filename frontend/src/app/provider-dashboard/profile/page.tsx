@@ -28,9 +28,6 @@ import {
   X,
 } from "lucide-react";
 
-//This is to get the logged in user
-const { user } = useAuth() as any;
-
 const specializationOptions = [
   "Depression",
   "Anxiety",
