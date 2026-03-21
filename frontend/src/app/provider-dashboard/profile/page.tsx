@@ -197,10 +197,10 @@ export default function ProviderProfilePage() {
         setBio(data.bio ?? "");
 
         // Specializations (handle string or array)
-        if (Array.isArray(data.specialization)) {
-          setSelectedSpecializations(data.specialization);
-        } else if (data.specialization) {
-          setSelectedSpecializations([data.specialization]);
+        if (Array.isArray(data.practice_areas)) {
+          setSelectedSpecializations(data.practice_areas);
+        } else if (data.practice_areas) {
+          setSelectedSpecializations([data.practice_areas]);
         }
 
       } else {
