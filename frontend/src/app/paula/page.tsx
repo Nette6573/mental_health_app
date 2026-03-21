@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import Link from "next/link"; 
+import Link from "next/link";
 
 // -------------------
 // TYPES
@@ -31,12 +31,12 @@ interface BackendResponse {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 // Validate that API_BASE is set
-if (!API_BASE) {
-  console.error("NEXT_PUBLIC_API_URL is not set in environment variables");
+if (typeof window !== 'undefined' && !API_BASE) {
+  console.error("❌ NEXT_PUBLIC_API_URL is not set in environment variables");
 }
 
-// FIX: Remove any trailing slash from API_BASE and ensure it's properly formatted
-const baseUrl = API_BASE ? (API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE) : '';
+// Clean the URL (remove trailing slash)
+const baseUrl = API_BASE ? API_BASE.replace(/\/$/, '') : '';
 
 export default function PaulaChat() {
   const { user, isLoading } = useAuth() as {
@@ -55,11 +55,12 @@ export default function PaulaChat() {
   const [loading, setLoading] = useState(false);
   const [chatId, setChatId] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(false);
 
   // Add after your state declarations
   useEffect(() => {
     // Force clear any cached double-slash URLs
-    const appVersion = "1.0.3"; // Incremented version for the fix
+    const appVersion = "1.0.4"; // Incremented version for the fix
     const storedVersion = localStorage.getItem('app_version');
     
     if (storedVersion !== appVersion) {
@@ -160,6 +161,64 @@ export default function PaulaChat() {
   }, [messages, loading]);
 
   // -------------------
+  // TEST CONNECTION FUNCTION
+  // -------------------
+  const testConnection = async () => {
+    if (!baseUrl) {
+      setConnectionError("❌ API_BASE is not configured. Please check your environment variables.");
+      return;
+    }
+
+    setIsCheckingConnection(true);
+    setConnectionError("Testing connection...");
+
+    try {
+      // Test health endpoint first
+      const healthUrl = `${baseUrl}/health`;
+      console.log("Testing health endpoint:", healthUrl);
+      
+      const healthRes = await fetch(healthUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (healthRes.ok) {
+        const healthData = await healthRes.json();
+        console.log("Health check response:", healthData);
+        
+        // Now test the chat endpoint with OPTIONS (CORS preflight)
+        const testUrl = `${baseUrl}/api/send?user_id=test`;
+        const optionsRes = await fetch(testUrl, {
+          method: "OPTIONS",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        
+        if (optionsRes.ok) {
+          setConnectionError(`✅ Connection successful! Backend is healthy and CORS is configured.`);
+        } else {
+          setConnectionError(`⚠️ Backend is reachable but CORS preflight failed with status: ${optionsRes.status}`);
+        }
+      } else {
+        setConnectionError(`❌ Backend health check failed with status: ${healthRes.status}`);
+      }
+    } catch (err) {
+      console.error("Connection test error:", err);
+      setConnectionError(`❌ Cannot connect to ${baseUrl}. Make sure your Railway backend is running and CORS is configured. Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsCheckingConnection(false);
+      setTimeout(() => {
+        if (connectionError?.includes("✅")) {
+          setTimeout(() => setConnectionError(null), 3000);
+        }
+      }, 5000);
+    }
+  };
+
+  // -------------------
   // SEND MESSAGE TO BACKEND
   // -------------------
   const sendMessage = async () => {
@@ -185,24 +244,23 @@ export default function PaulaChat() {
         throw new Error("API_BASE is not configured. Please check your environment variables.");
       }
 
-      // FIXED: Use the correct API endpoint structure
-      // This should point to your Railway backend
+      // Construct the URL with the correct endpoint
       let url = `${baseUrl}/api/send?user_id=${encodeURIComponent(userId)}`;
       if (chatId) url += `&chat_id=${encodeURIComponent(chatId)}`;
 
       console.log("🚀 Sending message to backend:", url);
       console.log("📝 Message content:", userMessage.text);
+      console.log("👤 User ID:", userId);
 
       // Add timeout to fetch to prevent hanging requests
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
       const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Add API key if your backend requires it
-          "X-API-Key": process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
+          "Accept": "application/json",
         },
         body: JSON.stringify({ text: userMessage.text }),
         signal: controller.signal
@@ -221,6 +279,8 @@ export default function PaulaChat() {
           throw new Error("Method not allowed. Check if your backend accepts POST requests at this endpoint.");
         } else if (res.status === 401 || res.status === 403) {
           throw new Error("Authentication failed. Check your API key.");
+        } else if (res.status === 500) {
+          throw new Error("Backend server error. Check Railway logs for details.");
         } else {
           throw new Error(`Backend responded with status ${res.status}: ${text.substring(0, 100)}`);
         }
@@ -248,7 +308,7 @@ export default function PaulaChat() {
         if (err.name === 'AbortError') {
           errorMessage = "Request timed out. Check your connection and try again.";
         } else if (err.message.includes("Failed to fetch")) {
-          errorMessage = "Can't reach Paula right now. Make sure your backend is running at: " + baseUrl;
+          errorMessage = `Can't reach Paula right now. Make sure your backend is running at: ${baseUrl}`;
         } else {
           errorMessage = err.message;
         }
@@ -300,32 +360,6 @@ export default function PaulaChat() {
   };
 
   // -------------------
-  // TEST CONNECTION FUNCTION
-  // -------------------
-  const testConnection = async () => {
-    if (!baseUrl) {
-      alert("API_BASE is not configured. Please check your .env.local file.");
-      return;
-    }
-
-    try {
-      setConnectionError("Testing connection...");
-      const testUrl = `${baseUrl}/api/send?user_id=test`;
-      const res = await fetch(testUrl, {
-        method: "OPTIONS", // Use OPTIONS to test CORS
-      });
-      
-      if (res.ok) {
-        setConnectionError("✅ Connection successful!");
-      } else {
-        setConnectionError(`❌ Connection test failed with status: ${res.status}`);
-      }
-    } catch (err) {
-      setConnectionError(`❌ Cannot connect to ${baseUrl}. Make sure your Railway backend is running.`);
-    }
-  };
-
-  // -------------------
   // BLOCK UI
   // -------------------
   if (isLoading || !user) {
@@ -371,17 +405,29 @@ export default function PaulaChat() {
           <span>Backend: {baseUrl}</span>
           <button 
             onClick={testConnection}
-            className="ml-2 text-blue-500 hover:underline"
+            disabled={isCheckingConnection}
+            className="ml-2 text-blue-500 hover:underline disabled:text-gray-400"
           >
-            Test Connection
+            {isCheckingConnection ? 'Testing...' : 'Test Connection'}
           </button>
         </div>
       )}
 
       {/* Connection error display */}
-      {connectionError && connectionError.includes("❌") && (
-        <div className="text-xs text-red-500 mb-2 max-w-xl w-full bg-red-50 p-2 rounded">
+      {connectionError && (
+        <div className={`text-xs mb-2 max-w-xl w-full p-2 rounded ${
+          connectionError.includes("✅") 
+            ? "text-green-700 bg-green-50 border border-green-200" 
+            : "text-red-700 bg-red-50 border border-red-200"
+        }`}>
           {connectionError}
+        </div>
+      )}
+
+      {/* Warning if API_BASE is not set */}
+      {!baseUrl && (
+        <div className="text-xs text-red-500 mb-2 max-w-xl w-full bg-red-50 p-2 rounded border border-red-200">
+          ⚠️ Backend URL not configured. Please set NEXT_PUBLIC_API_URL in your environment variables.
         </div>
       )}
 
@@ -428,7 +474,7 @@ export default function PaulaChat() {
 
         <button
           onClick={sendMessage}
-          disabled={loading || !input.trim()}
+          disabled={loading || !input.trim() || !baseUrl}
           className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
           Send
@@ -438,6 +484,7 @@ export default function PaulaChat() {
       {/* Debug info - remove in production */}
       <div className="text-xs text-gray-400 mt-2">
         {chatId ? `Chat ID: ${chatId.substring(0, 8)}...` : 'New chat'}
+        {baseUrl && userId && ` | User: ${userId.substring(0, 8)}...`}
       </div>
     </div>
   );

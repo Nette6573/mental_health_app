@@ -97,11 +97,10 @@ async def send_message(
         # GET AI RESPONSE
         # -------------------
 
-        # IMPORTANT: Match the function signature in your paula_client.py
         reply = ask_paula(
             user_message=data.text,
             chat_history=history,
-            session_id=chat_id,  # Your paula_client.py uses session_id
+            session_id=chat_id,
             summary=summary
         )
 

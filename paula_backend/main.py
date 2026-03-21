@@ -1,5 +1,6 @@
 # main.py
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import logging
 import os
 
@@ -46,16 +47,20 @@ app = FastAPI(
     redoc_url="/redoc"  # ReDoc
 )
 
-from fastapi.middleware.cors import CORSMiddleware
-
+# CORS Configuration - Updated for your domain
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # you can restrict later
+    allow_origins=[
+        "https://hopepath.online",                      # Your custom domain
+        "https://www.hopepath.online",                  # With www subdomain
+        "https://mentalhealthapp-production.up.railway.app",  # Railway backend
+        "http://localhost:3000",                        # Local development
+        "http://localhost:8000",                        # Local backend
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
-
 
 # Include routers
 app.include_router(chat_router, prefix="/api", tags=["chats"])
@@ -103,7 +108,7 @@ async def startup_event():
     logger.info(f"📚 Database: {db.name}")
     logger.info(f"📁 Collection: {chats.name}")
     logger.info(f"🔗 API endpoints available at /api")
-    logger.info("📖 Documentation at /docs")  # Fixed: removed f=
+    logger.info("📖 Documentation at /docs")
     logger.info("=" * 50)
 
 # Shutdown event
