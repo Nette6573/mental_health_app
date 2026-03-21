@@ -1,4 +1,4 @@
-# app/ai/paula_client.py - Updated with proper link formatting
+# app/ai/paula_client.py - Updated with HTML clickable links
 
 import requests
 import logging
@@ -163,47 +163,44 @@ MENTAL_HEALTH_SCENARIOS = {
     }
 }
 
-# Comprehensive Resource Links with full URLs
-# Update these with your actual frontend URLs
+# Comprehensive Resource Links with HTML clickable links
 BASE_URL = "https://hopepath.online"  # Your domain
+
+# Helper function to create HTML clickable link
+def make_link(text: str, url: str) -> str:
+    return f'<a href="{url}" target="_blank" rel="noopener noreferrer" style="color: #8b5cf6; text-decoration: underline;">{text}</a>'
 
 RESOURCES = {
     "professional": {
         "title": "Professional Mental Health Support",
         "description": "Licensed counselors, psychologists, and mental health services in Jamaica.",
-        "link": f"{BASE_URL}/dashboard/therapists",
-        "display_link": "/dashboard/therapists"
+        "url": f"{BASE_URL}/dashboard/therapists",
+        "display_text": "View Professional Mental Health Support"
     },
     "faith_based": {
         "title": "Faith-Based Support & Counseling",
         "description": "Spiritual guidance, pastoral counseling, and faith communities. Find scripture, prayer support, and encouragement.",
-        "link": f"{BASE_URL}/dashboard/resources/faith",
-        "display_link": "/dashboard/resources/faith",
-        "features": [
-            "📖 Daily Devotional",
-            "🙏 Prayer Wall", 
-            "📚 Scripture Study",
-            "👥 Faith Community",
-            "✨ Spiritual Practices"
-        ]
+        "url": f"{BASE_URL}/dashboard/resources/faith",
+        "display_text": "View Faith-Based Support & Counseling",
+        "features": ["Daily Devotional", "Prayer Wall", "Scripture Study", "Faith Community", "Spiritual Practices"]
     },
     "self_help": {
         "title": "Self-Help Tools & Coping Strategies",
         "description": "Practical tools, exercises, and techniques for managing mental health.",
-        "link": f"{BASE_URL}/dashboard/resources/self-help",
-        "display_link": "/dashboard/resources/self-help"
+        "url": f"{BASE_URL}/dashboard/resources/self-help",
+        "display_text": "View Self-Help Tools"
     },
     "crisis": {
         "title": "Crisis Support - Immediate Help",
         "description": "24/7 crisis support and emergency services.",
-        "link": f"{BASE_URL}/dashboard/resources/crisis",
-        "display_link": "/dashboard/resources/crisis"
+        "url": f"{BASE_URL}/dashboard/resources/crisis",
+        "display_text": "View Crisis Support"
     },
     "community": {
         "title": "Community Support Groups",
         "description": "Connect with others who understand what you're going through.",
-        "link": f"{BASE_URL}/dashboard/resources/community",
-        "display_link": "/dashboard/resources/community"
+        "url": f"{BASE_URL}/dashboard/resources/community",
+        "display_text": "View Community Support"
     }
 }
 
@@ -312,7 +309,7 @@ class PaulaClient:
         return any(k in text.lower() for k in CRISIS_KEYWORDS)
     
     def _crisis_response(self) -> str:
-        crisis_resources = RESOURCES["crisis"]
+        crisis = RESOURCES["crisis"]
         return f"""🚨 **I'm really concerned about you.** 🚨
 
 What you're feeling right now is heavy, and you don't have to carry it alone.
@@ -324,7 +321,7 @@ What you're feeling right now is heavy, and you don't have to carry it alone.
 • 👥 **A trusted family member or friend**
 
 **Crisis resources:**
-🔗 [Click here for crisis support]({crisis_resources['link']})
+{make_link(crisis['display_text'], crisis['url'])}
 
 You matter. Please reach out to someone who can help right now. 💛"""
     
@@ -439,12 +436,12 @@ Would you like to see the resources available on our platform?"""
             return "I want to help you find the right resources. Which parish are you located in? (e.g., Kingston, St. Catherine, Manchester, St. James, etc.)"
     
     def _show_resources(self, state: SessionState) -> str:
-        """Show appropriate resources with clickable links"""
+        """Show appropriate resources with HTML clickable links"""
         
         # Determine which resource types to show
         resource_types = ["faith_based", "professional", "self_help", "community"]
         
-        # Build response with formatted clickable links
+        # Build response with HTML clickable links
         response = "**Here are resources that might help:**\n\n"
         
         for rt in resource_types:
@@ -453,19 +450,19 @@ Would you like to see the resources available on our platform?"""
                 response += f"**📌 {res['title']}**\n"
                 response += f"{res['description']}\n"
                 
-                # Special handling for faith resources
+                # Special handling for faith resources with features
                 if rt == "faith_based" and "features" in res:
                     response += f"✨ **Includes:** "
-                    response += ", ".join(res['features'][:3])
+                    response += ", ".join(res['features'][:4])
                     response += "\n"
                 
-                # Create clickable link with Markdown format
-                response += f"🔗 [**View {res['title']}**]({res['link']})\n\n"
+                # Create HTML clickable link
+                response += f"🔗 {make_link(res['display_text'], res['url'])}\n\n"
         
         # Add helpline
         response += "---\n\n"
         response += "📞 **Need to talk to someone right now?**\n"
-        response += "Call **888-NEW-LIFE (639-5433)** - 24/7\n\n"
+        response += "Call **888-NEW-LIFE (639-5433)** - 24/7, 365 days a year\n\n"
         response += "Would you like me to help you find professional support in your area? (You can tell me your parish)"
         
         state.resource_offered = True
