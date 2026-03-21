@@ -97,6 +97,28 @@ export default function ResourceViewerModal({ resource, isOpen, onClose }) {
                     {section.heading}
                     </h3>
 
+                    {section.link && (
+                    <a
+                        href={section.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-3 text-blue-400 hover:underline"
+                    >
+                        Open Resource →
+                    </a>
+                    )}
+
+                    {section.embedUrl && (
+                    <div className="mt-4 aspect-video overflow-hidden rounded-2xl border border-slate-700">
+                        <iframe
+                        src={section.embedUrl}
+                        className="w-full h-full"
+                        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
+                        allowFullScreen
+                        />
+                    </div>
+                    )}
+                    
                     {section.image && (
                     <div className="mb-4 overflow-hidden rounded-2xl border border-slate-700">
                         <img
@@ -132,8 +154,7 @@ export default function ResourceViewerModal({ resource, isOpen, onClose }) {
                 <p className="text-slate-300 text-lg">{resource.content.intro}</p>
             )}
             {resource.audioUrl ? (
-                <div className="rounded-2xl bg-slate-800/60 border border-slate-700 p-6">
-                <audio controls className="w-full">
+                    <div className="rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-purple-500/20 p-5">                <audio controls className="w-full">
                     <source src={resource.audioUrl} type="audio/mpeg" />
                     Your browser does not support the audio element.
                 </audio>
@@ -164,8 +185,8 @@ export default function ResourceViewerModal({ resource, isOpen, onClose }) {
                 )}
                 </div>
           ) : (
-            <div className="rounded-2xl bg-slate-800/60 border border-slate-700 p-6">
-              <p className="text-slate-300">This resource type is not set up yet.</p>
+            <div className="rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-purple-500/20 p-5">
+            <p className="text-slate-300">This resource type is not set up yet.</p>
             </div>
           )}
         </div>

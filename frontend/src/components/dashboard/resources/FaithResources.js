@@ -31,7 +31,8 @@ export default function FaithResources() {
         {
           id: 1,
           title: 'Strength in Weakness Devotional',
-          description: 'A 7-day devotional exploring how God\'s strength is made perfect in our weakness, with practical applications for mental health struggles.',
+          description:
+            "A 7-day devotional exploring how God's strength is made perfect in our weakness, with practical applications for mental health struggles.",
           category: 'devotionals',
           type: 'article',
           duration: '7 days',
@@ -40,26 +41,137 @@ export default function FaithResources() {
           rating: 4.9,
           reviews: 234,
           featured: true,
-          tags: ['Devotional', 'Strength', 'Hope', '2 Corinthians 12:9']
+          tags: ['Devotional', 'Strength', 'Hope', '2 Corinthians 12:9'],
+
+          content: {
+            intro:
+              "In a world that often celebrates strength and self-sufficiency, acknowledging our weaknesses can feel counterintuitive, especially when facing mental health struggles. Yet, scripture reveals a deeper truth: it is often in our moments of greatest weakness that God's strength is most clearly displayed. This 7-day devotional explores how God uses our vulnerabilities to demonstrate His power, love, and grace. :contentReference[oaicite:0]{index=0}",
+
+            sections: [
+              {
+                heading: 'Day 1: Understanding God’s Perspective on Weakness',
+                paragraphs: [
+                  "Scripture: 2 Corinthians 12:9-10",
+                  "God’s grace is not dependent on our strength. In moments of anxiety, depression, or burnout, what feels like weakness may actually be the very place where God’s power is revealed.",
+                ],
+                bullets: [
+                  'Acknowledge your struggles honestly',
+                  'Stop viewing weakness as failure',
+                  'Receive God’s grace without conditions'
+                ]
+              },
+
+              {
+                heading: 'Day 2: Finding Strength in Vulnerability',
+                paragraphs: [
+                  "Scripture: Psalm 34:18",
+                  "God draws near to the brokenhearted. Vulnerability is not failure — it is an invitation for God to meet you deeply.",
+                ],
+                bullets: [
+                  'Practice honest prayer',
+                  'Be open with safe people',
+                  'Seek professional support if needed'
+                ]
+              },
+
+              {
+                heading: 'Day 3: The Power of Hope',
+                paragraphs: [
+                  "Scripture: Romans 15:13",
+                  "Hope is not based on your situation — it is rooted in God’s character. Even when things feel dark, hope can still exist.",
+                ],
+                bullets: [
+                  'Focus on God’s promises',
+                  'Practice gratitude daily',
+                  'Engage in uplifting spiritual habits'
+                ]
+              },
+
+              {
+                heading: 'Day 4: Releasing Control',
+                paragraphs: [
+                  "Scripture: Proverbs 3:5-6",
+                  "Anxiety often comes from trying to control everything. God invites you to trust Him instead.",
+                ],
+                bullets: [
+                  'Identify what you are trying to control',
+                  'Practice surrender through prayer',
+                  'Focus on the present moment'
+                ]
+              },
+
+              {
+                heading: 'Day 5: Receiving God’s Comfort',
+                paragraphs: [
+                  "Scripture: Psalm 23:4",
+                  "Even in your darkest moments, you are not alone. God’s presence brings comfort and guidance.",
+                ],
+                bullets: [
+                  'Keep comforting scriptures nearby',
+                  'Spend quiet time in God’s presence',
+                  'Surround yourself with reminders of faith'
+                ]
+              },
+
+              {
+                heading: 'Day 6: Body, Mind, and Spirit',
+                paragraphs: [
+                  "Scripture: 1 Corinthians 6:19-20",
+                  "Your well-being matters. Taking care of your body and mind is part of honoring God.",
+                ],
+                bullets: [
+                  'Prioritize sleep, food, and exercise',
+                  'Practice mental self-care',
+                  'Seek holistic support when needed'
+                ]
+              },
+
+              {
+                heading: 'Day 7: Continuing the Journey',
+                paragraphs: [
+                  "Scripture: Philippians 4:6-7",
+                  "Healing is a process. God’s peace can guard your heart even while you are still growing.",
+                ],
+                bullets: [
+                  'Maintain a daily prayer rhythm',
+                  'Practice thanksgiving',
+                  'Be patient with yourself',
+                  'Stay connected to support systems'
+                ]
+              },
+
+              {
+                heading: 'Conclusion',
+                paragraphs: [
+                  "Your weaknesses are not something to hide — they are where God’s strength can shine the most. As you continue this journey, remember: you are not alone, and your story is still unfolding. In Christ, even your weakest moments can become sources of strength."
+                ]
+              }
+            ]
+          }
         },
         {
           id: 2,
           title: 'Prayers for Anxiety and Peace',
-          description: 'Guided prayers and scripture meditations specifically designed for moments of anxiety and seeking God\'s peace.',
+          description: "Guided prayers and scripture meditations specifically designed for moments of anxiety and seeking God's peace.",
           category: 'prayer',
-          type: 'audio',
-          duration: '15 min',
+          type: 'video',
+          duration: 'Playlist',
           level: 'Beginner',
           image: '/images/faith/prayer-guide.jpg',
           rating: 4.8,
           reviews: 167,
           featured: true,
-          tags: ['Prayer', 'Anxiety', 'Peace', 'Philippians 4:6-7']
+          tags: ['Prayer', 'Anxiety', 'Peace', 'Philippians 4:6-7'],
+
+          embedUrls: [
+            'https://www.youtube.com/embed/videoseries?list=PLYNaBRH_3BOHU9O1u-jRvUulths7JfET3'
+          ]
         },
         {
           id: 3,
           title: 'Psalms for the Heavy Heart',
-          description: 'A deep dive into the Psalms that speak to depression, sorrow, and finding comfort in God\'s presence.',
+          description:
+            'A 5-module interactive course for finding light in the shadows through lament, hope, and God’s presence in the Psalms.',
           category: 'scripture',
           type: 'course',
           duration: '5 modules',
@@ -68,50 +180,170 @@ export default function FaithResources() {
           rating: 4.7,
           reviews: 89,
           featured: false,
-          tags: ['Psalms', 'Depression', 'Comfort', 'Scripture Study']
+          tags: ['Psalms', 'Depression', 'Comfort', 'Scripture Study'],
+
+          content: {
+            intro:
+              'Welcome to a deep dive into the Prayer Book of the Bible. If you feel like you are walking through a dark fog, you are in good company. The Psalms were written by real people—kings, fugitives, and poets—who wrestled with sorrow, abandonment, and exhaustion.',
+
+            sections: [
+              {
+                heading: 'Module 1: The Permission to Lament',
+                image: 'https://images.pexels.com/photos/36211995/pexels-photo-36211995.jpeg?_gl=1*ky30wk*_ga*MTYzNDM4MjQ3MS4xNzc0MTMyODE5*_ga_8JE65Q40S6*czE3NzQxMzI4MTgkbzEkZzEkdDE3NzQxMzI4MzEkajQ3JGwwJGgw',
+                imageAlt: 'Lament and prayer imagery',
+                paragraphs: [
+                  'Core Theme: God doesn’t want a polite version of you; He wants the real you.',
+                  'In this module, we look at Psalm 13. David starts with a blunt question: “How long, Lord? Will you forget me forever?”',
+                  'The Deep Dive: We explore the anatomy of a lament. It’s not just complaining; it’s complaining to the only One who can fix it.',
+                  'Mental Health Connection: Validating your emotions is the first step toward processing them. Repression leads to explosion; lament leads to release.'
+                ],
+                bullets: [
+                  'Interactive Element: The “Lament Lab”',
+                  'Use the template: How long, Lord, until [Your Struggle]?',
+                  'But I trust in [A Character of God].'
+                ]
+              },
+              {
+                heading: 'Module 2: When the Waves Overwhelm',
+                image: 'https://images.pexels.com/photos/6028522/pexels-photo-6028522.jpeg?_gl=1*15aawtu*_ga*MTYzNDM4MjQ3MS4xNzc0MTMyODE5*_ga_8JE65Q40S6*czE3NzQxMzI4MTgkbzEkZzEkdDE3NzQxMzI5MTckajMwJGwwJGgw',
+                imageAlt: 'Waves and emotional overwhelm',
+                paragraphs: [
+                  'Core Theme: Spiritual depression and the “Why?” of the soul.',
+                  'We dive into Psalm 42 & 43. The writer says, “My tears have been my food day and night.” This isn’t just a bad day; it’s a soul-crushing season.',
+                  'The Deep Dive: Notice the self-talk in verse 5: “Why, my soul, are you downcast?” The Psalmist stops listening to his depressed heart and starts preaching to it.',
+                  'Practical Application: Learning to distinguish between your feelings and facts.'
+                ],
+                bullets: [
+                  'Interactive Challenge: The “Pulse Check” Quiz',
+                  'On a scale of 1–10, how loud is your downcast soul today?',
+                  'What is one truth you can whisper back to it?'
+                ]
+              },
+              {
+                heading: 'Module 3: The Darkest Night (Psalm 88)',
+                image: 'https://images.pexels.com/photos/1662367/pexels-photo-1662367.jpeg?_gl=1*7omqzv*_ga*MTYzNDM4MjQ3MS4xNzc0MTMyODE5*_ga_8JE65Q40S6*czE3NzQxMzI4MTgkbzEkZzEkdDE3NzQxMzI5ODgkajE5JGwwJGgw',
+                imageAlt: 'Dark night and quiet reflection',
+                paragraphs: [
+                  'Core Theme: When the clouds don’t lift—and that’s okay.',
+                  'Most Psalms end with a hallelujah. Psalm 88 does not. It ends with the words: “Darkness is my closest friend.”',
+                  'The Deep Dive: Why is this in the Bible? Because God wants you to know that He hears you even when there is no immediate happy ending. He is present in the silence.',
+                  'Mental Health Connection: Combating the toxic positivity sometimes found in religious circles. It is okay to not be okay.'
+                ],
+                bullets: [
+                  'Interactive Reflection: The Prayer Wall',
+                  'Write down a prayer that does not have an answer yet.',
+                  'Sit with the silence, knowing Christ sat in the darkness of the tomb for you.'
+                ]
+              },
+              {
+                heading: 'Module 4: The Shepherd in the Shadows',
+                image: 'https://images.pexels.com/photos/36638471/pexels-photo-36638471.jpeg?_gl=1*190aakh*_ga*MTYzNDM4MjQ3MS4xNzc0MTMyODE5*_ga_8JE65Q40S6*czE3NzQxMzI4MTgkbzEkZzEkdDE3NzQxMzMwNDAkajQyJGwwJGgw',
+                imageAlt: 'Shepherd in a valley',
+                paragraphs: [
+                  'Core Theme: Protection and presence in the Valley of the Shadow of Death.',
+                  'We revisit Psalm 23.',
+                  'The Deep Dive: Focus on the shift in pronouns. In the green pastures, David talks about God (“He leads me”). In the valley, he talks to God (“You are with me”). The valley turns information into intimacy.',
+                  'Practical Application: Grounding techniques using the rod and staff—Scripture and community.'
+                ],
+                bullets: [
+                  'Interactive Game: “Valley Vocabulary” Kahoot!',
+                  'Sample question: In Psalm 23, what does the table in the presence of enemies represent?',
+                  'Answer: God’s provision and safety amidst the battle.'
+                ]
+              },
+              {
+                heading: 'Module 5: The Dawn of Deliverance',
+                image: 'https://images.pexels.com/photos/6961245/pexels-photo-6961245.jpeg?_gl=1*1qel4oo*_ga*MTYzNDM4MjQ3MS4xNzc0MTMyODE5*_ga_8JE65Q40S6*czE3NzQxMzI4MTgkbzEkZzEkdDE3NzQxMzMwNjYkajE2JGwwJGgw',
+                imageAlt: 'Dawn and hope after darkness',
+                paragraphs: [
+                  'Core Theme: Joy comes in the morning, even if the morning takes a while.',
+                  'We conclude with Psalm 30 and Psalm 126: “Those who sow with tears will reap with songs of joy.”',
+                  'The Deep Dive: Reaping joy is a harvest—it takes time, soil, and rain.',
+                  'Practical Application: Build a Stone of Help list. What are the small ways God has sustained you this week?'
+                ],
+                bullets: [
+                  'Final Course Project: Create Your Own Psalm',
+                  'Using the themes of the last 5 modules, write a 4-line poem or prayer about your journey from shadow toward light.'
+                ]
+              },
+              {
+                heading: 'Final Assessment: The Heart-Check Quiz',
+                paragraphs: [
+                  'Test your knowledge on the authors of the Psalms, the types of lament, and the promises of God’s presence found in the text.'
+                ],
+                bullets: [
+                  <p>
+                    Interactive Link: 
+                      <a href="https://create.kahoot.it/share/the-psalms-for-the-heavy-heart-quiz/e3d12b01-a71f-464b-aee1-12bfa4b6fedc" target="_blank" rel="noopener noreferrer" color='blue'><u> Click here to launch the Kahoot! Challenge</u></a>
+                  </p>
+                ]
+              }
+            ]
+          }
         },
         {
           id: 4,
           title: 'From Broken to Beautiful',
-          description: 'Powerful testimonies of individuals who found healing and purpose through their faith journey with mental health challenges.',
+          description:
+            'Powerful testimonies of individuals who found healing and purpose through their faith journey with mental health challenges.',
           category: 'testimonies',
           type: 'video',
-          duration: '45 min',
+          duration: '9 videos',
           level: 'All Levels',
           image: '/images/faith/testimonies.jpg',
           rating: 5.0,
           reviews: 56,
           featured: false,
-          tags: ['Testimony', 'Healing', 'Hope', 'Inspiration']
+          tags: ['Testimony', 'Healing', 'Hope', 'Inspiration'],
+
+          embedUrls: [
+            'https://www.youtube.com/embed/HefMjGE7s40',
+            'https://www.youtube.com/embed/v1yn-jdTJGU',
+            'https://www.youtube.com/embed/WpwOGaT9Rws',
+            'https://www.youtube.com/embed/BmyP9-74TIc',
+            'https://www.youtube.com/embed/YolE0pVVByA',
+            'https://www.youtube.com/embed/pQ3_GI2H0wY',
+            'https://www.youtube.com/embed/DD7GMVWjwq4',
+            'https://www.youtube.com/embed/3sQzRwNyQ1s',
+            'https://www.youtube.com/embed/wv0Dj0mMbtg'
+          ]
         },
-        {
-          id: 5,
-          title: 'Worship for the Weary Soul',
-          description: 'Curated worship music and hymns that bring comfort and peace to tired and anxious hearts.',
-          category: 'worship',
-          type: 'audio',
-          duration: '60 min',
-          level: 'Beginner',
-          image: '/images/faith/worship-music.jpg',
-          rating: 4.9,
-          reviews: 178,
-          featured: true,
-          tags: ['Worship', 'Music', 'Comfort', 'Peace']
-        },
-        {
-          id: 6,
-          title: 'Biblical Meditation Guide',
-          description: 'Learn how to practice Christian meditation using Scripture to calm your mind and connect with God.',
-          category: 'prayer',
-          type: 'worksheet',
-          duration: '10 min daily',
-          level: 'Beginner',
-          image: '/images/faith/meditation-guide.jpg',
-          rating: 4.6,
-          reviews: 92,
-          featured: false,
-          tags: ['Meditation', 'Scripture', 'Mindfulness', 'Practice']
-        }
+      {
+        id: 5,
+        title: 'Worship for the Weary Soul',
+        description:
+          'A calming worship experience to help restore peace, reduce stress, and reconnect with God.',
+        category: 'worship',
+        type: 'video',
+        duration: '1 video',
+        level: 'All Levels',
+        image: '/images/faith/worship.jpg',
+        rating: 4.9,
+        reviews: 112,
+        featured: false,
+        tags: ['Worship', 'Music', 'Peace', 'Healing'],
+
+        embedUrls: [
+          'https://www.youtube.com/embed/y7OdZ-L7mqY'
+        ]
+      },
+       {
+        id: 6,
+        title: 'Biblical Meditation Guide',
+        description:
+          'A practical guide to biblical meditation, helping you reflect on scripture, renew your mind, and deepen your spiritual focus.',
+        category: 'scripture',
+        type: 'worksheet',
+        duration: 'PDF Guide',
+        level: 'Beginner',
+        image: '/images/faith/meditation-guide.jpg',
+        rating: 4.8,
+        reviews: 74,
+        featured: false,
+        tags: ['Meditation', 'Scripture', 'Mindfulness'],
+
+        pdfUrl: '/worksheets/bmg.pdf'
+      }
       ]
       
       setResources(mockResources)
@@ -193,6 +425,7 @@ export default function FaithResources() {
                   resource={resource}
                   isFavorite={false}
                   onFavorite={() => {}}
+                  onView={() => setSelectedResource(resource)}
                   featured
                 />
               ))}
@@ -228,6 +461,7 @@ export default function FaithResources() {
                 resource={resource}
                 isFavorite={false}
                 onFavorite={() => {}}
+                onView={() => setSelectedResource(resource)}
               />
             ))}
           </div>
@@ -248,6 +482,11 @@ export default function FaithResources() {
           </p>
         </div>
       </div>
+      <ResourceViewerModal
+        resource={selectedResource}
+        isOpen={!!selectedResource}
+        onClose={() => setSelectedResource(null)}
+      />
     </div>
   )
 }

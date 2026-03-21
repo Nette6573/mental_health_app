@@ -595,13 +595,13 @@ export default function ResourceLibrary() {
               .filter(resource => resource.featured)
               .map(resource => (
                 <ResourceCard
-  key={resource.id}
-  resource={resource}
-  isFavorite={favorites.has(resource.id)}
-  onFavorite={() => handleFavorite(resource.id)}
-  onView={() => setSelectedResource(resource)}
-  featured
-/>
+                  key={resource.id}
+                  resource={resource}
+                  isFavorite={favorites.has(resource.id)}
+                  onFavorite={() => handleFavorite(resource.id)}
+                  onView={() => setSelectedResource(resource)}
+                  featured
+                />
               ))}
           </div>
         </div>
@@ -646,12 +646,12 @@ export default function ResourceLibrary() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredResources.map(resource => (
               <ResourceCard
-  key={resource.id}
-  resource={resource}
-  isFavorite={favorites.has(resource.id)}
-  onFavorite={() => handleFavorite(resource.id)}
-  onView={() => setSelectedResource(resource)}
-/>
+                key={resource.id}
+                resource={resource}
+                isFavorite={favorites.has(resource.id)}
+                onFavorite={() => handleFavorite(resource.id)}
+                onView={() => setSelectedResource(resource)}
+              />
             ))}
           </div>
         )}
