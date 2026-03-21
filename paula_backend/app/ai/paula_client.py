@@ -113,7 +113,8 @@ JAMAICA_PSYCHOLOGISTS = [
 class PaulaClient:
     def __init__(self, model: str = MODEL_ID):
         self.model = model
-        self.endpoint = f"https://api-inference.huggingface.co/models/{model}"
+        # UPDATED: Use the new router.huggingface.co endpoint
+        self.endpoint = f"https://router.huggingface.co/hf-inference/models/{model}"
         self.headers = {
             "Authorization": f"Bearer {HF_API_TOKEN}",
             "Content-Type": "application/json"
@@ -124,6 +125,7 @@ class PaulaClient:
             logger.error("❌ HF_API_TOKEN is missing!")
         else:
             logger.info(f"✅ Hugging Face client initialized with model: {model}")
+            logger.info(f"🔗 Using endpoint: {self.endpoint}")
             
         # Store referral contexts for users (in production, use a better session store)
         self.referral_contexts = {}
@@ -196,7 +198,8 @@ class PaulaClient:
                 self.referral_contexts[session_id] = {"stage": "offer_referral"}
             
             referral_suggestion = self._get_gentle_referral_suggestion(user_message)
-            ai_response += f"\n\n{referral_suggestion}"
+            if referral_suggestion not in ai_response:
+                ai_response += f"\n\n{referral_suggestion}"
             
             # Add prompt to ask about location
             if session_id:
@@ -213,7 +216,7 @@ class PaulaClient:
 
         # Add conversation history if available
         if conversation_history:
-            for msg in conversation_history[-6:]:
+            for msg in conversation_history[-8:]:  # Increased to last 8 for better context
                 messages.append({
                     "role": msg.get("role", "user"),
                     "content": msg.get("content", "")
@@ -231,7 +234,7 @@ class PaulaClient:
             # Check if token exists
             if not HF_API_TOKEN:
                 logger.error("❌ HF_API_TOKEN is missing")
-                return self._get_fallback_response(user_message)
+                return self._get_fallback_response(user_message, conversation_history)
             
             # Make API request
             response = requests.post(
@@ -265,7 +268,7 @@ class PaulaClient:
                     return result['generated_text'].strip()
                 else:
                     logger.warning(f"Unexpected response format: {result}")
-                    return self._get_fallback_response(user_message)
+                    return self._get_fallback_response(user_message, conversation_history)
                     
             elif response.status_code == 503:
                 # Model is loading
@@ -276,14 +279,14 @@ class PaulaClient:
                 return self._get_empathetic_response(user_message, conversation_history)
             else:
                 logger.error(f"❌ Hugging Face API error: {response.status_code} - {response.text}")
-                return self._get_fallback_response(user_message)
+                return self._get_fallback_response(user_message, conversation_history)
                 
         except requests.exceptions.Timeout:
             logger.error("⏰ Hugging Face API timeout")
-            return self._get_fallback_response(user_message)
+            return self._get_fallback_response(user_message, conversation_history)
         except Exception as e:
             logger.error(f"❌ Error in _get_empathetic_response: {str(e)}")
-            return self._get_fallback_response(user_message)
+            return self._get_fallback_response(user_message, conversation_history)
 
     def _format_chat_template(self, messages: List[Dict]) -> str:
         """Format messages for models that don't support the chat API"""
@@ -298,12 +301,34 @@ class PaulaClient:
         formatted += "<|assistant|>\n"
         return formatted
 
-    def _get_fallback_response(self, user_message: str) -> str:
-        """Provide a fallback response if the API fails"""
-        logger.info("🔄 Using fallback response")
+    def _get_fallback_response(self, user_message: str, conversation_history: List[Dict] = None) -> str:
+        """Provide a context-aware fallback response if the API fails"""
+        logger.info("🔄 Using enhanced fallback response with context")
         
-        # Simple rule-based responses for common patterns
         user_message_lower = user_message.lower()
+        
+        # Check if this is a response to a previous referral offer
+        if conversation_history:
+            for msg in conversation_history[-3:]:
+                if "Would you like me to share some resources" in msg.get("content", "") or \
+                   "Would you like me to help you find professionals" in msg.get("content", ""):
+                    if "yes" in user_message_lower:
+                        return "I'd be happy to share some resources with you. Could you please tell me which parish you're located in? For example: Kingston, St. Andrew, St. Catherine, Manchester, etc."
+                    elif "no" in user_message_lower:
+                        return "That's okay. I'm here to listen whenever you're ready to talk. What's on your mind right now?"
+        
+        # Check for emotional keywords in current message
+        if any(word in user_message_lower for word in ["betray", "trust", "backstab", "behind my back"]):
+            return "Betrayal by people you trust is incredibly painful. Your feelings of hurt and disappointment are completely understandable. Would you like to tell me more about what happened?"
+        
+        if any(word in user_message_lower for word in ["sad", "depressed", "down", "unhappy"]):
+            return "I hear that you're feeling sad, and that's completely valid. These feelings can be heavy to carry alone. Would you like to talk more about what's bringing you down?"
+        
+        if any(word in user_message_lower for word in ["frustrated", "annoyed", "angry", "mad"]):
+            return "It sounds like you're dealing with some frustration. That's completely understandable. Sometimes talking it through can help. What's been frustrating you?"
+        
+        if any(word in user_message_lower for word in ["anxious", "worried", "stress", "nervous"]):
+            return "I hear that you're feeling anxious. That can be really difficult to manage on your own. Would you like to talk about what's making you feel this way?"
         
         if any(word in user_message_lower for word in ["hello", "hi", "hey"]):
             return "Hello! I'm Paula, your emotional support assistant. How are you feeling today?"
@@ -314,8 +339,17 @@ class PaulaClient:
         if "thank" in user_message_lower:
             return "You're welcome! I'm glad I could help. Is there anything else you'd like to talk about?"
         
-        if any(word in user_message_lower for word in ["sad", "depressed", "down"]):
-            return "I hear that you're feeling sad, and that's completely valid. These feelings can be heavy to carry alone. Would you like to talk more about what's bringing you down?"
+        # If we have conversation history, use it for context
+        if conversation_history and len(conversation_history) > 1:
+            # Find the last user message before this one
+            last_user_message = None
+            for msg in reversed(conversation_history):
+                if msg.get("role") == "user" and msg.get("content") != user_message:
+                    last_user_message = msg.get("content")
+                    break
+            
+            if last_user_message:
+                return f"I remember you mentioned earlier: '{last_user_message[:100]}...' Let's continue talking about that if you'd like. How are you feeling about it now?"
         
         # Default fallback
         return (
