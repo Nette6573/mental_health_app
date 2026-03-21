@@ -9,10 +9,10 @@ export default function Footer() {
   ]
 
   const resources = [
-    { name: 'Crisis Helpline', href: '#' },
-    { name: 'Find a Therapist', href: '#' },
-    { name: 'Faith Resources', href: '#' },
-    { name: 'Blog', href: '#' },
+    { name: 'Crisis Helpline', href: '/safety' },
+    { name: 'Find a Therapist', href: '/safety' },
+    { name: 'Faith Resources', href: 'https://drive.google.com/drive/folders/1Re0JYh-3K4YPfmBx1d9elxHbZFQAKxEy?usp=drive_link' },
+    { name: 'Blog', href: '/blog' },
   ]
 
   return (
