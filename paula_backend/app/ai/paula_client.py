@@ -158,10 +158,16 @@ class PaulaClient:
             )
 
             if response.status_code == 200:
-                return response.json()[0]["generated_text"].strip()
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    if isinstance(result[0], dict) and 'generated_text' in result[0]:
+                        return result[0]['generated_text'].strip()
+                    elif isinstance(result[0], str):
+                        return result[0].strip()
+                return result.get('generated_text', self._fallback(message)).strip()
 
         except Exception as e:
-            logger.error(e)
+            logger.error(f"Error in _ai_response: {e}")
 
         return self._fallback(message)
 
@@ -210,10 +216,17 @@ class PaulaClient:
             "Please reach out immediately:\n"
             "• Emergency: 119\n"
             "• 888-NEW-LIFE (24/7)\n\n"
-            "You don’t have to go through this alone."
+            "You don't have to go through this alone."
         )
 
     def _fallback(self, message: str):
+        # Make fallback more contextual
+        if "sad" in message.lower():
+            return "I hear that you're feeling sad. That's completely valid. Would you like to talk more about what's bringing you down?"
+        elif "betray" in message.lower() or "trust" in message.lower():
+            return "Betrayal by people you trust is incredibly painful. I'm here to listen if you want to share more about what happened."
+        elif "friend" in message.lower():
+            return "It sounds like you're dealing with something involving people close to you. That can be really tough. I'm here to support you."
         return "I'm here with you. Tell me a little more about what you're dealing with."
 
     def _format(self, messages):
@@ -229,20 +242,69 @@ class PaulaClient:
             "Do not sound robotic.\n"
             "Do not repeat phrases.\n"
             "Do not diagnose.\n"
-            "Focus on understanding the user's feelings deeply."
+            "Focus on understanding the user's feelings deeply.\n"
+            "Keep responses concise and caring, 2-3 sentences unless the user needs more support."
         )
 
 
 # -----------------------------
-# PUBLIC FUNCTION
+# PUBLIC FUNCTIONS
 # -----------------------------
 
 _client = None
 
-def ask_paula(user_message: str, chat_history=None, session_id=None):
+def ask_paula(user_message: str, chat_history=None, session_id=None, summary=None):
     global _client
 
     if _client is None:
         _client = PaulaClient()
+        logger.info("✅ PaulaClient initialized")
+
+    # Use summary if provided (for memory)
+    if summary:
+        logger.info(f"📝 Using memory summary: {summary[:100]}")
+
+    # Use chat_history for context
+    if chat_history:
+        logger.info(f"📚 Using conversation history with {len(chat_history)} messages")
 
     return _client.generate_response(user_message, chat_history, session_id)
+
+
+def detect_emotion_ai(text: str) -> str:
+    """Public emotion detection function for routes"""
+    emotion = detect_emotion(text)
+    logger.info(f"🎭 Emotion detected: {emotion}")
+    return emotion
+
+
+def summarize_memory(history: List[Dict]) -> str:
+    """Summarize conversation history for memory management"""
+    if not history:
+        return ""
+    
+    # Simple summarization based on topics
+    topics = set()
+    for msg in history[-10:]:  # Look at last 10 messages
+        content = msg.get("content", "").lower()
+        if "work" in content or "job" in content:
+            topics.add("work")
+        if "family" in content or "mother" in content or "father" in content:
+            topics.add("family")
+        if "friend" in content or "friends" in content:
+            topics.add("friends")
+        if "relationship" in content or "partner" in content:
+            topics.add("relationships")
+        if "betray" in content or "trust" in content:
+            topics.add("trust issues")
+        if "sad" in content or "depressed" in content:
+            topics.add("sadness")
+        if "anxious" in content or "worried" in content:
+            topics.add("anxiety")
+    
+    if topics:
+        summary = f"Previous conversation covered: {', '.join(topics)}"
+        logger.info(f"📝 Memory summary: {summary}")
+        return summary
+    
+    return "Previous conversation context available"
