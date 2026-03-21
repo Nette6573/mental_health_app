@@ -17,6 +17,8 @@ export const providerSignup = async (formData: any) => {
     const user = userCredential.user;
     console.log("Auth UID:", user.uid);
 
+    await user.getIdToken(true);
+
     // 3. ENSURE AUTH SESSION IS ACTIVE
     console.log("Auth currentUser:", auth.currentUser?.uid);
 
@@ -33,8 +35,6 @@ export const providerSignup = async (formData: any) => {
       experience: formData.experience,
       practice_areas: formData.practice_areas,
       role: "provider",
-      created_at: new Date(),
-      login_location: null,
     });
 
     console.log("Provider doc written successfully!");
