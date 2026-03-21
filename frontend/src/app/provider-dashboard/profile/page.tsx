@@ -1,4 +1,7 @@
 "use client";
+import { useAuth } from "@/context/authContext"; 
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/firebaseClient";
 
 import Link from "next/link";
 import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
@@ -24,6 +27,9 @@ import {
   User,
   X,
 } from "lucide-react";
+
+//This is to get the logged in user
+const { user } = useAuth() as any;
 
 const specializationOptions = [
   "Depression",
@@ -85,28 +91,28 @@ export default function ProviderProfilePage() {
   const [darkMode, setDarkMode] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  const [fullName, setFullName] = useState("Dr. Sarah Anderson");
-  const [professionalTitle, setProfessionalTitle] = useState("Clinical Psychologist");
-  const [organization, setOrganization] = useState("Kingston Counseling Center");
-  const [category, setCategory] = useState("psychologist");
-  const [parish, setParish] = useState("Kingston");
+  const [fullName, setFullName] = useState("");
+  const [professionalTitle, setProfessionalTitle] = useState("");
+  const [organization, setOrganization] = useState("");
+  const [category, setCategory] = useState("");
+  const [parish, setParish] = useState("");
 
-  const [email, setEmail] = useState("dr.anderson@hopepath.jm");
-  const [phone, setPhone] = useState("(876) 555-0123");
-  const [website, setWebsite] = useState("www.andersoncounseling.jm");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [website, setWebsite] = useState("");
 
   const [bio, setBio] = useState(
-    "Dr. Sarah Anderson is a licensed clinical psychologist with over 10 years of experience in mental health care. She specializes in integrating evidence-based therapeutic approaches with Christian faith principles to provide holistic healing. Her practice focuses on anxiety, depression, and trauma recovery within the Jamaican context."
+    ""
   );
 
   const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>([
-    "Depression",
-    "Anxiety",
-    "Trauma",
-    "Spiritual Counseling",
+    "",
+    "",
+    "",
+    "",
   ]);
 
-  const [languages, setLanguages] = useState<string[]>(["English", "Jamaican Patois"]);
+  const [languages, setLanguages] = useState<string[]>(["", ""]);
   const [languageInput, setLanguageInput] = useState("");
 
   const [sessionTypes, setSessionTypes] = useState<SessionTypes>({
@@ -172,6 +178,47 @@ export default function ProviderProfilePage() {
       localStorage.setItem("theme", "light");
     }
   };
+  useEffect(() => {
+  const fetchProviderData = async () => {
+    if (!user) return;
+
+    try {
+      const docRef = doc(db, "providers", user.id);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+
+        // Populate fields (SAFE — no UI change)
+        setFullName(`${data.first_name ?? ""} ${data.last_name ?? ""}`.trim());
+        setProfessionalTitle(data.professional_title ?? "");
+        setOrganization(data.organization ?? "");
+        setCategory(data.category ?? "psychologist");
+        setParish(data.parish ?? "");
+
+        setEmail(data.professional_email ?? "");
+        setPhone(data.phone_number ?? "");
+        setWebsite(data.website ?? "");
+
+        setBio(data.bio ?? "");
+
+        // Specializations (handle string or array)
+        if (Array.isArray(data.specialization)) {
+          setSelectedSpecializations(data.specialization);
+        } else if (data.specialization) {
+          setSelectedSpecializations([data.specialization]);
+        }
+
+      } else {
+        console.log("No provider document found");
+      }
+    } catch (error) {
+      console.error("Error fetching provider:", error);
+    }
+  };
+
+  fetchProviderData();
+}, [user]);
 
   const toggleMobileSidebar = () => {
     setMobileSidebarOpen((prev) => !prev);
