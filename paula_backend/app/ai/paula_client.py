@@ -64,7 +64,8 @@ MENTAL_HEALTH_SCENARIOS = {
         "coping": [
             "Grief comes in waves. Let yourself feel whatever comes - sadness, anger, numbness. All of it is okay.",
             "Would sharing a memory of your loved one help? Sometimes remembering helps us carry them with us.",
-            "Be gentle with yourself. Grief takes as long as it takes."
+            "Be gentle with yourself. Grief takes as long as it takes.",
+            "Many find comfort in faith during times of loss. Our Faith Resources section has scriptures, prayers, and spiritual support that may help."
         ],
         "resource_type": "faith_based"
     },
@@ -90,7 +91,7 @@ MENTAL_HEALTH_SCENARIOS = {
     },
     "friendship_betrayal": {
         "keywords": ["friend", "friends", "betrayed", "backstab", "gossip", "trust", "behind my back", "friend let me down"],
-        "validation": "Betrayal by someone you trusted cuts deep. Your hurt is completely understandable.",
+        "validation": "Betrayal by someone you trust cuts deep. Your hurt is completely understandable.",
         "coping": [
             "Trust broken takes time to heal. Give yourself permission to feel hurt.",
             "Real friends don't make you question your worth. You deserve people who see your value.",
@@ -129,7 +130,8 @@ MENTAL_HEALTH_SCENARIOS = {
         "coping": [
             "Would you talk to a friend the way you talk to yourself? Try being as kind to yourself as you are to others.",
             "You are worthy. Not because of what you do, but because you exist.",
-            "What's one thing you did today, no matter how small, that you can acknowledge?"
+            "What's one thing you did today, no matter how small, that you can acknowledge?",
+            "Our Faith Resources section has encouraging scriptures about your worth and value."
         ],
         "resource_type": "faith_based"
     },
@@ -139,7 +141,8 @@ MENTAL_HEALTH_SCENARIOS = {
         "coping": [
             "You're not alone in feeling alone. So many people feel this way. Reaching out is brave.",
             "Sometimes one small connection - a text, a call, a shared smile - can help.",
-            "Would you be willing to reach out to one person today, even just to say hello?"
+            "Would you be willing to reach out to one person today, even just to say hello?",
+            "Our Faith Resources section also has community support and spiritual connection options."
         ],
         "resource_type": "faith_based"
     },
@@ -161,42 +164,51 @@ MENTAL_HEALTH_SCENARIOS = {
         "coping": [
             "Hopelessness lies. It says things won't change. But feelings aren't facts.",
             "Can you focus on just the next hour? The next 10 minutes? You don't have to see the whole path.",
-            "You've made it through 100% of your hardest days so far. That's strength."
+            "You've made it through 100% of your hardest days so far. That's strength.",
+            "Sometimes faith can provide a light when everything feels dark. Our Faith Resources section offers spiritual encouragement."
         ],
-        "resource_type": "professional",
+        "resource_type": "faith_based",
         "crisis_risk": True
     }
 }
 
-# Comprehensive Resource Links (your platform's pages)
+# Comprehensive Resource Links - UPDATED with your actual frontend routes
 RESOURCES = {
     "professional": {
         "title": "Professional Mental Health Support",
         "description": "Licensed counselors, psychologists, and mental health services in Jamaica.",
-        "link": "/resources/professional",
+        "link": "/dashboard/therapists",  # Your therapist directory
         "helpline": "888-NEW-LIFE (639-5433)"
     },
     "faith_based": {
         "title": "Faith-Based Support & Counseling",
-        "description": "Spiritual guidance, pastoral counseling, and faith communities.",
-        "link": "/resources/faith-based",
-        "scripture": "Available on our resources page"
+        "description": "Spiritual guidance, pastoral counseling, and faith communities. Find scripture, prayer support, and encouragement.",
+        "link": "/dashboard/resources/faith",  # ← YOUR FAITH RESOURCES PAGE
+        "features": [
+            "📖 Daily Devotional - Start your day with scripture and reflection",
+            "🙏 Prayer Wall - Share and receive prayer requests",
+            "📚 Scripture Study - Deepen your understanding of faith",
+            "👥 Faith Community - Connect with others on their spiritual journey",
+            "✨ Spiritual Practices - Guided exercises for spiritual growth"
+        ]
     },
     "self_help": {
         "title": "Self-Help Tools & Coping Strategies",
         "description": "Practical tools, exercises, and techniques for managing mental health.",
-        "link": "/resources/self-help"
+        "link": "/dashboard/resources/self-help",
+        "exercises": "Breathing exercises, grounding techniques, journaling prompts, mood tracking"
     },
     "crisis": {
         "title": "Crisis Support - Immediate Help",
         "description": "24/7 crisis support and emergency services.",
-        "link": "/resources/crisis",
+        "link": "/dashboard/resources/crisis",
         "helpline": "888-NEW-LIFE (639-5433) | 119 for emergencies"
     },
     "community": {
         "title": "Community Support Groups",
         "description": "Connect with others who understand what you're going through.",
-        "link": "/resources/community"
+        "link": "/dashboard/resources/community",
+        "groups": "Peer support groups, community gatherings, shared experiences"
     }
 }
 
@@ -229,15 +241,12 @@ SCREENING_QUESTIONS = [
 
 # Referral prompts that link to resources page
 REFERRAL_PROMPTS = [
-    "💛 Would you like me to share some resources that might help? We have professional counseling services, faith-based support, and self-help tools available on our platform.",
-    "You don't have to go through this alone. Would you like to see some resources we have available? We've gathered professional, faith-based, and community support options just for you.",
+    "💛 Would you like me to share some resources that might help? We have professional counseling services, **faith-based support**, and self-help tools available on our platform.",
+    "You don't have to go through this alone. Would you like to see some resources we have available? We've gathered professional, **faith-based**, and community support options just for you.",
     "Sometimes having the right resources makes all the difference. Would you like me to share some support options from our platform?",
     "We have resources designed to help with exactly what you're going through. Would you like to see them?",
     "Your feelings matter, and you deserve support. Would you like me to share some resources that might help?"
 ]
-
-# Coping technique prompts that link to resources
-COPING_RESOURCE_PROMPT = "\n\n📱 You can find more coping techniques and exercises in our Self-Help Tools section on the platform."
 
 JAMAICAN_PARISHES = list(PARISH_RESOURCES.keys())
 
@@ -293,7 +302,8 @@ class PaulaClient:
         
         # Detect which scenario the user is experiencing
         scenario = self._detect_scenario(user_message)
-        state.detected_scenario = scenario if scenario else state.detected_scenario
+        if scenario:
+            state.detected_scenario = scenario
         
         # Build appropriate response
         if scenario:
@@ -426,8 +436,8 @@ You matter. Please reach out to someone who can help right now. 💛"""
 You can also visit your nearest public health centre and ask about mental health services.
 
 **On our platform, you can find:**
-• Professional counseling services
-• Faith-based support
+• Professional counseling services in our Therapist Directory
+• **Faith-based support** - Daily Devotional, Prayer Wall, Scripture Study
 • Self-help tools and coping strategies
 
 Would you like me to show you the resources available on our platform?"""
@@ -447,27 +457,50 @@ Would you like me to show you the resources available on our platform?"""
         if state.detected_scenario:
             scenario_data = MENTAL_HEALTH_SCENARIOS.get(state.detected_scenario, {})
             resource_type = scenario_data.get("resource_type", "self_help")
-            if resource_type not in state.resource_type_shown:
+            
+            # Always include faith-based resources if scenario calls for it
+            if resource_type == "faith_based" and "faith_based" not in resource_types:
+                resource_types.append("faith_based")
+            elif resource_type not in state.resource_type_shown:
                 resource_types.append(resource_type)
         
-        # Always include self-help and community resources
+        # Always include faith resources for spiritual/emotional scenarios
+        if state.detected_scenario in ["grief", "hopelessness", "low_self_esteem", "loneliness"]:
+            if "faith_based" not in resource_types:
+                resource_types.insert(0, "faith_based")  # Show faith resources first
+        
+        # Always include professional, self-help, and community resources
+        if "professional" not in resource_types:
+            resource_types.append("professional")
         if "self_help" not in resource_types:
             resource_types.append("self_help")
         if "community" not in resource_types:
             resource_types.append("community")
+        if "faith_based" not in resource_types:
+            resource_types.append("faith_based")
         
         # Build response with resources
-        response = "**Here are some resources that might help:**\n\n"
+        response = "**Here are resources that might help:**\n\n"
         
-        for rt in resource_types[:3]:  # Show up to 3 resource types
+        for rt in resource_types[:4]:  # Show up to 4 resource types
             if rt in RESOURCES:
                 res = RESOURCES[rt]
-                response += f"**{res['title']}**\n{res['description']}\n📱 {res['link']}\n\n"
+                response += f"**{res['title']}**\n{res['description']}\n"
+                
+                # Special handling for faith resources - mention specific features
+                if rt == "faith_based":
+                    response += f"✨ **What you'll find:**\n"
+                    for feature in res.get('features', [])[:4]:  # Show first 4 features
+                        response += f"   {feature}\n"
+                
+                response += f"🔗 **View now:** {res['link']}\n\n"
         
-        # Add helpline if applicable
-        response += "📞 **Need to talk to someone now?**\nMental Health Helpline: **888-NEW-LIFE (639-5433)** - 24/7\n\n"
+        # Add helpline
+        response += "---\n\n"
+        response += "📞 **Need to talk to someone right now?**\n"
+        response += "Mental Health Helpline: **888-NEW-LIFE (639-5433)** - 24/7\n\n"
         
-        response += "Would you like me to help you find professional support in your area?"
+        response += "Would you like me to help you find professional support in your area? (You can tell me your parish)"
         
         state.resource_offered = True
         return response
@@ -503,14 +536,15 @@ def ask_paula(user_message: str, chat_history=None, session_id=None, summary=Non
 def detect_emotion_ai(text: str) -> str:
     scenario = _client._detect_scenario(text) if _client else None
     if scenario:
-        # Map scenario to emotion for the backend
         emotion_map = {
             "depression": "sad",
             "anxiety": "anxious",
             "stress": "stressed",
             "anger": "angry",
             "grief": "sad",
-            "hopelessness": "sad"
+            "hopelessness": "sad",
+            "loneliness": "sad",
+            "low_self_esteem": "sad"
         }
         return emotion_map.get(scenario, "neutral")
     return "neutral"
