@@ -3,7 +3,7 @@
 import requests
 import logging
 import random
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 from app.config import HF_TOKEN
 
@@ -13,83 +13,243 @@ HF_API_TOKEN = HF_TOKEN
 MODEL_ID = "microsoft/DialoGPT-medium"
 
 # -----------------------------
-# JAMAICAN MENTAL HEALTH RESOURCES
+# COMPREHENSIVE MENTAL HEALTH SCENARIOS
 # -----------------------------
 
-CRISIS_HELP = """Need extra support right now? 💛
-• Mental Health & Suicide Prevention Helpline: **888-NEW-LIFE (639-5433)** - 24/7
-• Emergency Services: **119**
-• Crisis Centre of Jamaica: **876-631-5244**
-• Visit your nearest hospital emergency room
-• Reach out to a trusted family member or friend
+# Crisis Keywords - Immediate emergency response
+CRISIS_KEYWORDS = [
+    "kill myself", "suicide", "want to die", "end my life", "self harm", 
+    "hurt myself", "no reason to live", "overdose", "hang myself", 
+    "don't want to be here", "better off dead"
+]
 
-You don't have to go through this alone. Please reach out to someone who can help right now."""
+# All possible mental health scenarios with appropriate responses
+MENTAL_HEALTH_SCENARIOS = {
+    # Mood Disorders
+    "depression": {
+        "keywords": ["depressed", "depression", "hopeless", "worthless", "empty", "numb", "no motivation", "can't get out of bed"],
+        "validation": "Depression is more than just sadness - it's a heavy weight that affects everything. What you're feeling is real and valid.",
+        "coping": [
+            "Even small steps matter. Can you do one tiny thing for yourself today? Just one.",
+            "Depression lies to us. It tells us nothing matters. But you matter, even when you can't feel it.",
+            "Reaching out is hard when you're depressed. I'm proud of you for being here."
+        ],
+        "resource_type": "professional"
+    },
+    "anxiety": {
+        "keywords": ["anxious", "anxiety", "panic", "worried", "racing thoughts", "can't relax", "on edge", "fear"],
+        "validation": "Anxiety is your body's alarm system going off when it doesn't need to. It's exhausting and overwhelming.",
+        "coping": [
+            "Take 5 deep breaths with me. In for 4, hold for 4, out for 4.",
+            "Try grounding: Name 5 things you see, 4 you feel, 3 you hear, 2 you smell, 1 you taste.",
+            "Anxiety feels urgent, but you're safe right now. Let's breathe together."
+        ],
+        "resource_type": "professional"
+    },
+    "stress": {
+        "keywords": ["stressed", "overwhelmed", "too much", "pressure", "burnout", "can't cope", "falling behind"],
+        "validation": "Stress is real and it affects everything - your body, your mind, your spirit.",
+        "coping": [
+            "Pick just ONE thing to focus on. Forget the rest for now.",
+            "When everything is urgent, nothing is. What can wait until tomorrow?",
+            "Your body needs rest to handle stress. When did you last take a real break?"
+        ],
+        "resource_type": "self_help"
+    },
+    
+    # Life Challenges
+    "grief": {
+        "keywords": ["grief", "loss", "died", "passed away", "mourning", "lost someone", "bereavement"],
+        "validation": "Grief is love with nowhere to go. There's no right way to grieve, and no timeline.",
+        "coping": [
+            "Grief comes in waves. Let yourself feel whatever comes - sadness, anger, numbness. All of it is okay.",
+            "Would sharing a memory of your loved one help? Sometimes remembering helps us carry them with us.",
+            "Be gentle with yourself. Grief takes as long as it takes."
+        ],
+        "resource_type": "faith_based"
+    },
+    "relationship_issues": {
+        "keywords": ["relationship", "partner", "boyfriend", "girlfriend", "marriage", "breakup", "cheating", "trust issues", "arguing"],
+        "validation": "Relationship pain cuts deep. When someone we care about hurts us, it shakes our foundation.",
+        "coping": [
+            "Your feelings are valid. Take space to feel them before making any big decisions.",
+            "Healthy relationships require trust, respect, and communication. What do you need right now?",
+            "It's okay to set boundaries. Your peace matters."
+        ],
+        "resource_type": "faith_based"
+    },
+    "family_conflict": {
+        "keywords": ["family", "parent", "mother", "father", "sibling", "home", "arguing with family", "family issues"],
+        "validation": "Family can be both our greatest support and our deepest pain. It's complicated.",
+        "coping": [
+            "Sometimes the healthiest thing is space. It's okay to step back when you need to.",
+            "Family dynamics are hard. What would feel most helpful right now?",
+            "You can love your family AND set boundaries. Both can be true."
+        ],
+        "resource_type": "faith_based"
+    },
+    "friendship_betrayal": {
+        "keywords": ["friend", "friends", "betrayed", "backstab", "gossip", "trust", "behind my back", "friend let me down"],
+        "validation": "Betrayal by someone you trusted cuts deep. Your hurt is completely understandable.",
+        "coping": [
+            "Trust broken takes time to heal. Give yourself permission to feel hurt.",
+            "Real friends don't make you question your worth. You deserve people who see your value.",
+            "Sometimes losing a friend makes room for healthier connections."
+        ],
+        "resource_type": "faith_based"
+    },
+    
+    # Academic/Work Stress
+    "exam_stress": {
+        "keywords": ["exam", "test", "study", "notes", "remember", "forget", "principles of marketing", "fail", "pass", "grades"],
+        "validation": "Exam pressure is intense. Your brain is working hard, even when it doesn't feel like it.",
+        "coping": [
+            "Study for 25 minutes, then take a 5-minute break. Your brain needs rest to absorb.",
+            "Try explaining what you're learning out loud. Teaching helps memory.",
+            "Sleep is when your brain organizes what you've learned. Don't skip rest for cramming.",
+            "You know more than you think. Anxiety is blocking it, not your ability."
+        ],
+        "resource_type": "self_help"
+    },
+    "work_stress": {
+        "keywords": ["work", "job", "boss", "coworker", "deadline", "pressure", "career", "unemployed", "laid off"],
+        "validation": "Work stress follows you home. It's hard to separate your worth from your work.",
+        "coping": [
+            "Your job doesn't define your value as a person. You are more than your work.",
+            "Set boundaries. You can't pour from an empty cup.",
+            "What's one boundary you can set this week to protect your peace?"
+        ],
+        "resource_type": "self_help"
+    },
+    
+    # Self-Esteem & Identity
+    "low_self_esteem": {
+        "keywords": ["worthless", "not good enough", "failure", "useless", "can't do anything right", "hate myself"],
+        "validation": "When you're carrying that voice that says you're not enough, it's exhausting. That voice is lying to you.",
+        "coping": [
+            "Would you talk to a friend the way you talk to yourself? Try being as kind to yourself as you are to others.",
+            "You are worthy. Not because of what you do, but because you exist.",
+            "What's one thing you did today, no matter how small, that you can acknowledge?"
+        ],
+        "resource_type": "faith_based"
+    },
+    "loneliness": {
+        "keywords": ["lonely", "alone", "isolated", "no one cares", "no friends", "nobody understands"],
+        "validation": "Loneliness hurts even when you're surrounded by people. Connection matters deeply.",
+        "coping": [
+            "You're not alone in feeling alone. So many people feel this way. Reaching out is brave.",
+            "Sometimes one small connection - a text, a call, a shared smile - can help.",
+            "Would you be willing to reach out to one person today, even just to say hello?"
+        ],
+        "resource_type": "faith_based"
+    },
+    
+    # Emotional States
+    "anger": {
+        "keywords": ["angry", "mad", "frustrated", "rage", "annoyed", "furious"],
+        "validation": "Anger tells us something important has been crossed or hurt. Your anger is valid.",
+        "coping": [
+            "Anger needs to move. Try walking, running, or even squeezing a pillow.",
+            "Write down what's making you angry. Sometimes getting it out helps release it.",
+            "Step away before responding. Give yourself space to breathe."
+        ],
+        "resource_type": "self_help"
+    },
+    "hopelessness": {
+        "keywords": ["hopeless", "no future", "never get better", "what's the point", "give up"],
+        "validation": "Hopelessness is heavy. When you can't see a way forward, even getting through the day takes everything.",
+        "coping": [
+            "Hopelessness lies. It says things won't change. But feelings aren't facts.",
+            "Can you focus on just the next hour? The next 10 minutes? You don't have to see the whole path.",
+            "You've made it through 100% of your hardest days so far. That's strength."
+        ],
+        "resource_type": "professional",
+        "crisis_risk": True
+    }
+}
 
-SUPPORT_FOOTER = """Need extra support?
-• Mental Health & Suicide Prevention Helpline: 888-NEW-LIFE (639-5433) - 24/7
-• Your nearest public hospital or health centre
-• A trusted family member, friend, or community leader
+# Comprehensive Resource Links (your platform's pages)
+RESOURCES = {
+    "professional": {
+        "title": "Professional Mental Health Support",
+        "description": "Licensed counselors, psychologists, and mental health services in Jamaica.",
+        "link": "/resources/professional",
+        "helpline": "888-NEW-LIFE (639-5433)"
+    },
+    "faith_based": {
+        "title": "Faith-Based Support & Counseling",
+        "description": "Spiritual guidance, pastoral counseling, and faith communities.",
+        "link": "/resources/faith-based",
+        "scripture": "Available on our resources page"
+    },
+    "self_help": {
+        "title": "Self-Help Tools & Coping Strategies",
+        "description": "Practical tools, exercises, and techniques for managing mental health.",
+        "link": "/resources/self-help"
+    },
+    "crisis": {
+        "title": "Crisis Support - Immediate Help",
+        "description": "24/7 crisis support and emergency services.",
+        "link": "/resources/crisis",
+        "helpline": "888-NEW-LIFE (639-5433) | 119 for emergencies"
+    },
+    "community": {
+        "title": "Community Support Groups",
+        "description": "Connect with others who understand what you're going through.",
+        "link": "/resources/community"
+    }
+}
 
-If you're in immediate danger, please contact emergency services (119) or go to the nearest hospital."""
-
-# Jamaican parishes and their hospitals
+# Parish resources for local referrals
 PARISH_RESOURCES = {
     "kingston": "Kingston Public Hospital - 876-922-2200 | Bellevue Hospital - 876-938-1211",
-    "st. andrew": "Kingston Public Hospital - 876-922-2200 | University Hospital of the West Indies - 876-927-1620",
+    "st. andrew": "Kingston Public Hospital - 876-922-2200 | University Hospital - 876-927-1620",
     "st. catherine": "Spanish Town Hospital - 876-984-3241 | Linstead Hospital - 876-985-2267",
-    "clarendon": "May Pen Hospital - 876-902-2000 | Lionel Town Hospital - 876-983-5253",
+    "clarendon": "May Pen Hospital - 876-902-2000",
     "manchester": "Mandeville Regional Hospital - 876-962-2200",
-    "st. elizabeth": "Black River Hospital - 876-965-2200",
-    "westmoreland": "Savanna-la-Mar Hospital - 876-955-2200",
-    "hanover": "Noel Holmes Hospital - 876-956-2200",
     "st. james": "Cornwall Regional Hospital - 876-952-5100",
-    "trelawny": "Falmouth Hospital - 876-954-3200",
     "st. ann": "St. Ann's Bay Hospital - 876-972-2272",
     "st. mary": "Port Maria Hospital - 876-994-2200",
     "portland": "Port Antonio Hospital - 876-993-2646",
-    "st. thomas": "Princess Margaret Hospital - 876-982-2200"
+    "st. thomas": "Princess Margaret Hospital - 876-982-2200",
+    "st. elizabeth": "Black River Hospital - 876-965-2200",
+    "westmoreland": "Savanna-la-Mar Hospital - 876-955-2200",
+    "hanover": "Noel Holmes Hospital - 876-956-2200",
+    "trelawny": "Falmouth Hospital - 876-954-3200"
 }
 
-# Coping strategies by emotion
-COPING_STRATEGIES = {
-    "anxious": [
-        "Take 5 deep breaths with me - breathe in for 4 counts, hold for 4, out for 4.",
-        "Try grounding yourself: name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, 1 you can taste.",
-        "Sometimes stepping outside for a few minutes of fresh air can help calm the mind.",
-        "Would writing down what's worrying you help to get it out of your head?"
-    ],
-    "sad": [
-        "Be gentle with yourself today. Sometimes just getting through the day is enough.",
-        "Is there a small thing you could do that might bring you a little comfort? A warm cup of tea, your favorite song?",
-        "Reaching out to someone you trust can help lighten the load.",
-        "Even small steps matter. What's one tiny thing you can do for yourself right now?"
-    ],
-    "angry": [
-        "That anger is valid. Sometimes stepping away for a moment can help clear your head.",
-        "Would going for a walk or moving your body help release some of that energy?",
-        "Writing down what's frustrating you can sometimes help make sense of it.",
-        "Taking slow, deep breaths can help when the anger feels overwhelming."
-    ],
-    "tired": [
-        "Rest isn't a luxury - it's necessary. Give yourself permission to pause if you can.",
-        "Sometimes tiredness is our body telling us we need to slow down. Can you take a short break?",
-        "Be kind to yourself today. You're doing the best you can."
-    ],
-    "misunderstood": [
-        "Feeling misunderstood can be one of the loneliest feelings. It takes courage to keep trying to express yourself when it feels like no one's listening.",
-        "That feeling of not being understood - I hear you. Your intentions matter, even when others don't see them clearly.",
-        "It hurts when people don't see your heart. I want you to know that I see you trying, and that counts for something."
-    ]
-}
-
-# Crisis keywords
-CRISIS_KEYWORDS = [
-    "kill myself", "suicide", "want to die", "end my life",
-    "self harm", "hurt myself", "no reason to live",
-    "overdose", "hang myself", "don't want to be here"
+# Mental health screening questions
+SCREENING_QUESTIONS = [
+    "Over the past two weeks, how often have you felt down, depressed, or hopeless?",
+    "Over the past two weeks, how often have you had little interest or pleasure in doing things?",
+    "Over the past two weeks, how often have you felt nervous, anxious, or on edge?",
+    "Over the past two weeks, how often have you had trouble sleeping?",
+    "Over the past two weeks, how often have you felt tired or had little energy?"
 ]
 
-JAMAICAN_PARISHES = list(PARISH_RESOURCES.keys()) + ["st andrew", "st catherine", "st james", "st ann", "st mary", "st thomas", "st elizabeth"]
+# Referral prompts that link to resources page
+REFERRAL_PROMPTS = [
+    "💛 Would you like me to share some resources that might help? We have professional counseling services, faith-based support, and self-help tools available on our platform.",
+    "You don't have to go through this alone. Would you like to see some resources we have available? We've gathered professional, faith-based, and community support options just for you.",
+    "Sometimes having the right resources makes all the difference. Would you like me to share some support options from our platform?",
+    "We have resources designed to help with exactly what you're going through. Would you like to see them?",
+    "Your feelings matter, and you deserve support. Would you like me to share some resources that might help?"
+]
+
+# Coping technique prompts that link to resources
+COPING_RESOURCE_PROMPT = "\n\n📱 You can find more coping techniques and exercises in our Self-Help Tools section on the platform."
+
+JAMAICAN_PARISHES = list(PARISH_RESOURCES.keys())
+
+# Session state tracking
+class SessionState:
+    def __init__(self):
+        self.waiting_for_parish = False
+        self.referral_offered = False
+        self.resource_offered = False
+        self.screening_asked = False
+        self.detected_scenario = None
+        self.resource_type_shown = set()
 
 # -----------------------------
 # PAULA CLIENT
@@ -102,283 +262,219 @@ class PaulaClient:
             "Authorization": f"Bearer {HF_API_TOKEN}",
             "Content-Type": "application/json"
         }
-        self.sessions = {}
+        self.sessions: Dict[str, SessionState] = {}
         logger.info(f"✅ PaulaClient initialized")
 
+    def get_session(self, session_id: str) -> SessionState:
+        if session_id not in self.sessions:
+            self.sessions[session_id] = SessionState()
+        return self.sessions[session_id]
+
     def generate_response(self, user_message: str, history=None, session_id=None, summary=None):
-        """Main entry point for generating responses"""
+        """Main entry point - handles ALL mental health scenarios"""
         
-        # Check for crisis first
+        # CRISIS FIRST - always prioritize
         if self._is_crisis(user_message):
             return self._crisis_response()
         
-        # Detect emotion and intent
-        emotion = self._detect_emotion(user_message)
-        intent = self._detect_intent(user_message)
+        # Get session state
+        state = self.get_session(session_id) if session_id else None
         
-        logger.info(f"🎭 Emotion: {emotion}, Intent: {intent}")
+        # Handle parish response if waiting
+        if state and state.waiting_for_parish:
+            response = self._handle_parish_response(user_message, session_id)
+            if response:
+                return response
         
-        # Build context-aware response
-        response = self._build_response(user_message, emotion, intent, history)
+        # Handle response to resource offer
+        if state and state.resource_offered and self._is_positive_response(user_message):
+            state.resource_offered = False
+            return self._show_resources(state)
         
-        # Add appropriate support footer for emotional concerns
-        if emotion in ["sad", "anxious", "angry", "overwhelmed", "misunderstood"]:
-            response += f"\n\n{SUPPORT_FOOTER}"
+        # Detect which scenario the user is experiencing
+        scenario = self._detect_scenario(user_message)
+        state.detected_scenario = scenario if scenario else state.detected_scenario
+        
+        # Build appropriate response
+        if scenario:
+            response = self._handle_scenario(user_message, scenario, state, history)
+        else:
+            response = self._handle_general(user_message, state, history)
         
         return response
     
     def _is_crisis(self, text: str) -> bool:
-        text_lower = text.lower()
-        return any(keyword in text_lower for keyword in CRISIS_KEYWORDS)
+        return any(k in text.lower() for k in CRISIS_KEYWORDS)
     
     def _crisis_response(self) -> str:
-        return f"""I hear how much pain you're in right now, and I'm really concerned about you. 💛
+        crisis_resources = RESOURCES["crisis"]
+        return f"""🚨 **I'm really concerned about you.** 🚨
 
-Please reach out to someone who can help right away:
-• Mental Health Helpline: **888-NEW-LIFE (639-5433)** - 24/7
-• Emergency Services: **119**
-• Crisis Centre of Jamaica: **876-631-5244**
+What you're feeling right now is heavy, and you don't have to carry it alone.
 
-You don't have to carry this alone. Please reach out to a trusted family member, friend, or go to your nearest hospital. You matter, and there are people who want to help you through this.
+**Please reach out immediately:**
+• 📞 **Mental Health Helpline:** 888-NEW-LIFE (639-5433) - 24/7
+• 🚑 **Emergency Services:** 119
+• 🏥 **Your nearest hospital emergency room**
+• 👥 **A trusted family member or friend**
 
-{CRISIS_HELP}"""
+**We also have crisis resources available on our platform:**
+{crisis_resources['link']}
+
+You matter. Please reach out to someone who can help right now. 💛"""
     
-    def _detect_emotion(self, text: str) -> str:
+    def _detect_scenario(self, text: str) -> Optional[str]:
+        """Detect which mental health scenario the user is experiencing"""
         text_lower = text.lower()
         
-        # Check for misunderstood/not understood
-        if any(word in text_lower for word in ["misunderstood", "no one understand", "doesn't understand", "don't understand", "not understood", "they don't see", "can't see my"]):
-            return "misunderstood"
-        if any(word in text_lower for word in ["lost", "don't know what to do", "no direction"]):
-            return "lost"
-        if any(word in text_lower for word in ["overwhelmed", "too much", "can't cope"]):
-            return "overwhelmed"
-        if any(word in text_lower for word in ["sad", "depressed", "down", "empty"]):
-            return "sad"
-        if any(word in text_lower for word in ["anxious", "worried", "nervous", "stressed"]):
-            return "anxious"
-        if any(word in text_lower for word in ["angry", "mad", "frustrated", "annoyed"]):
-            return "angry"
-        if any(word in text_lower for word in ["tired", "exhausted", "drained", "no energy"]):
-            return "tired"
-        
-        return "neutral"
+        for scenario, data in MENTAL_HEALTH_SCENARIOS.items():
+            for keyword in data["keywords"]:
+                if keyword in text_lower:
+                    return scenario
+        return None
     
-    def _detect_intent(self, text: str) -> str:
-        text_lower = text.lower()
+    def _handle_scenario(self, message: str, scenario: str, state: SessionState, history: List[Dict]) -> str:
+        """Handle specific mental health scenario"""
+        scenario_data = MENTAL_HEALTH_SCENARIOS[scenario]
         
-        # Check for referral intent
-        if any(word in text_lower for word in ["therapist", "counselor", "psychologist", "help near me", "where can i go", "professional help"]):
-            return "referral"
+        # Get validation and coping
+        validation = scenario_data["validation"]
+        coping = random.choice(scenario_data["coping"])
         
-        return "conversation"
+        # Build response
+        response = f"{validation}\n\n{coping}"
+        
+        # Ask follow-up question
+        follow_up = self._get_follow_up(scenario, message)
+        if follow_up:
+            response += f"\n\n{follow_up}"
+        
+        # Add screening question (if not already asked)
+        if not state.screening_asked and random.random() < 0.3:
+            screening = random.choice(SCREENING_QUESTIONS)
+            response += f"\n\n💭 **Quick check-in:** {screening}"
+            state.screening_asked = True
+        
+        # Offer resources (if not already offered)
+        if not state.resource_offered and random.random() < 0.4:
+            response += f"\n\n{random.choice(REFERRAL_PROMPTS)}"
+            state.resource_offered = True
+            state.detected_scenario = scenario
+        
+        return response
     
-    def _build_response(self, message: str, emotion: str, intent: str, history: List[Dict]) -> str:
-        """Build a natural, empathetic response"""
-        
-        # First, try to get AI response
-        ai_response = self._try_ai_response(message, history)
-        if ai_response and len(ai_response) > 20:
-            return ai_response
-        
-        # Fall back to crafted responses based on emotion and context
-        return self._crafted_response(message, emotion, intent, history)
+    def _get_follow_up(self, scenario: str, message: str) -> str:
+        """Get appropriate follow-up question based on scenario"""
+        follow_ups = {
+            "depression": "What's been weighing on your heart most lately?",
+            "anxiety": "What's the thought that's been circling your mind most?",
+            "stress": "What's the one thing weighing on you most right now?",
+            "grief": "Would sharing a memory of your loved one help?",
+            "relationship_issues": "What would feel most helpful to talk about right now?",
+            "friendship_betrayal": "What happened? I'm here to listen.",
+            "exam_stress": "What's one topic you feel you know even a little about?",
+            "low_self_esteem": "What's one thing you did today, no matter how small, that you can acknowledge?",
+            "loneliness": "Would you be willing to reach out to one person today, even just to say hello?",
+            "anger": "What's the thing that feels most unfair right now?",
+            "hopelessness": "Can we focus on just the next hour? You don't have to see the whole path."
+        }
+        return follow_ups.get(scenario, "What's on your mind right now?")
     
-    def _try_ai_response(self, message: str, history: List[Dict]) -> Optional[str]:
-        """Try to get AI-generated response, return None if fails"""
-        try:
-            conversation = self._system_prompt() + "\n\n"
-            
-            if history:
-                for msg in history[-8:]:
-                    if msg.get("role") == "user":
-                        conversation += f"User: {msg.get('content')}\n"
-                    else:
-                        conversation += f"Paula: {msg.get('content')}\n"
-            
-            conversation += f"User: {message}\nPaula:"
-            
-            response = requests.post(
-                self.endpoint,
-                headers=self.headers,
-                json={
-                    "inputs": conversation,
-                    "parameters": {
-                        "temperature": 0.85,
-                        "max_new_tokens": 150,
-                        "top_p": 0.9,
-                        "do_sample": True,
-                        "return_full_text": False
-                    }
-                },
-                timeout=20
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                if isinstance(result, list) and len(result) > 0:
-                    generated = result[0].get('generated_text', '')
-                    if generated:
-                        generated = generated.replace("User:", "").replace("Paula:", "").strip()
-                        if len(generated) > 15:
-                            return generated
-            return None
-            
-        except Exception as e:
-            logger.error(f"AI response error: {e}")
-            return None
-    
-    def _crafted_response(self, message: str, emotion: str, intent: str, history: List[Dict]) -> str:
-        """Create crafted responses when AI fails"""
+    def _handle_general(self, message: str, state: SessionState, history: List[Dict]) -> str:
+        """Handle general conversation when no specific scenario detected"""
         
-        # Handle referral intent
-        if intent == "referral":
-            return self._handle_referral(message)
+        # Check if user is asking about resources
+        if any(w in message.lower() for w in ["resources", "help", "support", "what can i do", "where can i go"]):
+            return self._show_resources(state)
         
-        # Handle specific emotions with deeper engagement
-        if emotion == "misunderstood":
-            return self._handle_misunderstood(message, history)
+        # Check if user wants professional help
+        if any(w in message.lower() for w in ["therapist", "counselor", "psychologist", "professional"]):
+            if state:
+                state.waiting_for_parish = True
+            return "I'm glad you're asking about professional support. Which parish are you located in? I can share resources in your area."
         
-        elif emotion == "lost":
-            return self._handle_lost(message, history)
-        
-        elif emotion == "overwhelmed":
-            return self._handle_overwhelmed(message, history)
-        
-        elif emotion == "sad":
-            return self._handle_sad(message, history)
-        
-        elif emotion == "anxious":
-            return self._handle_anxious(message, history)
-        
-        elif emotion == "angry":
-            return self._handle_angry(message, history)
-        
-        elif emotion == "tired":
-            return self._handle_tired(message, history)
-        
-        # Check if this is a follow-up to a previous conversation
-        if history and len(history) > 2:
-            return self._handle_follow_up(message, history)
-        
-        # Default empathetic response
-        return self._default_response(message, history)
-    
-    def _handle_misunderstood(self, message: str, history: List[Dict]) -> str:
-        """Handle when user feels misunderstood"""
+        # Default empathetic responses
         responses = [
-            "That feeling of being misunderstood cuts deep. When you're trying your best and people still don't see your heart - that's painful. Tell me more about what you wish they could understand.",
-            "It hurts when people don't see your intentions clearly. I want you to know that I hear you trying to express yourself, and that matters. What's the most important thing you wish they'd understand about you right now?",
-            "Feeling like no one understands - that's one of the hardest things to carry. Your intentions matter, even if others don't see them. What's been happening that makes you feel this way?",
-            f"{random.choice(COPING_STRATEGIES['misunderstood'])} Would you like to share more about what's been going on?"
+            "I'm here for you. What's been on your mind lately? 💛",
+            "Thank you for sharing. What would feel most helpful to talk about right now?",
+            "I'm listening. Tell me what's weighing on you today.",
+            "You're not alone in this. What's been happening?"
         ]
-        return random.choice(responses)
-    
-    def _handle_lost(self, message: str, history: List[Dict]) -> str:
-        """Handle when user feels lost"""
-        responses = [
-            "Feeling lost can be so disorienting. You don't have to have it all figured out right now. What's one thing that feels clear to you, even if it's small? 💛",
-            "It's okay not to know the next step. Sometimes just acknowledging where you are is enough for now. What's been on your mind most lately?",
-            "I hear that you're feeling uncertain about your path. You're not alone in this. Would talking through what's on your mind help make things a bit clearer?"
-        ]
-        return random.choice(responses)
-    
-    def _handle_overwhelmed(self, message: str, history: List[Dict]) -> str:
-        """Handle when user feels overwhelmed"""
-        responses = [
-            "When everything feels like too much, it helps to take a breath and focus on just one thing. What's the one thing weighing on you most right now?",
-            "That feeling of being overwhelmed is so real. You don't have to carry all of this alone. Would breaking things down into smaller pieces help?",
-            "I hear you. Life can feel so heavy sometimes. What would feel most helpful right now - talking it through, or finding a small step forward?"
-        ]
-        return random.choice(responses)
-    
-    def _handle_sad(self, message: str, history: List[Dict]) -> str:
-        """Handle when user feels sad"""
-        responses = [
-            "I hear that sadness, and it's completely okay to feel this way. What's been weighing on your heart lately?",
-            "You're not alone in this. Even on the hard days, you matter. Would talking about what's been happening help lighten the load a bit?",
-            "It takes courage to share when you're feeling down. I'm here with you. What's been on your mind most these days?"
-        ]
-        return random.choice(responses)
-    
-    def _handle_anxious(self, message: str, history: List[Dict]) -> str:
-        """Handle when user feels anxious"""
-        responses = [
-            "That anxiety is real and valid. Sometimes naming what we're anxious about helps it feel less big. What's the thought that's been circling your mind most?",
-            "When anxiety shows up, it's your mind trying to protect you. Can we take a moment to breathe together? In... and out... What's one thing you notice around you right now?",
-            "I hear that worry in your voice. Would talking through what's on your mind help?"
-        ]
-        return random.choice(responses)
-    
-    def _handle_angry(self, message: str, history: List[Dict]) -> str:
-        """Handle when user feels angry"""
-        responses = [
-            "Your anger makes sense. That energy needs somewhere to go. What's the thing that feels most unfair right now?",
-            "Anger often tells us that something important has been hurt or crossed. I hear that frustration. Would talking about it help?"
-        ]
-        return random.choice(responses)
-    
-    def _handle_tired(self, message: str, history: List[Dict]) -> str:
-        """Handle when user feels tired"""
-        responses = [
-            "That tiredness sounds deep. When you're this tired, everything feels harder. Is there any way you can give yourself permission to rest right now, even for a few minutes?",
-            "Your body and mind are telling you they need care. What's the kindest thing you could do for yourself in this moment?"
-        ]
-        return random.choice(responses)
-    
-    def _handle_follow_up(self, message: str, history: List[Dict]) -> str:
-        """Handle follow-up responses to previous conversation"""
-        # Find the last thing the user shared
-        last_user_message = None
-        for msg in reversed(history):
-            if msg.get("role") == "user":
-                last_user_message = msg.get("content")
-                break
+        response = random.choice(responses)
         
-        if last_user_message:
-            responses = [
-                f"You mentioned earlier about {last_user_message[:80]}... I want to come back to that because it matters. How are you feeling about that now?",
-                f"I remember you were sharing about {last_user_message[:60]}... Would you like to talk more about that, or is there something new on your mind?",
-                f"Earlier you were talking about feeling this way. I'm here to keep listening - what's been happening since then?"
-            ]
-            return random.choice(responses)
+        # Offer resources after a few exchanges
+        if state and not state.resource_offered and history and len(history) > 4:
+            response += f"\n\n{random.choice(REFERRAL_PROMPTS)}"
+            state.resource_offered = True
         
-        return self._default_response(message, history)
+        return response
     
-    def _handle_referral(self, message: str) -> str:
-        """Handle requests for professional help"""
-        parish = self._extract_parish(message)
+    def _handle_parish_response(self, text: str, session_id: str) -> Optional[str]:
+        """Handle user's parish response and provide local resources"""
+        parish = self._extract_parish(text)
         
         if parish and parish in PARISH_RESOURCES:
-            return f"""I appreciate you asking about getting support. That's a really important step. 💛
+            if session_id in self.sessions:
+                self.sessions[session_id].waiting_for_parish = False
+            
+            return f"""Thank you. Here are resources in {parish.title()}:
 
-**In {parish.title()}:**
-{PARISH_RESOURCES[parish]}
+🏥 **Hospital/Health Centre:** {PARISH_RESOURCES[parish]}
 
-**For immediate support:**
-• Mental Health Helpline: 888-NEW-LIFE (639-5433) - 24/7
-• You can also visit your nearest public health centre for referrals to mental health services
+📞 **Mental Health Helpline:** 888-NEW-LIFE (639-5433) - 24/7
 
-Taking this step shows real strength. Would you like me to share more about what to expect when you reach out?"""
+You can also visit your nearest public health centre and ask about mental health services.
+
+**On our platform, you can find:**
+• Professional counseling services
+• Faith-based support
+• Self-help tools and coping strategies
+
+Would you like me to show you the resources available on our platform?"""
+        
+        elif parish:
+            return f"I don't have specific resources for {parish} yet, but you can contact the Mental Health Helpline at 888-NEW-LIFE (639-5433) for support in your area. Would you like to see the resources on our platform instead?"
         
         else:
-            return """I'm glad you're thinking about getting support. That's a brave step. 💛
-
-**Here are some places to start:**
-• Mental Health Helpline: 888-NEW-LIFE (639-5433) - 24/7
-• Your nearest public hospital or health centre
-• Ask your family doctor for a referral
-
-If you're comfortable sharing which parish you're in, I can give you more specific resources. Would that help?"""
+            return "I want to help you find the right resources. Which parish are you located in? (e.g., Kingston, St. Catherine, Manchester, St. James, etc.)"
     
-    def _default_response(self, message: str, history: List[Dict]) -> str:
-        """Default empathetic response"""
-        responses = [
-            "I hear you. Tell me a little more about what's on your mind? 💛",
-            "Thank you for sharing that with me. What's been weighing on you most lately?",
-            "I'm here with you. What feels most important to talk about right now?"
-        ]
-        return random.choice(responses)
+    def _show_resources(self, state: SessionState) -> str:
+        """Show appropriate resources based on detected scenario"""
+        
+        # Determine which resource types to show
+        resource_types = []
+        
+        if state.detected_scenario:
+            scenario_data = MENTAL_HEALTH_SCENARIOS.get(state.detected_scenario, {})
+            resource_type = scenario_data.get("resource_type", "self_help")
+            if resource_type not in state.resource_type_shown:
+                resource_types.append(resource_type)
+        
+        # Always include self-help and community resources
+        if "self_help" not in resource_types:
+            resource_types.append("self_help")
+        if "community" not in resource_types:
+            resource_types.append("community")
+        
+        # Build response with resources
+        response = "**Here are some resources that might help:**\n\n"
+        
+        for rt in resource_types[:3]:  # Show up to 3 resource types
+            if rt in RESOURCES:
+                res = RESOURCES[rt]
+                response += f"**{res['title']}**\n{res['description']}\n📱 {res['link']}\n\n"
+        
+        # Add helpline if applicable
+        response += "📞 **Need to talk to someone now?**\nMental Health Helpline: **888-NEW-LIFE (639-5433)** - 24/7\n\n"
+        
+        response += "Would you like me to help you find professional support in your area?"
+        
+        state.resource_offered = True
+        return response
+    
+    def _is_positive_response(self, text: str) -> bool:
+        positive = ["yes", "sure", "okay", "ok", "please", "would love", "help me", "yes please", "that would be helpful", "yeah", "yep", "definitely", "show me", "share"]
+        return any(w in text.lower() for w in positive)
     
     def _extract_parish(self, text: str) -> Optional[str]:
         text_lower = text.lower()
@@ -386,24 +482,6 @@ If you're comfortable sharing which parish you're in, I can give you more specif
             if parish in text_lower:
                 return parish
         return None
-    
-    def _system_prompt(self) -> str:
-        return """You are Paula, a warm, compassionate mental health support assistant serving people in Jamaica. You speak with empathy and cultural warmth.
-
-Your role:
-- Listen actively and validate feelings
-- Show understanding by reflecting what the user shares
-- Ask meaningful follow-up questions that show you're really listening
-- Offer gentle coping strategies when appropriate
-- Guide users toward real-world support when needed
-- Be natural and conversational, not robotic
-- Use standard English with light Jamaican expressions naturally
-- Keep responses warm, encouraging, and helpful
-
-You are not a therapist, doctor, or crisis service. You don't diagnose or provide medical treatment.
-For crisis situations, provide emergency resources immediately.
-
-Be caring, present, and helpful. Respond like a supportive friend who truly cares and remembers what was shared before."""
 
 
 # -----------------------------
@@ -423,27 +501,34 @@ def ask_paula(user_message: str, chat_history=None, session_id=None, summary=Non
 
 
 def detect_emotion_ai(text: str) -> str:
-    return _client._detect_emotion(text) if _client else "neutral"
+    scenario = _client._detect_scenario(text) if _client else None
+    if scenario:
+        # Map scenario to emotion for the backend
+        emotion_map = {
+            "depression": "sad",
+            "anxiety": "anxious",
+            "stress": "stressed",
+            "anger": "angry",
+            "grief": "sad",
+            "hopelessness": "sad"
+        }
+        return emotion_map.get(scenario, "neutral")
+    return "neutral"
 
 
 def summarize_memory(history: List[Dict]) -> str:
     if not history:
         return ""
     
-    topics = set()
-    for msg in history[-8:]:
+    scenarios = set()
+    for msg in history[-10:]:
         content = msg.get("content", "").lower()
-        if "misunderstood" in content or "understand" in content:
-            topics.add("feeling misunderstood")
-        if "work" in content or "job" in content:
-            topics.add("work")
-        if "family" in content or "friend" in content:
-            topics.add("relationships")
-        if "anxious" in content or "stress" in content:
-            topics.add("anxiety/stress")
-        if "sad" in content or "lost" in content:
-            topics.add("emotional struggles")
+        for scenario, data in MENTAL_HEALTH_SCENARIOS.items():
+            for keyword in data["keywords"]:
+                if keyword in content:
+                    scenarios.add(scenario.replace("_", " "))
+                    break
     
-    if topics:
-        return f"Previously discussed: {', '.join(topics)}"
+    if scenarios:
+        return f"Previously discussed: {', '.join(list(scenarios)[:3])}"
     return ""
