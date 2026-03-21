@@ -21,7 +21,7 @@ import {
 
 export default function ProviderLoginPage() {
   const router = useRouter()
-  const { login } = useAuth();
+  const { login } = useAuth() as any;
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
