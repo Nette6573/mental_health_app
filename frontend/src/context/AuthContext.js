@@ -168,6 +168,28 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const resetPassword = async (email) => {
+    try {
+      setIsLoading(true)
+      await sendPasswordResetEmail(auth, email.trim())
+      return {
+        success: true,
+        message: 'Password reset email sent. Check your inbox.',
+      }
+    } catch (error) {
+      console.error('Reset password error:', error)
+      let message = 'Failed to send password reset email.'
+
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
+        message = 'Please enter a valid email address.'
+      }
+
+      return { success: false, error: message }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // LOGOUT
   const logout = async () => {
     try {
@@ -264,6 +286,7 @@ export function AuthProvider({ children }) {
         isAuthenticated,
         login,
         signup,
+        resetPassword,
         logout,
         updateProfile,
         loginWithGoogle,
