@@ -1,4 +1,4 @@
-# app/ai/paula_client.py
+# app/ai/paula_client.py - Updated with proper link formatting
 
 import requests
 import logging
@@ -25,7 +25,6 @@ CRISIS_KEYWORDS = [
 
 # All possible mental health scenarios with appropriate responses
 MENTAL_HEALTH_SCENARIOS = {
-    # Mood Disorders
     "depression": {
         "keywords": ["depressed", "depression", "hopeless", "worthless", "empty", "numb", "no motivation", "can't get out of bed"],
         "validation": "Depression is more than just sadness - it's a heavy weight that affects everything. What you're feeling is real and valid.",
@@ -56,8 +55,6 @@ MENTAL_HEALTH_SCENARIOS = {
         ],
         "resource_type": "self_help"
     },
-    
-    # Life Challenges
     "grief": {
         "keywords": ["grief", "loss", "died", "passed away", "mourning", "lost someone", "bereavement"],
         "validation": "Grief is love with nowhere to go. There's no right way to grieve, and no timeline.",
@@ -99,8 +96,6 @@ MENTAL_HEALTH_SCENARIOS = {
         ],
         "resource_type": "faith_based"
     },
-    
-    # Academic/Work Stress
     "exam_stress": {
         "keywords": ["exam", "test", "study", "notes", "remember", "forget", "principles of marketing", "fail", "pass", "grades"],
         "validation": "Exam pressure is intense. Your brain is working hard, even when it doesn't feel like it.",
@@ -122,8 +117,6 @@ MENTAL_HEALTH_SCENARIOS = {
         ],
         "resource_type": "self_help"
     },
-    
-    # Self-Esteem & Identity
     "low_self_esteem": {
         "keywords": ["worthless", "not good enough", "failure", "useless", "can't do anything right", "hate myself"],
         "validation": "When you're carrying that voice that says you're not enough, it's exhausting. That voice is lying to you.",
@@ -146,8 +139,6 @@ MENTAL_HEALTH_SCENARIOS = {
         ],
         "resource_type": "faith_based"
     },
-    
-    # Emotional States
     "anger": {
         "keywords": ["angry", "mad", "frustrated", "rage", "annoyed", "furious"],
         "validation": "Anger tells us something important has been crossed or hurt. Your anger is valid.",
@@ -172,43 +163,47 @@ MENTAL_HEALTH_SCENARIOS = {
     }
 }
 
-# Comprehensive Resource Links - UPDATED with your actual frontend routes
+# Comprehensive Resource Links with full URLs
+# Update these with your actual frontend URLs
+BASE_URL = "https://hopepath.online"  # Your domain
+
 RESOURCES = {
     "professional": {
         "title": "Professional Mental Health Support",
         "description": "Licensed counselors, psychologists, and mental health services in Jamaica.",
-        "link": "/dashboard/therapists",  # Your therapist directory
-        "helpline": "888-NEW-LIFE (639-5433)"
+        "link": f"{BASE_URL}/dashboard/therapists",
+        "display_link": "/dashboard/therapists"
     },
     "faith_based": {
         "title": "Faith-Based Support & Counseling",
         "description": "Spiritual guidance, pastoral counseling, and faith communities. Find scripture, prayer support, and encouragement.",
-        "link": "/dashboard/resources/faith",  # ← YOUR FAITH RESOURCES PAGE
+        "link": f"{BASE_URL}/dashboard/resources/faith",
+        "display_link": "/dashboard/resources/faith",
         "features": [
-            "📖 Daily Devotional - Start your day with scripture and reflection",
-            "🙏 Prayer Wall - Share and receive prayer requests",
-            "📚 Scripture Study - Deepen your understanding of faith",
-            "👥 Faith Community - Connect with others on their spiritual journey",
-            "✨ Spiritual Practices - Guided exercises for spiritual growth"
+            "📖 Daily Devotional",
+            "🙏 Prayer Wall", 
+            "📚 Scripture Study",
+            "👥 Faith Community",
+            "✨ Spiritual Practices"
         ]
     },
     "self_help": {
         "title": "Self-Help Tools & Coping Strategies",
         "description": "Practical tools, exercises, and techniques for managing mental health.",
-        "link": "/dashboard/resources/self-help",
-        "exercises": "Breathing exercises, grounding techniques, journaling prompts, mood tracking"
+        "link": f"{BASE_URL}/dashboard/resources/self-help",
+        "display_link": "/dashboard/resources/self-help"
     },
     "crisis": {
         "title": "Crisis Support - Immediate Help",
         "description": "24/7 crisis support and emergency services.",
-        "link": "/dashboard/resources/crisis",
-        "helpline": "888-NEW-LIFE (639-5433) | 119 for emergencies"
+        "link": f"{BASE_URL}/dashboard/resources/crisis",
+        "display_link": "/dashboard/resources/crisis"
     },
     "community": {
         "title": "Community Support Groups",
         "description": "Connect with others who understand what you're going through.",
-        "link": "/dashboard/resources/community",
-        "groups": "Peer support groups, community gatherings, shared experiences"
+        "link": f"{BASE_URL}/dashboard/resources/community",
+        "display_link": "/dashboard/resources/community"
     }
 }
 
@@ -239,13 +234,13 @@ SCREENING_QUESTIONS = [
     "Over the past two weeks, how often have you felt tired or had little energy?"
 ]
 
-# Referral prompts that link to resources page
+# Referral prompts
 REFERRAL_PROMPTS = [
-    "💛 Would you like me to share some resources that might help? We have professional counseling services, **faith-based support**, and self-help tools available on our platform.",
-    "You don't have to go through this alone. Would you like to see some resources we have available? We've gathered professional, **faith-based**, and community support options just for you.",
-    "Sometimes having the right resources makes all the difference. Would you like me to share some support options from our platform?",
+    "💛 Would you like me to share some resources that might help?",
+    "You don't have to go through this alone. Would you like to see some resources we have available?",
+    "Sometimes having the right resources makes all the difference. Would you like me to share some support options?",
     "We have resources designed to help with exactly what you're going through. Would you like to see them?",
-    "Your feelings matter, and you deserve support. Would you like me to share some resources that might help?"
+    "Your feelings matter, and you deserve support. Would you like me to share some resources?"
 ]
 
 JAMAICAN_PARISHES = list(PARISH_RESOURCES.keys())
@@ -328,8 +323,8 @@ What you're feeling right now is heavy, and you don't have to carry it alone.
 • 🏥 **Your nearest hospital emergency room**
 • 👥 **A trusted family member or friend**
 
-**We also have crisis resources available on our platform:**
-{crisis_resources['link']}
+**Crisis resources:**
+🔗 [Click here for crisis support]({crisis_resources['link']})
 
 You matter. Please reach out to someone who can help right now. 💛"""
     
@@ -435,12 +430,7 @@ You matter. Please reach out to someone who can help right now. 💛"""
 
 You can also visit your nearest public health centre and ask about mental health services.
 
-**On our platform, you can find:**
-• Professional counseling services in our Therapist Directory
-• **Faith-based support** - Daily Devotional, Prayer Wall, Scripture Study
-• Self-help tools and coping strategies
-
-Would you like me to show you the resources available on our platform?"""
+Would you like to see the resources available on our platform?"""
         
         elif parish:
             return f"I don't have specific resources for {parish} yet, but you can contact the Mental Health Helpline at 888-NEW-LIFE (639-5433) for support in your area. Would you like to see the resources on our platform instead?"
@@ -449,57 +439,33 @@ Would you like me to show you the resources available on our platform?"""
             return "I want to help you find the right resources. Which parish are you located in? (e.g., Kingston, St. Catherine, Manchester, St. James, etc.)"
     
     def _show_resources(self, state: SessionState) -> str:
-        """Show appropriate resources based on detected scenario"""
+        """Show appropriate resources with clickable links"""
         
         # Determine which resource types to show
-        resource_types = []
+        resource_types = ["faith_based", "professional", "self_help", "community"]
         
-        if state.detected_scenario:
-            scenario_data = MENTAL_HEALTH_SCENARIOS.get(state.detected_scenario, {})
-            resource_type = scenario_data.get("resource_type", "self_help")
-            
-            # Always include faith-based resources if scenario calls for it
-            if resource_type == "faith_based" and "faith_based" not in resource_types:
-                resource_types.append("faith_based")
-            elif resource_type not in state.resource_type_shown:
-                resource_types.append(resource_type)
-        
-        # Always include faith resources for spiritual/emotional scenarios
-        if state.detected_scenario in ["grief", "hopelessness", "low_self_esteem", "loneliness"]:
-            if "faith_based" not in resource_types:
-                resource_types.insert(0, "faith_based")  # Show faith resources first
-        
-        # Always include professional, self-help, and community resources
-        if "professional" not in resource_types:
-            resource_types.append("professional")
-        if "self_help" not in resource_types:
-            resource_types.append("self_help")
-        if "community" not in resource_types:
-            resource_types.append("community")
-        if "faith_based" not in resource_types:
-            resource_types.append("faith_based")
-        
-        # Build response with resources
+        # Build response with formatted clickable links
         response = "**Here are resources that might help:**\n\n"
         
-        for rt in resource_types[:4]:  # Show up to 4 resource types
+        for rt in resource_types:
             if rt in RESOURCES:
                 res = RESOURCES[rt]
-                response += f"**{res['title']}**\n{res['description']}\n"
+                response += f"**📌 {res['title']}**\n"
+                response += f"{res['description']}\n"
                 
-                # Special handling for faith resources - mention specific features
-                if rt == "faith_based":
-                    response += f"✨ **What you'll find:**\n"
-                    for feature in res.get('features', [])[:4]:  # Show first 4 features
-                        response += f"   {feature}\n"
+                # Special handling for faith resources
+                if rt == "faith_based" and "features" in res:
+                    response += f"✨ **Includes:** "
+                    response += ", ".join(res['features'][:3])
+                    response += "\n"
                 
-                response += f"🔗 **View now:** {res['link']}\n\n"
+                # Create clickable link with Markdown format
+                response += f"🔗 [**View {res['title']}**]({res['link']})\n\n"
         
         # Add helpline
         response += "---\n\n"
         response += "📞 **Need to talk to someone right now?**\n"
-        response += "Mental Health Helpline: **888-NEW-LIFE (639-5433)** - 24/7\n\n"
-        
+        response += "Call **888-NEW-LIFE (639-5433)** - 24/7\n\n"
         response += "Would you like me to help you find professional support in your area? (You can tell me your parish)"
         
         state.resource_offered = True
