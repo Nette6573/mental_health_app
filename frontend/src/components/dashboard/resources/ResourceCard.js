@@ -15,21 +15,29 @@ const levelColors = {
   'All Levels': 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
 }
 
-export default function ResourceCard({ resource, isFavorite, onFavorite, featured = false }) {
+export default function ResourceCard({
+  resource,
+  isFavorite,
+  onFavorite,
+  onView,
+  featured = false
+}) {
   const typeInfo = typeIcons[resource.type] || typeIcons.article
 
   return (
-    <div className={`
-      bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 
-      hover:shadow-md transition-all duration-200 overflow-hidden
-      ${featured ? 'ring-2 ring-primary-200 dark:ring-primary-800' : ''}
-    `}>
+    <div
+      className={`
+        bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 
+        hover:shadow-md transition-all duration-200 overflow-hidden
+        ${featured ? 'ring-2 ring-primary-200 dark:ring-primary-800' : ''}
+      `}
+    >
       {/* Image/Header */}
       <div className="relative">
         <div className="h-40 bg-gradient-to-br from-primary-500 to-blue-600 flex items-center justify-center">
           <span className="text-4xl text-white">{typeInfo.icon}</span>
         </div>
-        
+
         {/* Favorite Button */}
         <button
           onClick={onFavorite}
@@ -117,9 +125,24 @@ export default function ResourceCard({ resource, isFavorite, onFavorite, feature
 
         {/* Action Buttons */}
         <div className="flex space-x-2">
-          <button className="flex-1 bg-primary-500 hover:bg-primary-600 text-white py-2 px-4 rounded-lg font-medium transition-colors text-sm">
-            View Resource
-          </button>
+          {resource.type === 'worksheet' && resource.pdfUrl ? (
+            <a
+              href={resource.pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 bg-primary-500 hover:bg-primary-600 text-white py-2 px-4 rounded-lg font-medium transition-colors text-sm text-center"
+            >
+              Download PDF
+            </a>
+          ) : (
+            <button
+              onClick={onView}
+              className="flex-1 bg-primary-500 hover:bg-primary-600 text-white py-2 px-4 rounded-lg font-medium transition-colors text-sm"
+            >
+              View Resource
+            </button>
+          )}
+
           <button className="p-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />

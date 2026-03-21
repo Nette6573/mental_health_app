@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import ResourceCard from './ResourceCard'
+import ResourceViewerModal from './ResourceViewerModal'
 
 const faithCategories = [
   { id: 'all', name: 'All Resources' },
@@ -13,6 +14,7 @@ const faithCategories = [
 ]
 
 export default function FaithResources() {
+  const [selectedResource, setSelectedResource] = useState(null)
   const [resources, setResources] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState('all')
