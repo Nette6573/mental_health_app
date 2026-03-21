@@ -1,6 +1,7 @@
 import { auth, db } from "./firebaseClient";
 import { createUserWithEmailAndPassword, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { sendEmailVerification } from "firebase/auth";
 
 export const providerSignup = async (formData: any) => {
   try {
@@ -14,7 +15,8 @@ export const providerSignup = async (formData: any) => {
     );
 
     const user = userCredential.user;
-
+    //send verfication email to user
+    await sendEmailVerification(user);
     // 2. CRITICAL FIX: Force the SDK to recognize the user
     // This waits for the token to be generated and attaches it to the client
     await user.getIdToken(true);
