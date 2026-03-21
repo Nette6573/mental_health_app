@@ -1,5 +1,5 @@
 "use client";
-import { useAuth } from "@/context/authContext"; 
+import { useAuth } from "@/context/AuthContext"; 
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firebaseClient";
 
