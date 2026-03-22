@@ -166,7 +166,7 @@ export default function ProviderDashboardPage() {
               <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-700">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-medium text-slate-800 dark:text-white">
-                    Dr. Sarah Anderson
+                    Dr. Shamar Thomas
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Clinical Psychologist
@@ -349,7 +349,7 @@ export default function ProviderDashboardPage() {
                         <span className="text-xs text-slate-500 dark:text-slate-400">2h ago</span>
                       </div>
                       <p className="text-sm text-slate-600 line-clamp-2 dark:text-slate-300">
-                        Hello Dr. Anderson, I&apos;m interested in scheduling a session for my daughter.
+                        Hello Dr. Thomas, I&apos;m interested in scheduling a session for my daughter.
                         She&apos;s been dealing with anxiety...
                       </p>
                     </div>
