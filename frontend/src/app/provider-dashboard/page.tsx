@@ -145,7 +145,7 @@ export default function ProviderDashboardPage() {
 
               <div>
                 <h2 className="text-xl font-semibold text-slate-800 dark:text-white">
-                  Welcome back, Dr. Anderson
+                  Welcome back, Dr. Thomas
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Here&apos;s your practice overview
