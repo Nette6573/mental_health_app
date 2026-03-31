@@ -2,8 +2,11 @@
 
 import os
 import logging
+from dotenv import load_dotenv
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,7 +28,7 @@ else:
     try:
         # Add connection options for better reliability
         client = MongoClient(
-            MONGO_URI,
+            "mongodb+srv://hopepath_user:CTdqsW66Kd9XFWDx@cluster0.zb2g8aa.mongodb.net/hopepath?appName=Cluster0",
             serverSelectionTimeoutMS=5000,
             connectTimeoutMS=10000,
             socketTimeoutMS=30000,
@@ -37,10 +40,11 @@ else:
         client.admin.command("ping")
         logger.info("✅ Connected to MongoDB Atlas")
 
-        DATABASE_NAME = os.getenv("MONGODB_DB_NAME", "paulachats_db")
+        DATABASE_NAME = "hopepath"
         db = client[DATABASE_NAME]
         COLLECTION_NAME = "paulachats"
         chats = db[COLLECTION_NAME]
+        users = db["users"]
 
         # Create indexes for better performance
         chats.create_index("session_id", unique=True, sparse=True)
@@ -58,10 +62,9 @@ else:
         db = None
         chats = None
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         logger.error(f"❌ Unexpected MongoDB error: {e}")
-        client = None
-        db = None
-        chats = None
 
 # Export these for use in other modules
 __all__ = ['client', 'db', 'chats']

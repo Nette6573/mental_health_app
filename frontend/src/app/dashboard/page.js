@@ -1,8 +1,8 @@
 'use client'
 
 import { useAuth } from '@/context/AuthContext'
-import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import DashboardLayout from '@/components/dashboard/layout/DashboardLayout'
 import WelcomeBanner from '@/components/dashboard/overview/WelcomeBanner'
 import StatsCards from '@/components/dashboard/overview/StatsCards'
@@ -13,12 +13,31 @@ import QuickActions from '@/components/dashboard/overview/QuickActions'
 export default function DashboardPage() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
+  const [userData, setUserData] = useState(null)
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/auth/login')
     }
   }, [user, isLoading, router])
+
+  useEffect(() => {
+    const uid = localStorage.getItem("uid")
+    console.log("CURRENT USER UID:", uid)
+  }, [])
+
+  useEffect(() => {
+    const uid = localStorage.getItem("uid")
+
+    if (!uid) return
+
+    fetch(`http://127.0.0.1:8000/api/user/${uid}`)
+      .then(res => res.json())
+      .then(data => {
+        console.log("USER DATA FROM BACKEND:", data)
+        setUserData(data)
+      })
+  }, [])
 
   if (isLoading) {
     return (
@@ -39,16 +58,16 @@ export default function DashboardPage() {
     <DashboardLayout user={user}>
       <div className="space-y-6">
         {/* Welcome Banner */}
-        <WelcomeBanner user={user} />
+        <WelcomeBanner user={userData || user} />
 
         {/* Stats Cards */}
-        <StatsCards />
+        <StatsCards userData={userData} />
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
-            <MoodTracker />
+            <MoodTracker userData={userData} />
             <RecentActivity />
           </div>
 

@@ -1,44 +1,45 @@
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
+import { useEffect, useState } from 'react'
 
-const activities = [
-  {
-    id: 1,
-    type: 'mood',
-    title: 'Mood Logged',
-    description: 'You rated your mood 8/10',
-    time: '2 hours ago',
-    icon: '😊',
-    color: 'green'
-  },
-  {
-    id: 2,
-    type: 'resource',
-    title: 'Resource Completed',
-    description: 'Finished "Managing Anxiety" guide',
-    time: '1 day ago',
-    icon: '📚',
-    color: 'blue'
-  },
-  {
-    id: 3,
-    type: 'session',
-    title: 'Therapy Session',
-    description: 'Completed session with Dr. Johnson',
-    time: '2 days ago',
-    icon: '💬',
-    color: 'purple'
-  },
-  {
-    id: 4,
-    type: 'faith',
-    title: 'Daily Devotional',
-    description: 'Read "Strength in Faith" passage',
-    time: '3 days ago',
-    icon: '🙏',
-    color: 'yellow'
-  }
-]
+// const activities = [
+//   {
+//     id: 1,
+//     type: 'mood',
+//     title: 'Mood Logged',
+//     description: 'You rated your mood 8/10',
+//     time: '2 hours ago',
+//     icon: '😊',
+//     color: 'green'
+//   },
+//   {
+//     id: 2,
+//     type: 'resource',
+//     title: 'Resource Completed',
+//     description: 'Finished "Managing Anxiety" guide',
+//     time: '1 day ago',
+//     icon: '📚',
+//     color: 'blue'
+//   },
+//   {
+//     id: 3,
+//     type: 'session',
+//     title: 'Therapy Session',
+//     description: 'Completed session with Dr. Johnson',
+//     time: '2 days ago',
+//     icon: '💬',
+//     color: 'purple'
+//   },
+//   {
+//     id: 4,
+//     type: 'faith',
+//     title: 'Daily Devotional',
+//     description: 'Read "Strength in Faith" passage',
+//     time: '3 days ago',
+//     icon: '🙏',
+//     color: 'yellow'
+//   }
+// ]
 
 const colorClasses = {
   green: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
@@ -48,6 +49,61 @@ const colorClasses = {
 }
 
 export default function RecentActivity() {
+  const [activities, setActivities] = useState([])
+
+  useEffect(() => {
+    const fetchActivity = async () => {
+      const uid = localStorage.getItem("uid")
+
+      try {
+        const res = await fetch(`http://127.0.0.1:8000/api/activity/${uid}`)
+        const data = await res.json()
+
+        const formatted = data.map((item, index) => ({
+          id: index,
+          type: item.type,
+          title:
+            item.type === 'mood'
+              ? 'Mood Logged'
+              : item.type === 'resource'
+              ? 'Resource Used'
+              : item.type === 'session'
+              ? 'Therapy Session'
+              : 'Activity',
+          description: item.text,
+          time: new Date(item.date).toLocaleString(),
+          icon:
+            item.type === 'mood'
+              ? '😊'
+              : item.type === 'resource'
+              ? '📚'
+              : item.type === 'session'
+              ? '💬'
+              : '✨',
+          color:
+            item.type === 'mood'
+              ? 'green'
+              : item.type === 'resource'
+              ? 'blue'
+              : item.type === 'session'
+              ? 'purple'
+              : 'yellow'
+        }))
+
+        setActivities(formatted)
+      } catch (err) {
+        console.error("Activity fetch failed:", err)
+      }
+    }
+
+    fetchActivity()
+
+    // 🔥 THIS IS THE FIX
+    const interval = setInterval(fetchActivity, 3000)
+
+    return () => clearInterval(interval)
+  }, [])
+
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-6">

@@ -9,7 +9,7 @@ export default function Hero() {
           <div className="md:w-1/2 mb-10 md:mb-0">
             <AnimatedSection animation="slide-up">
               <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-                Faith-Based Mental Health Support for Jamaica
+                Mental Health Support for Jamaica
               </h1>
               <p className="text-xl mb-8 opacity-90">
                 Combining biblical encouragement with professional mental health resources to guide you toward healing and hope.
