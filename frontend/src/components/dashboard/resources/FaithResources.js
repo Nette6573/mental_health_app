@@ -272,7 +272,7 @@ export default function FaithResources() {
                   'Test your knowledge on the authors of the Psalms, the types of lament, and the promises of God’s presence found in the text.'
                 ],
                 bullets: [
-                  <p>
+                  <p key="kahoot-link">
                     Interactive Link: 
                       <a href="https://create.kahoot.it/share/the-psalms-for-the-heavy-heart-quiz/e3d12b01-a71f-464b-aee1-12bfa4b6fedc" target="_blank" rel="noopener noreferrer" color='blue'><u> Click here to launch the Kahoot! Challenge</u></a>
                   </p>
