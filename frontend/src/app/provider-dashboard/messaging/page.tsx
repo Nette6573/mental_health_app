@@ -37,8 +37,7 @@ import {
 } from "lucide-react";
 
 export default function ProviderMessagesPage() {
-  const { user } = useAuth();
-
+  const { user } = useAuth() as any;
   const [darkMode, setDarkMode] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
