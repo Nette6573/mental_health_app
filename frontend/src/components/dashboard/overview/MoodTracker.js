@@ -1,23 +1,92 @@
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
-
-const moodData = [
-  { day: 'Mon', mood: 7, filled: true },
-  { day: 'Tue', mood: 8, filled: true },
-  { day: 'Wed', mood: 6, filled: true },
-  { day: 'Thu', mood: 9, filled: true },
-  { day: 'Fri', mood: 7, filled: true },
-  { day: 'Sat', mood: 8, filled: true },
-  { day: 'Sun', mood: null, filled: false }
-]
+import { useState } from "react"
 
 const moodEmojis = {
   1: '😢', 2: '😔', 3: '😐', 4: '🙂', 5: '😊', 
   6: '😄', 7: '🤩', 8: '🥰', 9: '😇', 10: '🌈'
 }
 
-export default function MoodTracker() {
-  const todayMood = moodData[6] // Sunday
+export default function MoodTracker({ userData }) {
+  const handleLogMood = async () => {
+    const uid = localStorage.getItem("uid")
+
+    if (!uid || selectedMood === null) return
+
+    await fetch(`http://127.0.0.1:8000/api/log-mood/${uid}/${selectedMood}`, {
+      method: "POST"
+    })
+
+    window.location.reload()
+  }
+
+  const [selectedMood, setSelectedMood] = useState(null)
+
+  const weekDays = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+
+  const week = []
+
+  for (let i = 0; i < 7; i++) {
+    week.push({
+      day: weekDays[i],
+      mood: null,
+      filled: false
+    })
+  }
+
+  (userData?.moods || []).forEach((m) => {
+    const date = new Date(m.date + "Z")
+    const dayIndex = date.getDay()
+
+    week[dayIndex] = {
+      day: weekDays[dayIndex],
+      mood: m.value,
+      filled: true
+    }
+  })
+
+  const moodData = week
+
+  // checker
+  while (moodData.length < 7) {
+    moodData.unshift({
+      day: "",
+      mood: null,
+      filled: false
+    })
+  }
+
+  // real insights logic
+  const moods = (userData?.moods || []).slice(0)
+
+  let insight = "Start logging moods to see insights."
+
+  if (moods.length >= 5) {
+    const recent = moods.slice(-7)
+    const older = moods.slice(-14, -7)
+
+    const avg = (arr) =>
+      arr.reduce((sum, m) => sum + m.value, 0) / (arr.length || 1)
+
+    const recentAvg = avg(recent)
+    const olderAvg = avg(older)
+
+    const diff = recentAvg - olderAvg
+
+    if (moods.length < 5) {
+      insight = "Log a few more days to unlock insights."
+    }
+
+    if (older.length === 0) {
+      insight = `Your average mood is ${recentAvg.toFixed(1)}/10 this week.`
+    } else if (diff > 0) {
+      insight = `Your mood improved by ${Math.round(diff * 10)}% this week. Great job maintaining your wellness practices!`
+    } else if (diff < 0) {
+      insight = `Your mood dropped by ${Math.round(Math.abs(diff * 10))}% this week. Please consider using some of the resources available to support your mental health.`
+    } else {
+      insight = "Your mood stayed consistent this week."
+    }
+  }
 
   return (
     <Card className="p-6">
@@ -25,8 +94,11 @@ export default function MoodTracker() {
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
           Mood Tracker
         </h3>
+        <p className="text-sm text-gray-500">
+          Last Mood: {userData?.last_mood || "Not set"} 
+        </p>
         <span className="text-sm text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
-          Current Streak: 6 days
+          Current Streak: {userData?.streak || 0} days
         </span>
       </div>
 
@@ -34,7 +106,7 @@ export default function MoodTracker() {
       <div className="mb-6">
         <div className="flex justify-between items-end h-32 mb-4">
           {moodData.map((day, index) => (
-            <div key={day.day} className="flex flex-col items-center">
+            <div key={index} className="flex flex-col items-center">
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                 {day.day}
               </div>
@@ -73,7 +145,12 @@ export default function MoodTracker() {
               Track your daily mood to see patterns over time
             </p>
           </div>
-          <Button variant="primary" className="whitespace-nowrap">
+          <Button 
+            variant="primary" 
+            className="whitespace-nowrap"
+            onClick={handleLogMood}
+            disabled={!selectedMood}
+          >
             Log Mood
           </Button>
         </div>
@@ -83,8 +160,13 @@ export default function MoodTracker() {
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((mood) => (
             <button
               key={mood}
-              className="flex flex-col items-center p-2 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors"
-              title={`Rate ${mood}/10`}
+              onClick={() => setSelectedMood(mood)}
+              className={`flex flex-col items-center p-2 rounded-lg transition-colors
+                ${selectedMood === mood 
+                  ? "bg-primary-200 dark:bg-primary-700 scale-110" 
+                  : "hover:bg-white dark:hover:bg-gray-700"
+                }
+              `}
             >
               <span className="text-lg">{moodEmojis[mood]}</span>
               <span className="text-xs text-gray-500 mt-1">{mood}</span>
@@ -96,8 +178,7 @@ export default function MoodTracker() {
       {/* Mood Insights */}
       <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
         <p className="text-sm text-blue-800 dark:text-blue-300">
-          💡 <strong>Insight:</strong> Your mood has been consistently positive this week. 
-          Great job maintaining your wellness practices!
+          💡 <strong>Insight:</strong> {insight} 
         </p>
       </div>
     </Card>

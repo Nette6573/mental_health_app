@@ -26,6 +26,14 @@ const resourceTypes = [
   { id: 'course', name: 'Courses' }
 ]
 
+const handleResourceClick = async () => {
+  const uid = localStorage.getItem("uid")
+
+  await fetch(`http://127.0.0.1:8000/api/use-resource/${uid}`, {
+    method: "POST"
+  })
+}
+
 export default function ResourceLibrary() {
   const [selectedResource, setSelectedResource] = useState(null)
   const [resources, setResources] = useState([])
@@ -43,7 +51,6 @@ export default function ResourceLibrary() {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      // Mock resources data
       const mockResources = [
         {
           id: 1,
@@ -517,6 +524,18 @@ export default function ResourceLibrary() {
     )
   }
 
+  const handleResourceView = async (resource) => {
+  const uid = localStorage.getItem("uid")
+
+  // track usage
+  await fetch(`http://127.0.0.1:8000/api/use-resource/${uid}`, {
+    method: "POST"
+  })
+
+  // keep existing behavior
+  setSelectedResource(resource)
+  }
+
   return (
     <div className="space-y-6">
       {/* Search and Filters */}
@@ -599,7 +618,7 @@ export default function ResourceLibrary() {
                   resource={resource}
                   isFavorite={favorites.has(resource.id)}
                   onFavorite={() => handleFavorite(resource.id)}
-                  onView={() => setSelectedResource(resource)}
+                  onView={() => handleResourceView(resource)}
                   featured
                 />
               ))}
@@ -650,17 +669,17 @@ export default function ResourceLibrary() {
                 resource={resource}
                 isFavorite={favorites.has(resource.id)}
                 onFavorite={() => handleFavorite(resource.id)}
-                onView={() => setSelectedResource(resource)}
+                onView={() => handleResourceView(resource)}
               />
             ))}
           </div>
         )}
       </div>
       <ResourceViewerModal
-  resource={selectedResource}
-  isOpen={!!selectedResource}
-  onClose={() => setSelectedResource(null)}
-/>
+        resource={selectedResource}
+        isOpen={!!selectedResource}
+        onClose={() => setSelectedResource(null)}
+      />
     </div>
   )
 }

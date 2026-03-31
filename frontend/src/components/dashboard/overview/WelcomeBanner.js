@@ -10,7 +10,7 @@ export default function WelcomeBanner({ user }) {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div className="flex-1">
           <h1 className="text-2xl font-bold mb-2">
-            {greeting}, {user?.firstName}!
+            {greeting}, {user?.name || user?.firstName}!
           </h1>
           <p className="text-primary-100 mb-4 max-w-2xl">
             Welcome to your mental wellness journey. Today is a new opportunity to grow and heal.

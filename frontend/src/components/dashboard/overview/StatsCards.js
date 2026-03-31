@@ -1,41 +1,121 @@
 import Card from '@/components/ui/Card'
 
-const stats = [
+export default function StatsCards({ userData }) {
+
+  const moods = userData?.moods || []
+
+  // ---- MOOD AVERAGE ----
+  const avg = (arr) =>
+    arr.reduce((sum, m) => sum + m.value, 0) / (arr.length || 1)
+
+  const recent = moods.slice(-7)
+  const older = moods.slice(-14, -7)
+
+  const recentAvg = avg(recent)
+  const olderAvg = avg(older)
+
+  const moodDiff = recentAvg - olderAvg
+
+  // ---- STREAK CHANGE ----
+  const streak = userData?.streak || 0
+
+  // simple version: compare last 2 moods
+  const streakChange = moods.length >= 2 ? 1 : 0
+
+  // -------- RESOURCES USED CHANGE --------
+  const resources = userData?.resources_history || []
+
+  const recentResources = resources.slice(-7).length
+  const olderResources = resources.slice(-14, -7).length
+
+  const resourceDiff = recentResources - olderResources
+
+  const session = userData?.next_session
+  
+  let stats = [
   {
     name: 'Current Streak',
-    value: '7 days',
-    change: '+2 days',
-    changeType: 'positive',
+    value: `${userData?.streak || 0} days`,
+    change: streakChange > 0 ? `+${streakChange} day` : 'No change',
+    changeType: streakChange > 0 ? 'positive' : 'neutral',
     icon: FireIcon,
     description: 'Consistent daily check-ins'
   },
   {
     name: 'Mood Average',
-    value: '7.2/10',
-    change: '+0.8',
-    changeType: 'positive',
+    value: `${recentAvg.toFixed(1)}/10`,
+    change:
+      older.length === 0
+        ? '—'
+        : moodDiff > 0
+        ? `+${moodDiff.toFixed(1)}`
+        : moodDiff < 0
+        ? `${moodDiff.toFixed(1)}`
+        : '0',
+    changeType: 
+      older.length === 0
+        ? 'neutral'
+        : moodDiff > 0
+        ? 'positive'
+        : moodDiff < 0
+        ? 'negative'
+        : 'neutral',
     icon: ChartBarIcon,
     description: 'This week'
   },
   {
     name: 'Resources Used',
-    value: '12',
-    change: '+3',
-    changeType: 'positive',
-    icon: BookOpenIcon,
-    description: 'This month'
+    value: `${userData?.resources_used || 0}`,
+    change:
+      olderResources === 0
+        ? '—'
+        : resourceDiff > 0
+        ? `+${resourceDiff}`
+        : resourceDiff < 0
+        ? `${resourceDiff}`
+        : '0',
+      changeType:
+        olderResources === 0
+          ? 'neutral'
+          : resourceDiff > 0
+          ? 'positive'
+          : resourceDiff < 0
+          ? 'negative'
+          : 'neutral',
+      icon: BookOpenIcon,
+      description: 'This month'
   },
-  {
-    name: 'Next Session',
-    value: 'Tomorrow',
-    change: '2:00 PM',
-    changeType: 'neutral',
-    icon: CalendarIcon,
-    description: 'With Dr. Johnson'
-  }
 ]
 
-export default function StatsCards() {
+console.log(userData?.next_session)
+
+if (userData?.next_session) {
+  const session = userData.next_session
+
+  const sessionDateObj = new Date(session.date)
+
+  const sessionDay = sessionDateObj.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric'
+  })
+
+  const sessionTime = sessionDateObj.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  })
+
+  stats.push({
+    name: 'Next Session',
+    value: sessionDay,
+    change: sessionTime,
+    changeType: 'neutral',
+    icon: CalendarIcon,
+    description: `With ${session.provider}`
+  })
+}
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {stats.map((stat) => (

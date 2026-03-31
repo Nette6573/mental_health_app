@@ -1,15 +1,25 @@
+from dotenv import load_dotenv
+from pathlib import Path
+
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
 # app/config.py
 import os
 import secrets
+
 
 # Required variables (will raise error if missing)
 HF_TOKEN = os.getenv("HF_TOKEN")
 MONGO_URI = os.getenv("MONGO_URI")
 
 if not HF_TOKEN:
-    raise ValueError("❌ HF_TOKEN not set - Please add it to Hugging Face Secrets")
+    print("⚠️ HF_TOKEN missing - skipping AI for now")
+    HF_TOKEN = ""
+
 if not MONGO_URI:
-    raise ValueError("❌ MONGO_URI not set - Please add it to Hugging Face Secrets")
+    print("⚠️ MONGO_URI missing - using empty (may fail DB)")
+    MONGO_URI = ""
 
 # Optional variables with defaults
 SECRET_KEY = os.getenv("SECRET_KEY")

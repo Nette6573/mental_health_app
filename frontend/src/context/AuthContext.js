@@ -211,6 +211,24 @@ export function AuthProvider({ children }) {
       const result = await signInWithPopup(auth, provider)
       const firebaseUser = result.user
 
+      console.log("LOGIN FUNCTION HIT") // debugging line
+
+      console.log("FIREBASE USER:", firebaseUser) // debugging line
+
+      localStorage.setItem("uid", firebaseUser.uid)
+
+      await fetch("http://127.0.0.1:8000/api/create-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: firebaseUser.displayName
+        })
+      })
+
       const userDocRef = doc(db, 'users', firebaseUser.uid)
       const snap = await getDoc(userDocRef)
 

@@ -1,6 +1,7 @@
 # main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes.auth import router as auth_router
 import logging
 import os
 
@@ -81,6 +82,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(chat_router, prefix="/api", tags=["chats"])
+app.include_router(auth_router, prefix="/api", tags=["auth"])
 logger.info("✅ Routers mounted successfully")
 
 # Root endpoint
