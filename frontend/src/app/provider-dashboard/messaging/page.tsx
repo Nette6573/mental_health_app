@@ -91,29 +91,23 @@ export default function ProviderMessagesPage() {
 
   // 🔥 LOAD CONVERSATIONS (REAL-TIME)
   useEffect(() => {
-    if (!user) return;
+  if (!user?.uid) return; // 🔴 VERY IMPORTANT
 
-    const q = query(
-      collection(db, "chats"),
-      where("participants", "array-contains", user.uid)
-    );
+  const q = query(
+    collection(db, "chats"),
+    where("participants", "array-contains", user.uid)
+  );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const chats = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const chats = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    setConversations(chats as any);
+  });
 
-      setConversations(chats);
-
-      // Auto select first chat
-      if (chats.length > 0 && !selectedChatId) {
-        setSelectedChatId(chats[0].id);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [user]);
+  return () => unsubscribe();
+}, [user]);
 
   // 🔥 LOAD MESSAGES FOR SELECTED CHAT
   useEffect(() => {
