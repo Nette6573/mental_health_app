@@ -21,14 +21,31 @@ except Exception as e:
     logger.error(f"❌ Failed to load configuration: {e}")
     raise
 
-# Import database connection
+# Import database connection with proper error handling
 try:
     from app.db.mongo import client, db, chats
-    logger.info(f"✅ Database connected: {db.name}")
-    logger.info(f"✅ Collection ready: {chats.name}")
+    
+    # Check if database connection was successful
+    if db is None:
+        logger.error("❌ Database connection failed - db is None")
+        db_status = "disconnected"
+        db_name = "Not Connected"
+        chats_name = "Not Connected"
+    else:
+        db_status = "connected"
+        db_name = db.name
+        chats_name = chats.name
+        logger.info(f"✅ Database connected: {db_name}")
+        logger.info(f"✅ Collection ready: {chats_name}")
+        
 except Exception as e:
-    logger.error(f"❌ Failed to connect to database: {e}")
-    raise
+    logger.error(f"❌ Failed to import database module: {e}")
+    db_status = "error"
+    db_name = "Import Error"
+    chats_name = "Import Error"
+    client = None
+    db = None
+    chats = None
 
 # Import routes
 try:
@@ -73,8 +90,8 @@ async def root():
         "name": "Paula Chats API",
         "version": "1.0.0",
         "status": "running",
-        "database": db.name,
-        "collection": chats.name,
+        "database": db_name if 'db_name' in locals() else "Unknown",
+        "collection": chats_name if 'chats_name' in locals() else "Unknown",
         "endpoints": {
             "docs": "/docs",
             "redoc": "/redoc",
@@ -87,17 +104,30 @@ async def root():
 @app.get("/health")
 async def health_check():
     # Check database connection
-    db_status = "connected"
-    try:
-        client.admin.command('ping')
-    except Exception as e:
-        db_status = f"error: {str(e)}"
+    db_status = "unknown"
+    
+    if 'client' in locals() and client is not None:
+        try:
+            client.admin.command('ping')
+            db_status = "connected"
+        except Exception as e:
+            db_status = f"ping failed: {str(e)}"
+    elif db is None:
+        db_status = "disconnected (db is None)"
+    else:
+        db_status = "client not available"
     
     return {
-        "status": "healthy",
+        "status": "healthy" if db_status == "connected" else "degraded",
         "database": db_status,
         "hf_token": "configured" if HF_TOKEN else "missing",
-        "secret_key": "configured" if SECRET_KEY else "missing"
+        "secret_key": "configured" if SECRET_KEY else "missing",
+        "mongodb_details": {
+            "uri_set": bool(MONGO_URI),
+            "uri_preview": MONGO_URI[:20] + "..." if MONGO_URI else "Not set",
+            "database_name": db_name if 'db_name' in locals() else "Unknown",
+            "collection_name": chats_name if 'chats_name' in locals() else "Unknown"
+        }
     }
 
 # Startup event
@@ -105,19 +135,29 @@ async def health_check():
 async def startup_event():
     logger.info("=" * 50)
     logger.info("🚀 Paula Chats API is starting up...")
-    logger.info(f"📚 Database: {db.name}")
-    logger.info(f"📁 Collection: {chats.name}")
+    logger.info(f"📚 Database: {db_name if 'db_name' in locals() else 'Unknown'}")
+    logger.info(f"📁 Collection: {chats_name if 'chats_name' in locals() else 'Unknown'}")
     logger.info(f"🔗 API endpoints available at /api")
     logger.info("📖 Documentation at /docs")
     logger.info("=" * 50)
+    
+    # Log MongoDB connection details for debugging
+    if 'db' in locals() and db is None:
+        logger.warning("⚠️  Database is not connected - some endpoints may not work properly")
+        logger.warning("💡 Check your MONGO_URI secret in Hugging Face Spaces")
+    else:
+        logger.info("✅ Database connection verified")
 
 # Shutdown event
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("👋 Paula Chats API is shutting down...")
-    # Close MongoDB connection
-    client.close()
-    logger.info("✅ Database connection closed")
+    # Close MongoDB connection if it exists
+    if 'client' in locals() and client is not None:
+        client.close()
+        logger.info("✅ Database connection closed")
+    else:
+        logger.info("ℹ️  No database connection to close")
 
 # For debugging - print all registered routes
 @app.on_event("startup")
