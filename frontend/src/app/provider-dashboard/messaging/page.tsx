@@ -388,4 +388,5 @@ export default function ProviderMessagesPage() {
       </div>
     </main>
   </div>
-);
+ );
+}
