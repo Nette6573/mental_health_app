@@ -89,29 +89,15 @@ else:
         client = None
         db = None
         chats = None
-<<<<<<< HEAD
-        users = None  # ← add this
-=======
         users = None
-        resources = None
->>>>>>> f340e6ce3d2d11531e4e03c70002ff1456ead105
+        resources = None  # ← add this
+
     except Exception as e:
         logger.error(f"❌ Unexpected MongoDB error: {e}")
-<<<<<<< HEAD
-        client = None  # ← add these
-        db = None
-        chats = None
-        users = None
-
-# Export these for use in other modules
-__all__ = ['client', 'db', 'chats', 'users']  # ← add users here
-=======
         client = None
         db = None
         chats = None
         users = None
-        resources = None
+        resources = None  # ← add this
 
-# Export these for use in other modules
-__all__ = ['client', 'db', 'chats', 'users', 'resources']
->>>>>>> f340e6ce3d2d11531e4e03c70002ff1456ead105
+__all__ = ['client', 'db', 'chats', 'users', 'resources']  # ← remove duplicate users
