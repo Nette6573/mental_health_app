@@ -28,7 +28,7 @@ else:
     try:
         # Add connection options for better reliability
         client = MongoClient(
-            "mongodb+srv://hopepath_user:CTdqsW66Kd9XFWDx@cluster0.zb2g8aa.mongodb.net/hopepath?appName=Cluster0",
+            MONGO_URI,
             serverSelectionTimeoutMS=5000,
             connectTimeoutMS=10000,
             socketTimeoutMS=30000,
@@ -57,14 +57,18 @@ else:
 
     except (ConnectionFailure, ServerSelectionTimeoutError) as e:
         logger.error(f"❌ MongoDB connection failed: {e}")
-        # Set to None so the app can handle gracefully
         client = None
         db = None
         chats = None
+        users = None  # ← add this
     except Exception as e:
         import traceback
         traceback.print_exc()
         logger.error(f"❌ Unexpected MongoDB error: {e}")
+        client = None  # ← add these
+        db = None
+        chats = None
+        users = None
 
 # Export these for use in other modules
-__all__ = ['client', 'db', 'chats']
+__all__ = ['client', 'db', 'chats', 'users']  # ← add users here
