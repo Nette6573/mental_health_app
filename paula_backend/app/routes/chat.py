@@ -54,10 +54,14 @@ async def send_message(
         # -------------------
         # SAVE USER MESSAGE
         # -------------------
+        # Detect emotion for user message
+        user_emotion = detect_emotion_ai(data.text)
+        
         user_message = {
             "role": "user",
             "content": data.text,
-            "time": datetime.utcnow()
+            "time": datetime.utcnow(),
+            "emotion": user_emotion  # Add emotion to message
         }
 
         chats.update_one(
@@ -72,7 +76,7 @@ async def send_message(
         
         logger.info(f"📚 Full conversation history length: {len(raw_history)}")
 
-        # Format ALL history for AI (don't trim yet)
+        # Format ALL history for AI
         all_history = [
             {
                 "role": m.get("role"),
@@ -91,12 +95,11 @@ async def send_message(
         # -------------------
         # MEMORY SUMMARIZATION
         # -------------------
-        # Only summarize if history is VERY long (more than 20 messages)
-        # This keeps more context available
         summary = None
         history_for_ai = all_history  # Start with all history
         
-        if len(all_history) > 20:  # Increased from 12 to 20
+        # Only summarize if history is very long (more than 20 messages)
+        if len(all_history) > 20:
             # Keep last 15 messages for full context, summarize older ones
             summary = summarize_memory(all_history[:-15])
             history_for_ai = all_history[-15:]  # Keep last 15 for context
@@ -112,13 +115,14 @@ async def send_message(
         logger.info(f"😊 Detected emotion: {emotion}")
 
         # -------------------
-        # GET AI RESPONSE
+        # GET AI RESPONSE WITH FULL CONTEXT
         # -------------------
         logger.info(f"🤖 Calling AI with history length: {len(history_for_ai)}")
         
+        # Pass the full history to the AI for memory
         reply = ask_paula(
             user_message=data.text,
-            chat_history=history_for_ai,  # Pass the full/untrimmed history
+            chat_history=history_for_ai,  # Pass the conversation history
             session_id=chat_id,
             summary=summary
         )
@@ -167,7 +171,8 @@ async def send_message(
         return MessageOut(
             response=reply,
             chat_id=chat_id,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
+            emotion_detected=emotion
         )
 
     except HTTPException:
@@ -218,7 +223,7 @@ async def get_chat_history(chat_id: str):
 async def debug_info():
     """Debug endpoint to check configuration"""
     from app.config import HF_TOKEN, MONGO_URI, SECRET_KEY
-    from app.ai.paula_client import _paula_client
+    from app.ai.paula_client import _client
     
     # Test MongoDB connection
     mongo_status = "unknown"
@@ -230,14 +235,13 @@ async def debug_info():
         mongo_status = f"error: {str(e)}"
     
     # Test if Paula client is initialized
-    paula_status = "initialized" if _paula_client else "not initialized"
+    paula_status = "initialized" if _client else "not initialized"
     
     return {
         "status": "debug",
         "environment": {
             "hf_token": "set" if HF_TOKEN else "missing",
             "hf_token_length": len(HF_TOKEN) if HF_TOKEN else 0,
-            "hf_token_preview": f"{HF_TOKEN[:5]}...{HF_TOKEN[-5:]}" if HF_TOKEN else None,
             "mongo_uri": "set" if MONGO_URI else "missing",
             "secret_key": "set" if SECRET_KEY else "using temporary",
         },
@@ -247,3 +251,88 @@ async def debug_info():
         },
         "timestamp": datetime.utcnow().isoformat()
     }
+
+
+@router.get("/memory-test/{chat_id}")
+async def test_memory(chat_id: str):
+    """Test if the AI is remembering previous messages"""
+    try:
+        chat_obj_id = ObjectId(chat_id)
+        chat = chats.find_one({"_id": chat_obj_id})
+        
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        
+        messages = chat.get("messages", [])
+        
+        # Analyze conversation for memory indicators
+        memory_indicators = []
+        
+        for i in range(1, len(messages)):
+            current = messages[i]
+            previous = messages[i-1]
+            
+            # Check if AI references user's previous messages
+            if current["role"] == "assistant" and previous["role"] == "user":
+                # Look for references to previous user message in AI response
+                previous_content_lower = previous["content"].lower()
+                current_content_lower = current["content"].lower()
+                
+                # Check for keywords from previous message
+                previous_words = set(previous_content_lower.split()[:10])
+                common_words = previous_words.intersection(set(current_content_lower.split()))
+                
+                if len(common_words) > 2:
+                    memory_indicators.append({
+                        "message_index": i,
+                        "user_said": previous["content"][:100],
+                        "ai_responded": current["content"][:100],
+                        "common_words": list(common_words)[:5]
+                    })
+        
+        # Check for name recall
+        name_recalled = False
+        user_name = None
+        
+        # Look for name in user messages
+        for msg in messages:
+            if msg["role"] == "user":
+                content = msg["content"].lower()
+                if "my name" in content or "name is" in content or "call me" in content:
+                    words = content.split()
+                    for i, word in enumerate(words):
+                        if word in ["name", "names", "call"] and i + 1 < len(words):
+                            user_name = words[i + 1].strip(",.?!")
+                            if user_name and len(user_name) > 1:
+                                break
+        
+        # Check if AI used the name
+        if user_name:
+            for msg in messages:
+                if msg["role"] == "assistant" and user_name.lower() in msg["content"].lower():
+                    name_recalled = True
+                    break
+        
+        return {
+            "chat_id": chat_id,
+            "total_messages": len(messages),
+            "memory_performance": {
+                "has_memory": len(memory_indicators) > 0,
+                "memory_instances": len(memory_indicators),
+                "name_recalled": name_recalled,
+                "user_name": user_name,
+                "memory_examples": memory_indicators[:3]
+            },
+            "recent_messages": [
+                {
+                    "role": msg["role"],
+                    "content": msg["content"][:150],
+                    "time": msg.get("time", "unknown")
+                }
+                for msg in messages[-6:]
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error testing memory: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

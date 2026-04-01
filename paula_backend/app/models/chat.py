@@ -10,7 +10,13 @@ def new_chat(user_id: str) -> Dict:
         "updated_at": datetime.utcnow(),
         "messages": [],
         "mood_log": [],
-        "summary": None
+        "summary": None,
+        "context": {  # Add context tracking
+            "user_name": None,
+            "topics_discussed": [],
+            "last_emotion": None,
+            "resource_offered": False
+        }
     }
 
 def chat_to_dict(chat) -> Dict:
