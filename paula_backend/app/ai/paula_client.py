@@ -1,4 +1,4 @@
-# app/ai/paula_client.py - Updated with HTML clickable links
+# app/ai/paula_client.py - Complete updated version with conversation memory
 
 import requests
 import logging
@@ -271,8 +271,8 @@ class PaulaClient:
             self.sessions[session_id] = SessionState()
         return self.sessions[session_id]
 
-    def generate_response(self, user_message: str, history=None, session_id=None, summary=None):
-        """Main entry point - handles ALL mental health scenarios"""
+    def generate_response(self, user_message: str, history: List[Dict] = None, session_id: str = None, summary: str = None):
+        """Main entry point - NOW USING HISTORY for memory"""
         
         # CRISIS FIRST - always prioritize
         if self._is_crisis(user_message):
@@ -280,6 +280,11 @@ class PaulaClient:
         
         # Get session state
         state = self.get_session(session_id) if session_id else None
+        
+        # Extract important information from history
+        user_name = self._extract_name_from_history(history)
+        mentioned_topics = self._extract_topics_from_history(history)
+        last_user_message = self._get_last_user_message(history)
         
         # Handle parish response if waiting
         if state and state.waiting_for_parish:
@@ -297,13 +302,63 @@ class PaulaClient:
         if scenario:
             state.detected_scenario = scenario
         
-        # Build appropriate response
+        # Build appropriate response WITH MEMORY OF HISTORY
         if scenario:
-            response = self._handle_scenario(user_message, scenario, state, history)
+            response = self._handle_scenario_with_memory(
+                user_message, scenario, state, history, user_name, mentioned_topics, last_user_message
+            )
         else:
-            response = self._handle_general(user_message, state, history)
+            response = self._handle_general_with_memory(
+                user_message, state, history, user_name, mentioned_topics, last_user_message
+            )
         
         return response
+    
+    def _extract_name_from_history(self, history: List[Dict]) -> Optional[str]:
+        """Extract user's name from conversation history"""
+        if not history:
+            return None
+        
+        for msg in history:
+            if msg.get("role") == "user":
+                content = msg.get("content", "").lower()
+                # Look for name mentions
+                if "my name" in content or "name is" in content or "call me" in content:
+                    words = content.split()
+                    for i, word in enumerate(words):
+                        if word in ["name", "names", "call"] and i + 1 < len(words):
+                            # Get the next word as potential name
+                            potential_name = words[i + 1].strip(",.?!")
+                            if potential_name and len(potential_name) > 1 and potential_name not in ["is", "me"]:
+                                return potential_name.title()
+        return None
+    
+    def _extract_topics_from_history(self, history: List[Dict]) -> List[str]:
+        """Extract topics mentioned in history"""
+        topics = []
+        if not history:
+            return topics
+        
+        for msg in history[-5:]:  # Last 5 messages
+            if msg.get("role") == "user":
+                content = msg.get("content", "").lower()
+                # Check for key topics
+                for scenario, data in MENTAL_HEALTH_SCENARIOS.items():
+                    for keyword in data["keywords"]:
+                        if keyword in content and scenario.replace("_", " ") not in topics:
+                            topics.append(scenario.replace("_", " "))
+                            break
+        return topics[:3]  # Return up to 3 topics
+    
+    def _get_last_user_message(self, history: List[Dict]) -> Optional[str]:
+        """Get the last user message from history"""
+        if not history:
+            return None
+        
+        for msg in reversed(history):
+            if msg.get("role") == "user":
+                return msg.get("content", "")
+        return None
     
     def _is_crisis(self, text: str) -> bool:
         return any(k in text.lower() for k in CRISIS_KEYWORDS)
@@ -335,33 +390,104 @@ You matter. Please reach out to someone who can help right now. 💛"""
                     return scenario
         return None
     
-    def _handle_scenario(self, message: str, scenario: str, state: SessionState, history: List[Dict]) -> str:
-        """Handle specific mental health scenario"""
+    def _handle_scenario_with_memory(self, message: str, scenario: str, state: SessionState, 
+                                      history: List[Dict], user_name: Optional[str], 
+                                      topics: List[str], last_message: Optional[str]) -> str:
+        """Handle scenario WITH memory of previous conversation"""
         scenario_data = MENTAL_HEALTH_SCENARIOS[scenario]
         
         # Get validation and coping
         validation = scenario_data["validation"]
         coping = random.choice(scenario_data["coping"])
         
-        # Build response
-        response = f"{validation}\n\n{coping}"
+        # Build response with memory
+        response = []
         
-        # Ask follow-up question
+        # Reference name if known
+        if user_name:
+            response.append(f"Mi hear yuh {user_name}...")
+        
+        response.append(validation)
+        
+        # Reference previous topics if relevant
+        if topics and len(topics) > 0 and topics[0] != scenario.replace("_", " "):
+            response.append(f"Yuh did mention {topics[0]} before, and now yuh feeling {scenario.replace('_', ' ')}. That's a lot to carry.")
+        
+        response.append(coping)
+        
+        # Add follow-up question
         follow_up = self._get_follow_up(scenario, message)
         if follow_up:
-            response += f"\n\n{follow_up}"
+            response.append(f"\n{follow_up}")
         
         # Add screening question (if not already asked)
         if not state.screening_asked and random.random() < 0.3:
             screening = random.choice(SCREENING_QUESTIONS)
-            response += f"\n\n💭 **Quick check-in:** {screening}"
+            response.append(f"\n💭 **Quick check-in:** {screening}")
             state.screening_asked = True
         
         # Offer resources (if not already offered)
         if not state.resource_offered and random.random() < 0.4:
-            response += f"\n\n{random.choice(REFERRAL_PROMPTS)}"
+            response.append(f"\n{random.choice(REFERRAL_PROMPTS)}")
             state.resource_offered = True
             state.detected_scenario = scenario
+        
+        return "\n\n".join(response)
+    
+    def _handle_general_with_memory(self, message: str, state: SessionState, history: List[Dict],
+                                     user_name: Optional[str], topics: List[str], last_message: Optional[str]) -> str:
+        """Handle general conversation WITH memory"""
+        
+        # Check if user is asking about resources
+        if any(w in message.lower() for w in ["resources", "help", "support", "what can i do", "where can i go"]):
+            return self._show_resources(state)
+        
+        # Check if user wants professional help
+        if any(w in message.lower() for w in ["therapist", "counselor", "psychologist", "professional"]):
+            if state:
+                state.waiting_for_parish = True
+            return "I'm glad you're asking about professional support. Which parish are you located in? I can share resources in your area."
+        
+        # Check if user is asking if AI remembers
+        if any(w in message.lower() for w in ["remember", "do you know", "what did i say", "did i tell you", "my name"]):
+            if user_name or topics:
+                memory_response = "Mi remember! 💛 "
+                if user_name:
+                    memory_response += f"Yuh name is {user_name}. "
+                if topics:
+                    memory_response += f"Yuh was telling me about {', '.join(topics)}. "
+                memory_response += "Mi listening. What's on yuh mind now?"
+                return memory_response
+            else:
+                return "Mi trying to remember everything yuh tell mi. Tell me more so mi can understand? 💛"
+        
+        # Build response with memory context
+        response_parts = []
+        
+        # Reference name if known
+        if user_name and random.random() < 0.6:  # 60% chance to use name
+            response_parts.append(f"Mi hear yuh {user_name}.")
+        
+        # Reference previous topics if relevant
+        if topics and random.random() < 0.5:  # 50% chance to reference
+            response_parts.append(f"Yuh did mention {topics[0]} before. How's that feeling now?")
+        
+        # Add empathetic response
+        responses = [
+            "I'm here for you. What's been on your mind lately? 💛",
+            "Thank you for sharing. What would feel most helpful to talk about right now?",
+            "I'm listening. Tell me what's weighing on you today.",
+            "You're not alone in this. What's been happening?"
+        ]
+        
+        response_parts.append(random.choice(responses))
+        
+        response = "\n\n".join(response_parts)
+        
+        # Offer resources after a few exchanges
+        if state and not state.resource_offered and history and len(history) > 4:
+            response += f"\n\n{random.choice(REFERRAL_PROMPTS)}"
+            state.resource_offered = True
         
         return response
     
@@ -381,35 +507,6 @@ You matter. Please reach out to someone who can help right now. 💛"""
             "hopelessness": "Can we focus on just the next hour? You don't have to see the whole path."
         }
         return follow_ups.get(scenario, "What's on your mind right now?")
-    
-    def _handle_general(self, message: str, state: SessionState, history: List[Dict]) -> str:
-        """Handle general conversation when no specific scenario detected"""
-        
-        # Check if user is asking about resources
-        if any(w in message.lower() for w in ["resources", "help", "support", "what can i do", "where can i go"]):
-            return self._show_resources(state)
-        
-        # Check if user wants professional help
-        if any(w in message.lower() for w in ["therapist", "counselor", "psychologist", "professional"]):
-            if state:
-                state.waiting_for_parish = True
-            return "I'm glad you're asking about professional support. Which parish are you located in? I can share resources in your area."
-        
-        # Default empathetic responses
-        responses = [
-            "I'm here for you. What's been on your mind lately? 💛",
-            "Thank you for sharing. What would feel most helpful to talk about right now?",
-            "I'm listening. Tell me what's weighing on you today.",
-            "You're not alone in this. What's been happening?"
-        ]
-        response = random.choice(responses)
-        
-        # Offer resources after a few exchanges
-        if state and not state.resource_offered and history and len(history) > 4:
-            response += f"\n\n{random.choice(REFERRAL_PROMPTS)}"
-            state.resource_offered = True
-        
-        return response
     
     def _handle_parish_response(self, text: str, session_id: str) -> Optional[str]:
         """Handle user's parish response and provide local resources"""
@@ -493,23 +590,33 @@ def ask_paula(user_message: str, chat_history=None, session_id=None, summary=Non
         _client = PaulaClient()
         logger.info("✅ PaulaClient initialized")
     
+    # Log what we're sending for debugging
+    if chat_history:
+        logger.info(f"📚 Sending to AI with {len(chat_history)} messages of history")
+        if len(chat_history) > 0:
+            last_msg = chat_history[-1]
+            logger.info(f"   Last message in history: {last_msg['role']} - {last_msg['content'][:50]}...")
+    else:
+        logger.warning("⚠️ No chat history provided to AI!")
+    
     return _client.generate_response(user_message, chat_history, session_id, summary)
 
 
 def detect_emotion_ai(text: str) -> str:
-    scenario = _client._detect_scenario(text) if _client else None
-    if scenario:
-        emotion_map = {
-            "depression": "sad",
-            "anxiety": "anxious",
-            "stress": "stressed",
-            "anger": "angry",
-            "grief": "sad",
-            "hopelessness": "sad",
-            "loneliness": "sad",
-            "low_self_esteem": "sad"
-        }
-        return emotion_map.get(scenario, "neutral")
+    if _client:
+        scenario = _client._detect_scenario(text)
+        if scenario:
+            emotion_map = {
+                "depression": "sad",
+                "anxiety": "anxious",
+                "stress": "stressed",
+                "anger": "angry",
+                "grief": "sad",
+                "hopelessness": "sad",
+                "loneliness": "sad",
+                "low_self_esteem": "sad"
+            }
+            return emotion_map.get(scenario, "neutral")
     return "neutral"
 
 
