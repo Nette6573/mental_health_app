@@ -49,7 +49,7 @@ else:
         # Select database
         db = client[DATABASE_NAME]
 
-        # Collection names (consistent + clean)
+        # Collection names
         CHATS_COLLECTION = "chats"
         USERS_COLLECTION = "users"
         RESOURCES_COLLECTION = "resources"
@@ -61,18 +61,15 @@ else:
 
         # Create indexes
         try:
-            # Chats indexes
             chats.create_index("session_id", unique=True, sparse=True)
             chats.create_index("user_id")
             chats.create_index("created_at")
             chats.create_index("updated_at")
 
-            # Users indexes
             users.create_index("email", unique=True, sparse=True)
             users.create_index("user_id", unique=True)
             users.create_index("created_at")
 
-            # Resources indexes
             resources.create_index("category")
             resources.create_index("type")
             resources.create_index("tags")
@@ -92,11 +89,7 @@ else:
         db = None
         chats = None
         users = None
-<<<<<<< HEAD
         resources = None
-=======
-        resources = None  # ← add this
->>>>>>> d768ff1e721dfecddf6aaa14fc8618b40a4d072c
 
     except Exception as e:
         logger.error(f"❌ Unexpected MongoDB error: {e}")
@@ -104,9 +97,8 @@ else:
         db = None
         chats = None
         users = None
-        resources = None  # ← add this
+        resources = None
 
-<<<<<<< HEAD
 
 # Export for other modules
 __all__ = [
@@ -117,6 +109,3 @@ __all__ = [
     "resources",
     "is_db_connected"
 ]
-=======
-__all__ = ['client', 'db', 'chats', 'users', 'resources']  # ← remove duplicate users
->>>>>>> d768ff1e721dfecddf6aaa14fc8618b40a4d072c
