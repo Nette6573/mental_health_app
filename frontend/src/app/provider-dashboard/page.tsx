@@ -1,3 +1,9 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/firebaseClient";
+import { getAuth } from "firebase/auth";
 import Link from 'next/link'
 import {
   LayoutDashboard,
@@ -26,6 +32,26 @@ import {
 } from 'lucide-react'
 
 export default function ProviderDashboardPage() {
+  const [userName, setUserName] = useState("");
+  useEffect(() => {
+  const fetchUser = async () => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (user) {
+      const docRef = doc(db, "users", user.uid); // "users" = your collection name
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        setUserName(docSnap.data().name); // make sure your field is called "name"
+      } else {
+        console.log("No such document!");
+      }
+    }
+  };
+
+  fetchUser();
+}, []);
   return (
     <div className="flex min-h-screen overflow-hidden bg-slate-50 font-sans text-slate-800 dark:bg-slate-900 dark:text-slate-100">
       {/* Sidebar */}
@@ -145,7 +171,7 @@ export default function ProviderDashboardPage() {
 
               <div>
                 <h2 className="text-xl font-semibold text-slate-800 dark:text-white">
-                  Welcome back, Dr. Thomas
+                  Welcome back, {userName ? `Dr. ${userName}` : "Loading..."}
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Here&apos;s your practice overview
@@ -166,7 +192,7 @@ export default function ProviderDashboardPage() {
               <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-700">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-medium text-slate-800 dark:text-white">
-                    Dr. Shamar Thomas
+                    Dr. {userName}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Clinical Psychologist
