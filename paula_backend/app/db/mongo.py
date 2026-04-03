@@ -9,6 +9,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 MONGO_URI = os.getenv("MONGO_URI")
+DATABASE_NAME = os.getenv("MONGODB_DB_NAME", "paulachats_db")
 
 # Initialize all variables
 client = None
@@ -17,21 +18,21 @@ chats = None
 users = None
 resources = None
 
+
+def is_db_connected():
+    """Check if database connection is active"""
+    return client is not None and db is not None
+
+
 if not MONGO_URI:
-    error_msg = (
-        "MONGO_URI environment variable is not set. "
-        "If running on Hugging Face Spaces, add it to Secrets.\n"
-        "If running locally, create a .env file with MONGO_URI=your_connection_string"
+    logger.error(
+        "❌ MONGO_URI is not set.\n"
+        "Set it in Railway Variables or HuggingFace Secrets."
     )
-    logger.error(error_msg)
-    client = None
-    db = None
-    chats = None
-    users = None
-    resources = None
+
 else:
     try:
-        # Add connection options for better reliability
+        # Create Mongo client with production-safe settings
         client = MongoClient(
             MONGO_URI,
             serverSelectionTimeoutMS=5000,
@@ -45,44 +46,45 @@ else:
         client.admin.command("ping")
         logger.info("✅ Connected to MongoDB Atlas")
 
-        DATABASE_NAME = os.getenv("MONGODB_DB_NAME", "paulachats_db")
+        # Select database
         db = client[DATABASE_NAME]
-        
-        # Initialize collections
-        CHATS_COLLECTION = "paulachats"
-        chats = db[CHATS_COLLECTION]
-        
+
+        # Collection names (consistent + clean)
+        CHATS_COLLECTION = "chats"
         USERS_COLLECTION = "users"
-        users = db[USERS_COLLECTION]
-        
         RESOURCES_COLLECTION = "resources"
+
+        # Initialize collections
+        chats = db[CHATS_COLLECTION]
+        users = db[USERS_COLLECTION]
         resources = db[RESOURCES_COLLECTION]
 
-        # Create indexes for better performance
+        # Create indexes
         try:
-            # Chats collection indexes
+            # Chats indexes
             chats.create_index("session_id", unique=True, sparse=True)
             chats.create_index("user_id")
             chats.create_index("created_at")
             chats.create_index("updated_at")
-            
-            # Users collection indexes
+
+            # Users indexes
             users.create_index("email", unique=True, sparse=True)
             users.create_index("user_id", unique=True)
             users.create_index("created_at")
-            
-            # Resources collection indexes
+
+            # Resources indexes
             resources.create_index("category")
             resources.create_index("type")
             resources.create_index("tags")
             resources.create_index("featured")
-            
-            logger.info(f"✅ Indexes created successfully")
+
+            logger.info("✅ Indexes created successfully")
+
         except Exception as e:
-            logger.warning(f"Index creation warning (may already exist): {e}")
-        
-        logger.info(f"✅ Using database: {DATABASE_NAME}")
-        logger.info(f"✅ Collections: chats, users, resources")
+            logger.warning(f"⚠️ Index creation warning: {e}")
+
+        logger.info(f"✅ Using database: {db.name}")
+        logger.info("✅ Collections initialized: chats, users, resources")
 
     except (ConnectionFailure, ServerSelectionTimeoutError) as e:
         logger.error(f"❌ MongoDB connection failed: {e}")
@@ -91,6 +93,7 @@ else:
         chats = None
         users = None
         resources = None
+
     except Exception as e:
         logger.error(f"❌ Unexpected MongoDB error: {e}")
         client = None
@@ -99,5 +102,13 @@ else:
         users = None
         resources = None
 
-# Export these for use in other modules
-__all__ = ['client', 'db', 'chats', 'users', 'resources']
+
+# Export for other modules
+__all__ = [
+    "client",
+    "db",
+    "chats",
+    "users",
+    "resources",
+    "is_db_connected"
+]

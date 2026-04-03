@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Card from '@/components/ui/Card'
+import { getMood } from "@/services/moodService";
 
 const moodEmojis = {
   1: { emoji: '😢', label: 'Very Sad', color: 'bg-red-500' },
@@ -20,35 +21,29 @@ export default function MoodCalendar({ onDateSelect, refreshTrigger }) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [moodEntries, setMoodEntries] = useState({})
 
-  // Mock data - replace with API call
+  //  API call
   useEffect(() => {
-    const fetchMoodData = async () => {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Generate mock mood data for the current month
-      const mockData = {}
-      const year = currentDate.getFullYear()
-      const month = currentDate.getMonth()
-      const daysInMonth = new Date(year, month + 1, 0).getDate()
-      
-      for (let day = 1; day <= daysInMonth; day++) {
-        // Randomly assign moods to some days
-        if (Math.random() > 0.3) {
-          const moodLevel = Math.floor(Math.random() * 10) + 1
-          mockData[`${year}-${month + 1}-${day}`] = {
-            mood: moodLevel,
-            note: moodLevel > 7 ? 'Great day!' : moodLevel < 4 ? 'Tough day' : '',
-            timestamp: new Date(year, month, day).toISOString()
-          }
-        }
-      }
-      
-      setMoodEntries(mockData)
-    }
+  const fetchMoodData = async () => {
+    const uid = localStorage.getItem("uid");
 
-    fetchMoodData()
-  }, [currentDate, refreshTrigger])
+    if (!uid) return;
+
+    const data = await getMood(uid);
+
+    const formatted = {};
+
+    data.mood_log.forEach(entry => {
+      const date = new Date(entry.date);
+      const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+
+      formatted[key] = entry;
+    });
+
+    setMoodEntries(formatted);
+  };
+
+  fetchMoodData();
+}, [currentDate, refreshTrigger]);
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear()

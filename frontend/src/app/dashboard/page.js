@@ -3,6 +3,7 @@
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import DashboardLayout from '@/components/dashboard/layout/DashboardLayout'
 import WelcomeBanner from '@/components/dashboard/overview/WelcomeBanner'
 import StatsCards from '@/components/dashboard/overview/StatsCards'
@@ -13,103 +14,140 @@ import QuickActions from '@/components/dashboard/overview/QuickActions'
 export default function DashboardPage() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
-  const [userData, setUserData] = useState(null)
 
+  const [userData, setUserData] = useState(null)
+  const [phq9Data, setPhq9Data] = useState([])
+  const [moodData, setMoodData] = useState([])
+
+  // ---------------- AUTH CHECK ----------------
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/auth/login')
     }
   }, [user, isLoading, router])
 
+  // ---------------- LOAD DATA ----------------
   useEffect(() => {
     const uid = localStorage.getItem("uid")
-    console.log("CURRENT USER UID:", uid)
-  }, [])
-
-  useEffect(() => {
-    const uid = localStorage.getItem("uid")
-
     if (!uid) return
 
+    // PHQ9 DATA
+    fetch(`http://127.0.0.1:8000/api/user/${uid}/assessments`)
+      .then(res => res.json())
+      .then(data => {
+        setPhq9Data(data.phq9 || [])
+      })
+      .catch(err => console.error(err))
+
+    // USER DATA (for mood later)
     fetch(`http://127.0.0.1:8000/api/user/${uid}`)
       .then(res => res.json())
       .then(data => {
-        console.log("USER DATA FROM BACKEND:", data)
         setUserData(data)
+        setMoodData(data.mood_log || [])
       })
+      .catch(err => console.error(err))
+
   }, [])
+
+  // ---------------- HELPERS ----------------
+  function getColor(score) {
+    if (score <= 4) return "text-green-500"
+    if (score <= 9) return "text-yellow-500"
+    if (score <= 14) return "text-orange-500"
+    return "text-red-500"
+  }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading your dashboard...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
       </div>
     )
   }
 
-  if (!user) {
-    return null
-  }
+  if (!user) return null
 
   return (
     <DashboardLayout user={user}>
       <div className="space-y-6">
-        {/* Welcome Banner */}
+
+        {/* Welcome */}
         <WelcomeBanner user={userData || user} />
 
-        {/* Stats Cards */}
+        {/* Stats */}
         <StatsCards userData={userData} />
 
-        {/* Main Content Grid */}
+        {/* PHQ9 */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow border">
+          <h3 className="text-lg font-semibold mb-4">
+            Mental Health Assessment
+          </h3>
+
+          {phq9Data.length === 0 ? (
+            <p>No assessments yet</p>
+          ) : (
+            phq9Data.slice(-1).map((item, index) => (
+              <div key={index}>
+                <p className={getColor(item.score)}>
+                  Score: {item.score}
+                </p>
+                <p>Level: {item.level}</p>
+
+                {item.score >= 10 ? (
+                  <p className="text-red-500 mt-2">
+                    We recommend speaking with a professional.
+                  </p>
+                ) : (
+                  <p className="text-green-500 mt-2">
+                    Keep using self-help tools.
+                  </p>
+                )}
+
+                <div className="mt-3 flex gap-2">
+                  <Link href="/dashboard/therapists">
+                    <button className="bg-blue-500 text-white px-3 py-2 rounded">
+                      Talk to Therapist
+                    </button>
+                  </Link>
+
+                  <Link href="/dashboard/resources">
+                    <button className="bg-green-500 text-white px-3 py-2 rounded">
+                      Resources
+                    </button>
+                  </Link>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column */}
+
+          {/* LEFT */}
           <div className="lg:col-span-2 space-y-6">
-            <MoodTracker userData={userData} />
+            <MoodTracker moodData={moodData} />
             <RecentActivity />
           </div>
 
-          {/* Right Column */}
+          {/* RIGHT */}
           <div className="space-y-6">
             <QuickActions />
-            {/* Talk With Paula */}
-            <a
-            href="/dashboard/paula"
-            className="block bg-purple-100 dark:bg-purple-900/30 rounded-xl p-6 shadow-sm border border-purple-200 dark:border-purple-800 hover:bg-purple-200 dark:hover:bg-purple-900 transition"
-            >
-              <h3
-              className="text-lg font-semibold text-purple-800 dark:text-purple-100">
-                💬 Talk With Paula
-                </h3>
-                <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
-                  Your personal mental health companion is here whenever you need her.
-                  </p>
-                  </a>
-                  
-            {/* Weekly Insight */}
-  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-      Weekly Insight
-    </h3>
-    <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg p-4">
-      <p className="text-sm text-gray-700 dark:text-gray-300">
-        &quot;Your consistency in daily check-ins is showing positive results. 
-        Remember to celebrate small victories along your journey.&quot;
-      </p>
-      <div className="flex items-center mt-3">
-        <div className="w-6 h-6 bg-primary-500 rounded-full flex items-center justify-center">
-          <span className="text-white text-xs">AI</span>
-        </div>
-        <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-          HopePath Assistant
-                  </span>
-                </div>
-              </div>
+
+            {/* Weekly Insight (kept, Paula card removed) */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow border">
+              <h3 className="text-lg font-semibold mb-4">
+                Weekly Insight
+              </h3>
+              <p className="text-sm">
+                You're making progress. Small steps still count.
+              </p>
             </div>
+
           </div>
         </div>
+
       </div>
     </DashboardLayout>
   )

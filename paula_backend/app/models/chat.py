@@ -1,9 +1,7 @@
-# app/models/chat.py
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import Dict
 
 def new_chat(user_id: str) -> Dict:
-    """Create a new chat document"""
     return {
         "user_id": user_id,
         "created_at": datetime.utcnow(),
@@ -11,7 +9,15 @@ def new_chat(user_id: str) -> Dict:
         "messages": [],
         "mood_log": [],
         "summary": None,
-        "context": {  # Add context tracking
+
+        # ✅ NEW MEMORY SYSTEM
+        "memory": {
+            "emotional_state": None,
+            "main_issues": [],
+            "habits": []
+        },
+
+        "context": {
             "user_name": None,
             "topics_discussed": [],
             "last_emotion": None,
@@ -20,7 +26,6 @@ def new_chat(user_id: str) -> Dict:
     }
 
 def chat_to_dict(chat) -> Dict:
-    """Convert chat document to dictionary"""
     chat_dict = dict(chat)
     chat_dict["_id"] = str(chat_dict["_id"])
     return chat_dict

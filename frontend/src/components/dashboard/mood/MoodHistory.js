@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Card from '@/components/ui/Card'
+import { getMood } from "@/services/moodService";
 
 const moodEmojis = {
   1: '😢', 2: '😔', 3: '😐', 4: '🙂', 5: '😊', 
@@ -13,23 +14,24 @@ export default function MoodHistory({ refreshTrigger }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const fetchMoodHistory = async () => {
-      setIsLoading(true)
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 600))
-      
-      // Get from localStorage (or API)
-      const storedEntries = JSON.parse(localStorage.getItem('hopepath_mood_entries') || '[]')
-      
-      // Sort by date, most recent first
-      const sortedEntries = storedEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-      setMoodEntries(sortedEntries.slice(0, 10)) // Show last 10 entries
-      setIsLoading(false)
-    }
+  const fetchMoodHistory = async () => {
+    setIsLoading(true);
 
-    fetchMoodHistory()
-  }, [refreshTrigger])
+    const uid = localStorage.getItem("uid");
+
+    if (!uid) return;
+
+    const data = await getMood(uid);
+
+    const sorted = data.mood_log
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    setMoodEntries(sorted.slice(0, 10));
+    setIsLoading(false);
+  };
+
+  fetchMoodHistory();
+}, [refreshTrigger]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString)

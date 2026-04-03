@@ -8,32 +8,41 @@ export default function MoodPatterns({ refreshTrigger }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const fetchPatterns = async () => {
-      setIsLoading(true)
+  const fetchPatterns = async () => {
+    setIsLoading(true);
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 700))
+    try {
+      const uid = localStorage.getItem("uid");
+      if (!uid) return;
 
-      // Generate mock patterns
-      const mockPatterns = {
-        weeklyTrend: [6, 7, 5, 6, 8, 9, 8], // Sun to Sat
-        bestTime: 'Evening',
-        activityImpact: [
-          { activity: 'Exercise', impact: +1.2 },
-          { activity: 'Social', impact: +0.8 },
-          { activity: 'Work', impact: -0.5 },
-          { activity: 'Nature', impact: +1.5 }
-        ],
+      const res = await fetch(`http://127.0.0.1:8000/api/mood/${uid}`);
+      const data = await res.json();
+
+      const moods = data.mood_log || [];
+
+      const weekly = Array(7).fill(0);
+
+      moods.forEach((entry) => {
+        const d = new Date(entry.date);
+        weekly[d.getDay()] += entry.mood;
+      });
+
+      setPatterns({
+        weeklyTrend: weekly.map((v) => Math.min(10, v || 5)),
+        bestTime: "Evening",
+        activityImpact: [],
         sleepThreshold: 7,
-        consistency: 85
-      }
-
-      setPatterns(mockPatterns)
-      setIsLoading(false)
+        consistency: Math.min(100, moods.length * 10),
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    fetchPatterns()
-  }, [refreshTrigger])
+  fetchPatterns();
+}, [refreshTrigger]);
 
   if (isLoading) {
     return (

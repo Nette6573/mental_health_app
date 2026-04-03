@@ -8,29 +8,54 @@ export default function MoodInsights({ refreshTrigger }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const fetchInsights = async () => {
-      setIsLoading(true)
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800))
-      
-      // Generate mock insights
-      const mockInsights = {
-        averageMood: 7.2,
-        moodTrend: 'improving',
-        bestDay: 'Friday',
-        commonActivities: ['Exercise', 'Social', 'Hobby'],
-        sleepCorrelation: 0.72,
-        weeklyPattern: 'Your mood tends to be highest on weekends',
-        recommendation: 'Try incorporating more outdoor activities - they seem to boost your mood!'
-      }
-      
-      setInsights(mockInsights)
-      setIsLoading(false)
-    }
+  const fetchInsights = async () => {
+    setIsLoading(true);
 
-    fetchInsights()
-  }, [refreshTrigger])
+    try {
+      const uid = localStorage.getItem("uid");
+      if (!uid) return;
+
+      const res = await fetch(`http://127.0.0.1:8000/api/mood/${uid}`);
+      const data = await res.json();
+
+      const moods = data.mood_log || [];
+
+      if (moods.length === 0) {
+        setInsights(null);
+        return;
+      }
+
+      const avg =
+        moods.reduce((sum, m) => sum + m.mood, 0) / moods.length;
+
+      const trend =
+        moods.length > 5
+          ? moods.slice(-3).reduce((s, m) => s + m.mood, 0) >
+            moods.slice(0, 3).reduce((s, m) => s + m.mood, 0)
+            ? "improving"
+            : "declining"
+          : "stable";
+
+      setInsights({
+        averageMood: avg.toFixed(1),
+        moodTrend: trend,
+        bestDay: "N/A",
+        sleepCorrelation: 0,
+        weeklyPattern: "Keep tracking to see patterns.",
+        recommendation:
+          avg < 5
+            ? "Consider rest or talking to someone."
+            : "You're doing well—keep it up!",
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  fetchInsights();
+}, [refreshTrigger]);
 
   if (isLoading) {
     return (
