@@ -2,14 +2,6 @@ import Card from '@/components/ui/Card'
 
 const actions = [
   {
-    title: 'Chat with Paula',
-    description: 'Talk through stress, emotions, or anything on your mind',
-    icon: '💛💬',
-    color: 'from-purple-500 to-purple-600',
-    href: '/paula',
-    available: true,
-  },
-  {
     title: 'Daily Check-in',
     description: 'Log your mood and thoughts',
     icon: '📝',
