@@ -54,8 +54,6 @@ export default function ProviderDashboardPage() {
   return () => unsubscribe();
 }, []);
   
-  fetchUser();
-}, []);
   return (
     <div className="flex min-h-screen overflow-hidden bg-slate-50 font-sans text-slate-800 dark:bg-slate-900 dark:text-slate-100">
       {/* Sidebar */}
