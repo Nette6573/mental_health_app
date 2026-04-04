@@ -34,7 +34,6 @@ import {
 export default function ProviderDashboardPage() {
   const [userName, setUserName] = useState("");
   useEffect(() => {
-  const fetchUser = async () => {
   const auth = getAuth();
 
   const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -43,7 +42,11 @@ export default function ProviderDashboardPage() {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        setUserName(docSnap.data().name);
+        setUserName(docSnap.dconst data = docSnap.data();
+
+        const fullName = `${data.professional_title || ""} ${data.first_name || ""} ${data.last_name || ""}`.trim();
+        
+        setUserName(fullName || "User");ata().name);
       } else {
         console.log("No such document!");
       }
@@ -174,7 +177,7 @@ export default function ProviderDashboardPage() {
 
               <div>
                 <h2 className="text-xl font-semibold text-slate-800 dark:text-white">
-                  Welcome back, {userName ? `Dr. ${userName}` : "Loading..."}
+                   Welcome back, {userName || "Loading..."}
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Here&apos;s your practice overview
