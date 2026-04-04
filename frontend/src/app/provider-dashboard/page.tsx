@@ -51,9 +51,9 @@ export default function ProviderDashboardPage() {
     }
   });
 
-  return () => unsubscribe(); // cleanup
+  return () => unsubscribe();
 }, []);
-
+  
   fetchUser();
 }, []);
   return (
