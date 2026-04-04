@@ -6,7 +6,8 @@ import logging
 import traceback
 
 from app.db.mongo import chats, users
-from app.ai.paula_client import ask_paula, detect_emotion_ai
+from app.ai.paula_client import ask_paula
+from app.ai.emotion_engine import detect_emotion_ai
 from app.models.chat import new_chat
 from app.models.message import MessageIn, MessageOut
 

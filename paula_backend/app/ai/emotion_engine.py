@@ -1,3 +1,11 @@
+def detect_emotion_ai(text: str) -> str:
+    text = text.lower()
+    if "stress" in text:
+        return "stressed"
+    if "sad" in text:
+        return "sad"
+    return "neutral"
+
 def analyze_emotional_trend(chat_memory):
 
     history = chat_memory.get("emotion_history", [])
