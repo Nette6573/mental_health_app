@@ -33,6 +33,7 @@ def get_resource_link(resource_type: str) -> str:
 
 def build_response(user_message, chat_memory, stage):
     response = []
+    asked_question = False  # 🔥 controls repetition
 
     emotion = (chat_memory or {}).get("emotional_state")
     issues = (chat_memory or {}).get("main_issues", [])
@@ -44,14 +45,14 @@ def build_response(user_message, chat_memory, stage):
 
     tone = get_tone(user_type, trend, stage)
 
-    # Opening
+    # ---------------- OPENING ---------------- #
     response.append(random.choice([
         "Mi hear yuh 💛",
         "Talk to me… what’s weighing on you most?",
         "What part of this stress feels the heaviest right now?"
     ]))
 
-    # Emotion
+    # ---------------- EMOTION ---------------- #
     if emotion and stage != "deep":
         response.append(f"It sounds like you're feeling {emotion}.")
 
@@ -59,39 +60,48 @@ def build_response(user_message, chat_memory, stage):
     if reflection:
         response.append(reflection)
 
-    # Situation
+    # ---------------- SITUATION ---------------- #
     if situation == "financial":
-        response.append("Money stress can feel really heavy…")
-    elif situation == "academic":
-        response.append("School pressure can pile up fast…")
-    elif situation == "relationship":
-        response.append("Relationship stress can hit deep…")
+        response.append("Money stress can feel really heavy… especially when bills start piling up.")
+        response.append("What’s the most urgent bill right now?")
+        asked_question = True
 
-    # Trend
+    elif situation == "academic":
+        response.append("School pressure can pile up fast… especially when things aren’t sticking.")
+
+    elif situation == "relationship":
+        response.append("Relationship stress can hit deep… especially when it involves someone you care about.")
+
+    # ---------------- MEMORY ---------------- #
+    if issues and situation is None:
+        response.append(f"This seems to keep coming up, especially around {issues[0]}.")
+
+    # ---------------- TREND ---------------- #
     if trend == "declining":
         response.append("I’ve noticed things have been feeling heavier over time…")
 
     if trend == "chronic_stress":
         response.append("It seems like your mind hasn’t had a real break in a while.")
 
-    # Risk
-    if "burnout_risk" in risk_flags:
+    # ---------------- RISK ---------------- #
+    if "burnout_risk" in risk_flags and stage == "deep":
         response.append("You might be reaching burnout. Your body needs real rest.")
 
     if "depression_risk" in risk_flags:
         response.append(f"You don’t have to carry this alone.\n👉 {get_resource_link('therapy')}")
 
-    # Adaptive
-    if user_type == "withdrawn":
-        response.append("You don’t have to say much… I’m here with you.")
-    elif user_type == "emotional":
-        response.append("What part a this feel the heaviest right now?")
-    elif user_type == "analytical":
-        response.append("Let’s break it down step by step.")
-    else:
-        response.append("Tell me more about what’s going on.")
+    # ---------------- ADAPTIVE ---------------- #
+    if not asked_question:
+        if user_type == "withdrawn":
+            response.append("You don’t have to say much… I’m here with you.")
+        elif user_type == "emotional":
+            response.append("What part a this feel the heaviest right now?")
+        elif user_type == "analytical":
+            response.append("Let’s break it down step by step.")
+        else:
+            response.append("Tell me more about what’s going on.")
 
-    # Therapy
+    # ---------------- THERAPY ---------------- #
     if stage == "deep":
         intervention = detect_need(user_message)
 
