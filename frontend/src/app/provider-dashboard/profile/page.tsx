@@ -2,6 +2,8 @@
 import { useAuth } from "@/context/AuthContext"; 
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firebaseClient";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useRouter } from "next/navigation";
 
 import Link from "next/link";
 import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
@@ -66,6 +68,17 @@ const categoryOptions = [
   { value: "organization", label: "Mental Health Organization" },
 ];
 
+const experienceOptions = [
+  "Less than 1 year",
+  "1-3 years",
+  "4-5 years",
+  "6-7 years",
+  "8-9 years",
+  "10-15 years",
+  "16-20 years",
+  "20+ years",
+];
+
 const slidingScaleOptions = [
   "Yes - I offer sliding scale fees",
   "No - Fixed fee",
@@ -87,6 +100,27 @@ type PhotoState = {
 export default function ProviderProfilePage() {
   //This is to get the logged in user
   const { user } = useAuth() as any;
+  const router = useRouter();
+
+  // ── Security: redirect unauthenticated users, block back-navigation ──
+  useEffect(() => {
+    if (user === null) {
+      // user is explicitly null (auth resolved, no session)
+      router.replace("/provider-dashboard/login");
+    }
+  }, [user, router]);
+
+  useEffect(() => {
+    // Push a history entry so the browser back button can't expose this page
+    // after logout. Combined with router.replace on logout this prevents
+    // the back-button attack.
+    window.history.pushState(null, "", window.location.href);
+    const blockBack = () => {
+      window.history.pushState(null, "", window.location.href);
+    };
+    window.addEventListener("popstate", blockBack);
+    return () => window.removeEventListener("popstate", blockBack);
+  }, []);
   const [darkMode, setDarkMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -102,9 +136,8 @@ export default function ProviderProfilePage() {
   const [phone, setPhone] = useState("");
   const [website, setWebsite] = useState("");
 
-  const [bio, setBio] = useState(
-    ""
-  );
+  const [bio, setBio] = useState("");
+  const [experience, setExperience] = useState("");
 
   const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>([]);
 
@@ -179,7 +212,7 @@ export default function ProviderProfilePage() {
     if (!user) return;
 
     try {
-      const docRef = doc(db, "providers", user.uid);
+      const docRef = doc(db, "providers", user.id);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
@@ -196,13 +229,23 @@ export default function ProviderProfilePage() {
         setPhone(data.phone_number ?? "");
         setWebsite(data.website ?? "");
 
-        setBio(data.bio ?? data.experience ?? "");
+        setBio(data.biography ?? "");
+        setExperience(data.experience ?? "");
 
-        // Specializations (handle string or array)
+        // Specializations — case-insensitive match against option labels
         if (Array.isArray(data.practice_areas)) {
-          setSelectedSpecializations(data.practice_areas);
+          setSelectedSpecializations(
+            data.practice_areas.filter((a: string) =>
+              specializationOptions.some((o) => o.toLowerCase() === a.toLowerCase())
+            )
+          );
         } else if (typeof data.practice_areas === "string" && data.practice_areas) {
-          setSelectedSpecializations(data.practice_areas.split(",").map((s: string) => s.trim()).filter(Boolean));
+          const incoming = data.practice_areas.split(",").map((s: string) => s.trim());
+          setSelectedSpecializations(
+            specializationOptions.filter((o) =>
+              incoming.some((i) => i.toLowerCase() === o.toLowerCase())
+            )
+          );
         }
 
         // Languages (handle string or array)
@@ -228,6 +271,14 @@ export default function ProviderProfilePage() {
         // Payment / sliding scale
         if (data.payment_options) setSlidingScale(data.payment_options);
 
+        // Photos
+        if (data.profile_photo_url) {
+          setProfilePhoto({ file: null, preview: data.profile_photo_url });
+        }
+        if (data.cover_photo_url) {
+          setCoverPhoto({ file: null, preview: data.cover_photo_url });
+        }
+
       } else {
         console.log("No provider document found");
       }
@@ -244,48 +295,70 @@ export default function ProviderProfilePage() {
   };
 
   const logout = () => {
-    window.location.href = "/provider-dashboard/login";
+    router.replace("/provider-dashboard/login");
   };
 
   const handleSave = async (e?: FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
     if (!user) return;
 
-    // Split full name back into first / last
     const nameParts = fullName.trim().split(/\s+/);
     const first_name = nameParts[0] ?? "";
     const last_name = nameParts.slice(1).join(" ");
 
-    // Build session_types string
     const sessionTypeParts: string[] = [];
     if (sessionTypes.inPerson) sessionTypeParts.push("In Person");
     if (sessionTypes.virtual) sessionTypeParts.push("Virtual");
     if (sessionTypes.phone) sessionTypeParts.push("Phone");
 
-    const payload = {
-      first_name,
-      last_name,
-      professional_title: professionalTitle,
-      organization: organization,
-      category: category,
-      parish: parish,
-      professional_email: email,
-      phone_number: phone,
-      website: website,
-      experience: bio,
-      practice_areas: selectedSpecializations.join(", "),
-      specialization: selectedSpecializations.join(", "),
-      languages: languages.filter(Boolean).join(", "),
-      session_types: sessionTypeParts.join(", "),
-      session_cost: sessionCost,
-      payment_options: slidingScale,
-    };
-
     setIsSaving(true);
     setSaveError(null);
 
     try {
-      const docRef = doc(db, "providers", user.uid);
+      // Upload photos to Firebase Storage if new files were selected
+      let profilePhotoUrl: string | undefined;
+      let coverPhotoUrl: string | undefined;
+
+      if (profilePhoto.file) {
+        profilePhotoUrl = await uploadPhoto(
+          profilePhoto.file,
+          `providers/${user.id}/profile_photo`
+        );
+        setProfilePhoto((prev) => ({ ...prev, file: null, preview: profilePhotoUrl! }));
+      }
+
+      if (coverPhoto.file) {
+        coverPhotoUrl = await uploadPhoto(
+          coverPhoto.file,
+          `providers/${user.id}/cover_photo`
+        );
+        setCoverPhoto((prev) => ({ ...prev, file: null, preview: coverPhotoUrl! }));
+      }
+
+      const payload: Record<string, any> = {
+        first_name,
+        last_name,
+        professional_title: professionalTitle,
+        organization: organization,
+        category: category,
+        parish: parish,
+        professional_email: email,
+        phone_number: phone,
+        website: website,
+        biography: bio,
+        experience: experience,
+        practice_areas: selectedSpecializations.join(", "),
+        specialization: selectedSpecializations.join(", "),
+        languages: languages.filter(Boolean).join(", "),
+        session_types: sessionTypeParts.join(", "),
+        session_cost: sessionCost,
+        payment_options: slidingScale,
+      };
+
+      if (profilePhotoUrl) payload.profile_photo_url = profilePhotoUrl;
+      if (coverPhotoUrl) payload.cover_photo_url = coverPhotoUrl;
+
+      const docRef = doc(db, "providers", user.id);
       await setDoc(docRef, payload, { merge: true });
       alert("Profile updated successfully!");
     } catch (error: any) {
@@ -368,6 +441,13 @@ export default function ProviderProfilePage() {
     }
 
     e.target.value = "";
+  };
+
+  const uploadPhoto = async (file: File, path: string): Promise<string> => {
+    const storage = getStorage();
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file);
+    return getDownloadURL(storageRef);
   };
 
   const navItems = [
@@ -653,9 +733,10 @@ export default function ProviderProfilePage() {
                     Website
                   </label>
                   <input
-                    type="url"
+                    type="text"
                     value={website}
                     onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://yourwebsite.com"
                     className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   />
                 </div>
@@ -668,13 +749,38 @@ export default function ProviderProfilePage() {
                 About / Bio
               </h3>
 
-              <textarea
-                rows={5}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="Tell potential clients about your approach, experience, and faith integration..."
-                className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              />
+              <div className="space-y-6">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Biography
+                  </label>
+                  <textarea
+                    rows={5}
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="Tell potential clients about your approach, experience, and faith integration..."
+                    className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Years of Experience
+                  </label>
+                  <select
+                    value={experience}
+                    onChange={(e) => setExperience(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  >
+                    <option value="">Select experience range…</option>
+                    {experienceOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">

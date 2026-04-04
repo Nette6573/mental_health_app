@@ -28,71 +28,34 @@ import {
   X,
   FileText,
 } from "lucide-react";
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  where,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
 
 type ServiceStatus = "active" | "paused";
 
 type Service = {
-  id: number;
+  id: string; // Firestore document ID
   title: string;
   description: string;
   duration: string;
   price: string;
   mode: string;
   status: ServiceStatus;
-  bookingsThisMonth: number;
   icon: "user" | "heart" | "church";
   iconBg: string;
   iconColor: string;
   tags: string[];
 };
-
-const defaultServices: Service[] = [
-  {
-    id: 1,
-    title: "Individual Therapy",
-    description:
-      "One-on-one counseling sessions focused on personal growth, healing, and spiritual development.",
-    duration: "60 minutes",
-    price: "$15,000 JMD",
-    mode: "In Person & Virtual",
-    status: "active",
-    bookingsThisMonth: 12,
-    icon: "user",
-    iconBg: "bg-blue-50 dark:bg-blue-900/20",
-    iconColor: "text-blue-600 dark:text-blue-400",
-    tags: ["Depression", "Anxiety"],
-  },
-  {
-    id: 2,
-    title: "Marriage Counseling",
-    description:
-      "Christian-based couples therapy focusing on communication, conflict resolution, and spiritual unity.",
-    duration: "90 minutes",
-    price: "$20,000 JMD",
-    mode: "In Person",
-    status: "active",
-    bookingsThisMonth: 8,
-    icon: "heart",
-    iconBg: "bg-purple-50 dark:bg-purple-900/20",
-    iconColor: "text-purple-600 dark:text-purple-400",
-    tags: ["Marriage"],
-  },
-  {
-    id: 3,
-    title: "Spiritual Mentorship",
-    description:
-      "Guidance for spiritual growth, biblical counseling, and faith-based life coaching.",
-    duration: "45 minutes",
-    price: "Free",
-    mode: "Virtual",
-    status: "paused",
-    bookingsThisMonth: 2,
-    icon: "church",
-    iconBg: "bg-amber-600/10",
-    iconColor: "text-amber-600",
-    tags: ["Spiritual"],
-  },
-];
 
 const defaultSpecializationOptions = [
   "Depression",
@@ -112,16 +75,41 @@ type UploadedServiceFile = {
   file: File;
 };
 
+// Helper to derive icon meta from tags
+function deriveIconMeta(tags: string[]): Pick<Service, "icon" | "iconBg" | "iconColor"> {
+  if (tags.includes("Marriage")) {
+    return {
+      icon: "heart",
+      iconBg: "bg-purple-50 dark:bg-purple-900/20",
+      iconColor: "text-purple-600 dark:text-purple-400",
+    };
+  }
+  if (tags.includes("Spiritual")) {
+    return {
+      icon: "church",
+      iconBg: "bg-amber-600/10",
+      iconColor: "text-amber-600",
+    };
+  }
+  return {
+    icon: "user",
+    iconBg: "bg-blue-50 dark:bg-blue-900/20",
+    iconColor: "text-blue-600 dark:text-blue-400",
+  };
+}
+
 export default function ProviderServicesPage() {
   const [darkMode, setDarkMode] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  const [services, setServices] = useState<Service[]>(defaultServices);
+  const [services, setServices] = useState<Service[]>([]);
+  const [loadingServices, setLoadingServices] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [serviceModalOpen, setServiceModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
-  const [editingServiceId, setEditingServiceId] = useState<number | null>(null);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
 
   const [serviceTitle, setServiceTitle] = useState("");
   const [serviceDescription, setServiceDescription] = useState("");
@@ -155,6 +143,46 @@ export default function ProviderServicesPage() {
     } else {
       document.documentElement.classList.remove("dark");
     }
+  }, []);
+
+  // Fetch services from Firestore for the current provider
+  useEffect(() => {
+    const fetchServices = async () => {
+      const user = auth.currentUser;
+      if (!user) {
+        setLoadingServices(false);
+        return;
+      }
+      try {
+        const q = query(
+          collection(db, "provider_services"),
+          where("provider_id", "==", user.uid)
+        );
+        const snapshot = await getDocs(q);
+        const fetched: Service[] = snapshot.docs.map((docSnap) => {
+          const d = docSnap.data();
+          const tags: string[] = Array.isArray(d.specializations) ? d.specializations : [];
+          return {
+            id: docSnap.id,
+            title: d.service_title ?? "",
+            description: d.description ?? "",
+            duration: d.duration ?? "60 minutes",
+            price: d.price ?? "",
+            mode: d.delivery_mode ?? "Both",
+            status: (d.service_status as ServiceStatus) ?? "active",
+            tags,
+            ...deriveIconMeta(tags),
+          };
+        });
+        setServices(fetched);
+      } catch (err) {
+        console.error("Failed to fetch services:", err);
+      } finally {
+        setLoadingServices(false);
+      }
+    };
+
+    fetchServices();
   }, []);
 
   useEffect(() => {
@@ -207,7 +235,7 @@ export default function ProviderServicesPage() {
     setUploadedFiles([]);
   };
 
-  const openServiceModal = (serviceId?: number) => {
+  const openServiceModal = (serviceId?: string) => {
     if (serviceId) {
       const service = services.find((item) => item.id === serviceId);
       if (!service) return;
@@ -303,8 +331,14 @@ export default function ProviderServicesPage() {
     return servicePrice ? `$${Number(servicePrice).toLocaleString()} JMD` : "$0 JMD";
   }, [isFreeService, servicePrice]);
 
-  const handleSaveService = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveService = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    const user = auth.currentUser;
+    if (!user) {
+      alert("You must be logged in to save a service.");
+      return;
+    }
 
     const trimmedTitle = serviceTitle.trim();
     const trimmedDescription = serviceDescription.trim();
@@ -314,60 +348,75 @@ export default function ProviderServicesPage() {
       return;
     }
 
-    const newService: Service = {
-      id: editingServiceId ?? Date.now(),
-      title: trimmedTitle,
+    const priceValue = isFreeService ? "Free" : servicePriceDisplay;
+    const iconMeta = deriveIconMeta(selectedTags);
+
+    const firestoreData = {
+      service_title: trimmedTitle,
       description: trimmedDescription,
       duration: serviceDuration,
-      price: isFreeService ? "Free" : servicePriceDisplay,
-      mode: serviceMode,
-      status: serviceStatus,
-      bookingsThisMonth: editingServiceId
-        ? services.find((s) => s.id === editingServiceId)?.bookingsThisMonth ?? 0
-        : 0,
-      icon: selectedTags.includes("Marriage")
-        ? "heart"
-        : selectedTags.includes("Spiritual")
-        ? "church"
-        : "user",
-      iconBg: selectedTags.includes("Marriage")
-        ? "bg-purple-50 dark:bg-purple-900/20"
-        : selectedTags.includes("Spiritual")
-        ? "bg-amber-600/10"
-        : "bg-blue-50 dark:bg-blue-900/20",
-      iconColor: selectedTags.includes("Marriage")
-        ? "text-purple-600 dark:text-purple-400"
-        : selectedTags.includes("Spiritual")
-        ? "text-amber-600"
-        : "text-blue-600 dark:text-blue-400",
-      tags: selectedTags,
+      price: priceValue,
+      delivery_mode: serviceMode,
+      service_status: serviceStatus,
+      specializations: selectedTags,
+      service_documents: uploadedFiles.map((f) => f.name).join(", "),
+      provider_id: user.uid,
+      updated_at: serverTimestamp(),
     };
 
-    if (editingServiceId) {
-      setServices((prev) =>
-        prev.map((service) => (service.id === editingServiceId ? newService : service))
-      );
-    } else {
-      setServices((prev) => [...prev, newService]);
+    setSaving(true);
+    try {
+      if (editingServiceId) {
+        await updateDoc(doc(db, "provider_services", editingServiceId), firestoreData);
+        setServices((prev) =>
+          prev.map((s) =>
+            s.id === editingServiceId
+              ? {
+                  ...s,
+                  title: trimmedTitle,
+                  description: trimmedDescription,
+                  duration: serviceDuration,
+                  price: priceValue,
+                  mode: serviceMode,
+                  status: serviceStatus,
+                  tags: selectedTags,
+                  ...iconMeta,
+                }
+              : s
+          )
+        );
+      } else {
+        const docRef = await addDoc(collection(db, "provider_services"), {
+          ...firestoreData,
+          created_at: serverTimestamp(),
+        });
+        setServices((prev) => [
+          ...prev,
+          {
+            id: docRef.id,
+            title: trimmedTitle,
+            description: trimmedDescription,
+            duration: serviceDuration,
+            price: priceValue,
+            mode: serviceMode,
+            status: serviceStatus,
+            tags: selectedTags,
+            ...iconMeta,
+          },
+        ]);
+      }
+
+      closeServiceModal();
+      resetServiceForm();
+    } catch (err) {
+      console.error("Failed to save service:", err);
+      alert("Failed to save service. Please try again.");
+    } finally {
+      setSaving(false);
     }
-
-    console.log("Service Data:", {
-      title: trimmedTitle,
-      description: trimmedDescription,
-      duration: serviceDuration,
-      price: isFreeService ? "Free" : servicePriceDisplay,
-      mode: serviceMode,
-      status: serviceStatus,
-      specializations: selectedTags,
-      files: uploadedFiles.map((f) => f.name),
-    });
-
-    alert("Service saved successfully!");
-    closeServiceModal();
-    resetServiceForm();
   };
 
-  const openDeleteModal = (serviceId: number) => {
+  const openDeleteModal = (serviceId: string) => {
     const service = services.find((item) => item.id === serviceId);
     if (!service) return;
 
@@ -380,24 +429,42 @@ export default function ProviderServicesPage() {
     setServiceToDelete(null);
   };
 
-  const confirmDeleteService = () => {
+  const confirmDeleteService = async () => {
     if (!serviceToDelete) return;
 
-    setServices((prev) => prev.filter((service) => service.id !== serviceToDelete.id));
-    closeDeleteModal();
+    try {
+      await deleteDoc(doc(db, "provider_services", serviceToDelete.id));
+      setServices((prev) => prev.filter((s) => s.id !== serviceToDelete.id));
+      closeDeleteModal();
+    } catch (err) {
+      console.error("Failed to delete service:", err);
+      alert("Failed to delete service. Please try again.");
+    }
   };
 
-  const toggleServiceStatus = (serviceId: number) => {
+  const toggleServiceStatus = async (serviceId: string) => {
+    const service = services.find((s) => s.id === serviceId);
+    if (!service) return;
+
+    const newStatus: ServiceStatus = service.status === "active" ? "paused" : "active";
+
+    // Optimistic update
     setServices((prev) =>
-      prev.map((service) =>
-        service.id === serviceId
-          ? {
-              ...service,
-              status: service.status === "active" ? "paused" : "active",
-            }
-          : service
-      )
+      prev.map((s) => (s.id === serviceId ? { ...s, status: newStatus } : s))
     );
+
+    try {
+      await updateDoc(doc(db, "provider_services", serviceId), {
+        service_status: newStatus,
+        updated_at: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("Failed to update status:", err);
+      // Revert on failure
+      setServices((prev) =>
+        prev.map((s) => (s.id === serviceId ? { ...s, status: service.status } : s))
+      );
+    }
   };
 
   const renderServiceIcon = (service: Service) => {
@@ -723,10 +790,20 @@ export default function ProviderServicesPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center gap-2 rounded-lg bg-sky-600 px-6 py-2 font-medium text-white transition-colors hover:bg-sky-700"
+                  disabled={saving}
+                  className="flex items-center gap-2 rounded-lg bg-sky-600 px-6 py-2 font-medium text-white transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <Save className="h-4 w-4" />
-                  Save Service
+                  {saving ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Save Service
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -887,7 +964,12 @@ export default function ProviderServicesPage() {
             id="servicesGrid"
             className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
           >
-            {services.length > 0 ? (
+            {loadingServices ? (
+              <div className="col-span-full py-12 text-center text-slate-400">
+                <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-sky-600 border-t-transparent" />
+                <p className="text-sm">Loading your services...</p>
+              </div>
+            ) : services.length > 0 ? (
               services.map((service) => (
                 <div
                   key={service.id}
@@ -962,7 +1044,7 @@ export default function ProviderServicesPage() {
                       {service.status === "active" ? "Active" : "Paused"}
                     </button>
                     <span className="text-xs text-slate-500 dark:text-slate-400">
-                      {service.bookingsThisMonth} bookings this month
+                      {service.status === "active" ? "Active" : "Paused"}
                     </span>
                   </div>
                 </div>
