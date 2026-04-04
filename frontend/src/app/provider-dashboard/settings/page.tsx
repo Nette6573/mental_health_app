@@ -13,7 +13,7 @@ import {
   sendEmailVerification
 } from 'firebase/auth'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
-import { auth, db, googleProvider, facebookProvider } from "../lib/firebase/firebaseClient";
+import { auth, db, googleProvider, facebookProvider } from "../lib/firebase";
 
 const AuthContext = createContext(null)
 
