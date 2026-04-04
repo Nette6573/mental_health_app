@@ -33,40 +33,48 @@ import {
 
 export default function ProviderDashboardPage() {
 const [userName, setUserName] = useState("");
-const [loading, setLoading] = useState(true);  // add this state
+const [loading, setLoading] = useState(true);
 
 useEffect(() => {
   const auth = getAuth();
+  console.log("1. Auth object:", auth);
 
   const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    console.log("2. onAuthStateChanged triggered, user:", user);
+    
     if (user) {
+      console.log("3. User UID:", user.uid);
+      
       try {
         const docRef = doc(db, "users", user.uid);
+        console.log("4. DocRef path:", docRef.path);
+        
         const docSnap = await getDoc(docRef);
-
+        console.log("5. Document exists?", docSnap.exists());
+        
         if (docSnap.exists()) {
           const data = docSnap.data();
-          console.log("Fetched user data:", data); // 🔍 check browser console
-
-          // Build full name safely
+          console.log("6. Full data from Firestore:", data);
+          
           const title = data.professional_title || "";
           const firstName = data.first_name || "";
           const lastName = data.last_name || "";
           const fullName = `${title} ${firstName} ${lastName}`.trim();
-
+          console.log("7. Constructed fullName:", fullName);
+          
           setUserName(fullName || "Provider");
         } else {
-          console.error("No user document found for uid:", user.uid);
+          console.error("❌ Document does NOT exist for UID:", user.uid);
           setUserName("Provider");
         }
       } catch (error) {
-        console.error("Firestore fetch error:", error);
+        console.error("❌ Firestore read error:", error);
         setUserName("Provider");
       } finally {
         setLoading(false);
       }
     } else {
-      console.log("No user logged in");
+      console.log("❌ No user is signed in");
       setLoading(false);
     }
   });
