@@ -1,3 +1,20 @@
+"use client";
+
+import { db } from "@/lib/firebase/firebaseClient";
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  onSnapshot,
+  orderBy,
+  serverTimestamp,
+} from "firebase/firestore";
+import { useAuth } from "@/context/AuthContext";
+import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+//import { db } from "@/lib/firebase/firebaseClient";
+import { getAuth } from "firebase/auth";
 import Link from 'next/link'
 import {
   LayoutDashboard,
@@ -26,6 +43,56 @@ import {
 } from 'lucide-react'
 
 export default function ProviderDashboardPage() {
+const [userName, setUserName] = useState("");
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  const auth = getAuth();
+  console.log("1. Auth object:", auth);
+
+  const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    console.log("2. onAuthStateChanged triggered, user:", user);
+    
+    if (user) {
+      console.log("3. User UID:", user.uid);
+      
+      try {
+        const docRef = doc(db, "users", user.uid);
+        console.log("4. DocRef path:", docRef.path);
+        
+        const docSnap = await getDoc(docRef);
+        console.log("5. Document exists?", docSnap.exists());
+        
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          console.log("6. Full data from Firestore:", data);
+          
+          const title = data.professional_title || "";
+          const firstName = data.first_name || "";
+          const lastName = data.last_name || "";
+          const fullName = `${title} ${firstName} ${lastName}`.trim();
+          console.log("7. Constructed fullName:", fullName);
+          
+          setUserName(fullName || "Provider");
+        } else {
+          console.error("❌ Document does NOT exist for UID:", user.uid);
+          setUserName("Provider");
+        }
+      } catch (error) {
+        console.error("❌ Firestore read error:", error);
+        setUserName("Provider");
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      console.log("❌ No user is signed in");
+      setLoading(false);
+    }
+  });
+
+  return () => unsubscribe();
+}, []);
+  
   return (
     <div className="flex min-h-screen overflow-hidden bg-slate-50 font-sans text-slate-800 dark:bg-slate-900 dark:text-slate-100">
       {/* Sidebar */}
@@ -144,8 +211,8 @@ export default function ProviderDashboardPage() {
               </button>
 
               <div>
-                <h2 className="text-xl font-semibold text-slate-800 dark:text-white">
-                  Welcome back, Dr. Thomas
+               <h2 className="text-xl font-semibold">
+                Welcome back, {loading ? "Loading..." : (userName || "Provider")}
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Here&apos;s your practice overview
@@ -165,8 +232,8 @@ export default function ProviderDashboardPage() {
 
               <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-700">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium text-slate-800 dark:text-white">
-                    Dr. Shamar Thomas
+                  <p className="text-sm font-medium">
+                    Dr. {loading ? "..." : (userName.split(" ").pop() || "Provider")}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Clinical Psychologist
