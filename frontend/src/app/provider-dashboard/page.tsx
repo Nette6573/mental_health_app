@@ -1,20 +1,9 @@
 "use client";
 
 import { db } from "@/lib/firebase/firebaseClient";
-import {
-  collection,
-  addDoc,
-  query,
-  where,
-  onSnapshot,
-  orderBy,
-  serverTimestamp,
-} from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
-//import { db } from "@/lib/firebase/firebaseClient";
-import { getAuth } from "firebase/auth";
 import Link from 'next/link'
 import {
   LayoutDashboard,
@@ -43,39 +32,38 @@ import {
 } from 'lucide-react'
 
 export default function ProviderDashboardPage() {
+  const { user } = useAuth() as any;
   const [firstName, setFirstName] = useState<string>("");
   const [lastName, setLastName] = useState<string>("");
   const [providerTitle, setProviderTitle] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
 
 useEffect(() => {
-  const auth = getAuth();
-  const unsubscribe = auth.onAuthStateChanged(async (user) => {
-    if (user) {
-      try {
-        // Fetch directly by UID — no collection scan, matches your security rules
-        const userDocRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userDocRef);
+  const fetchProviderData = async () => {
+    if (!user) return;
 
-        if (userSnap.exists()) {
-          const data = userSnap.data();
-          setFirstName(data.first_name || "");
-          setLastName(data.last_name || "");
-          setProviderTitle(data.professional_title || "");
-        } else {
-          console.error("No Firestore document found for UID:", user.uid);
-        }
-      } catch (error) {
-        console.error("Firestore fetch error:", error);
-      } finally {
-        setLoading(false);
+    try {
+      // 'providers' collection, keyed by user.id — same as profile page
+      const docRef = doc(db, "providers", user.id);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setFirstName(data.first_name || "");
+        setLastName(data.last_name || "");
+        setProviderTitle(data.professional_title || "");
+      } else {
+        console.error("No provider document found for id:", user.id);
       }
-    } else {
+    } catch (error) {
+      console.error("Firestore fetch error:", error);
+    } finally {
       setLoading(false);
     }
-  });
-  return () => unsubscribe();
-}, []);
+  };
+
+  fetchProviderData();
+}, [user]);
   
   return (
     <div className="flex min-h-screen overflow-hidden bg-slate-50 font-sans text-slate-800 dark:bg-slate-900 dark:text-slate-100">
