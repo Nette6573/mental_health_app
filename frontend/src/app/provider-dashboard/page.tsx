@@ -33,7 +33,7 @@ import {
 
 export default function ProviderDashboardPage() {
   const [userName, setUserName] = useState("");
-  useEffect(() => {
+ useEffect(() => {
   const auth = getAuth();
 
   const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -42,10 +42,9 @@ export default function ProviderDashboardPage() {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        const data = docSnap.data();
+        const data = docSnap.data();               // ✅ get the data first
         const fullName = `${data.professional_title || ""} ${data.first_name || ""} ${data.last_name || ""}`.trim();
         setUserName(fullName || "User");
-      }
       } else {
         console.log("No such document!");
       }
