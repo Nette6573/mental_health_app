@@ -22,8 +22,8 @@ import {
   User,
   UserCog,
 } from "lucide-react";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged, sendPasswordResetEmail, User } from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
 type TabKey = "general" | "notifications" | "security" | "billing";
@@ -41,9 +41,12 @@ export default function ProviderSettingsPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("general");
 
-  // Account
-  const [email, setEmail] = useState("dr.anderson@hopepath.jm");
-  const [username, setUsername] = useState("dr.anderson@hopepath.jm"); // mirrors email per spec
+  // Authenticated user
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Account — seeded from auth once user is known
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState(""); // mirrors email
   const [timezone, setTimezone] = useState("(UTC-05:00) Eastern Time (Jamaica)");
   const [language, setLanguage] = useState("English");
 
@@ -89,26 +92,45 @@ export default function ProviderSettingsPage() {
     else document.documentElement.classList.remove("dark");
   }, []);
 
-  // ── Load Firestore security data ─────────────────────────────────────────
+  // ── Auth listener + load all Firestore settings ─────────────────────────
   useEffect(() => {
-    const loadSecurity = async () => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+
+      if (!user) return;
+
+      // Seed email & username from the authenticated user immediately
+      setEmail(user.email ?? "");
+      setUsername(user.email ?? "");
+
       try {
-        // auth.currentUser is available once Firebase is initialised
-        const uid = auth.currentUser?.uid;
-        if (!uid) return;
-        const snap = await getDoc(doc(db, "provider_security", uid));
-        if (snap.exists()) {
-          const data = snap.data();
-          setLastLogin(
-            data.last_login?.toDate ? (data.last_login.toDate() as Date) : null
-          );
-          setDeviceInfo(data.device_info || "");
+        // Load from provider_settings (general / display fields)
+        const settingsSnap = await getDoc(doc(db, "provider_settings", user.uid));
+        if (settingsSnap.exists()) {
+          const d = settingsSnap.data();
+          if (d.timezone)          setTimezone(d.timezone);
+          if (d.settings_language) setLanguage(d.settings_language);
+          if (d.plan)              setSelectedPlan(d.plan);
+        }
+
+        // Load from provider_security (notifications + login history)
+        const securitySnap = await getDoc(doc(db, "provider_security", user.uid));
+        if (securitySnap.exists()) {
+          const d = securitySnap.data();
+          setEmailNotifications(d.email_notification === "true" || d.email_notification === true);
+          setSmsNotifications(d.sms_notification === "true" || d.sms_notification === true);
+          setMarketingEmails(d.marketing_emails === "true" || d.marketing_emails === true);
+          setAppointmentReminders(d.appointment_reminders === "true" || d.appointment_reminders === true);
+          setLastLogin(d.last_login?.toDate ? (d.last_login.toDate() as Date) : null);
+          setDeviceInfo(d.device_info || "");
         }
       } catch (err) {
-        console.error("Failed to load security data:", err);
+        console.error("Failed to load settings:", err);
       }
-    };
-    loadSecurity();
+    });
+
+    return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -129,7 +151,42 @@ export default function ProviderSettingsPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleSave = () => showToast("Settings saved successfully!");
+  const handleSave = async () => {
+    if (!currentUser) {
+      showToast("Not signed in — please log in again.", false);
+      return;
+    }
+    try {
+      // Write general / display fields to provider_settings
+      await setDoc(
+        doc(db, "provider_settings", currentUser.uid),
+        {
+          timezone,
+          settings_language: language,
+          plan: selectedPlan,
+          updated_at: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Write notification prefs to provider_security
+      await setDoc(
+        doc(db, "provider_security", currentUser.uid),
+        {
+          email_notification:    String(emailNotifications),
+          sms_notification:      String(smsNotifications),
+          marketing_emails:      String(marketingEmails),
+          appointment_reminders: String(appointmentReminders),
+        },
+        { merge: true }
+      );
+
+      showToast("Settings saved successfully!");
+    } catch (err) {
+      console.error("Save failed:", err);
+      showToast("Failed to save settings. Please try again.", false);
+    }
+  };
   const handleCancel = () => window.location.reload();
 
   // Scroll-to-section when tab is clicked
@@ -161,7 +218,7 @@ export default function ProviderSettingsPage() {
 
   // Firebase password reset
   const handlePasswordReset = async () => {
-    const userEmail = auth.currentUser?.email || email;
+    const userEmail = currentUser?.email || email;
     if (!userEmail) return;
     setResetLoading(true);
     setResetMessage(null);
@@ -533,7 +590,7 @@ export default function ProviderSettingsPage() {
                       <p className="text-sm text-slate-500 dark:text-slate-400">
                         A reset link will be sent to{" "}
                         <span className="font-medium text-slate-700 dark:text-slate-300">
-                          {auth.currentUser?.email || email}
+                          {currentUser?.email || email}
                         </span>
                       </p>
                       {resetMessage && (
