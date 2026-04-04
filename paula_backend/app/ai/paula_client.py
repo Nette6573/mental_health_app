@@ -64,12 +64,17 @@ def safe_crisis_response():
 def detect_user_type(message: str) -> str:
     msg = message.lower()
 
-    if len(msg.split()) < 5:
-        return "withdrawn"
-    if any(w in msg for w in ["sad", "hurt", "feel"]):
+    # ✅ PRIORITIZE EMOTION FIRST (IMPORTANT FIX)
+    if any(w in msg for w in ["sad", "hurt", "feel", "stressed", "overwhelmed"]):
         return "emotional"
+
+    # THEN fallback rules
+    if len(msg.split()) < 4:
+        return "withdrawn"
+
     if any(w in msg for w in ["why", "how"]):
         return "analytical"
+
     if "stress" in msg or "overwhelmed" in msg:
         return "overwhelmed"
 
@@ -205,9 +210,9 @@ class PaulaClient:
 
         # ---------------- OPENING ---------------- #
         response.append(random.choice([
-            "Mi hear yuh 💛",
-            "That sounds heavy…",
-            "I’m really glad yuh said that."
+            "Which part a this a hit yuh the hardest?",
+            "Talk to me… what’s weighing on you most?",
+            "What part of this stress feels the heaviest right now?"
         ]))
 
         # ---------------- EMOTIONAL REFLECTION ---------------- #
