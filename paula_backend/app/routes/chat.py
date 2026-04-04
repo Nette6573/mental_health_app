@@ -18,15 +18,17 @@ router = APIRouter()
 def extract_memory(message: str, existing_memory: dict):
     msg = message.lower()
 
-    memory = existing_memory or {
-        "emotional_state": None,
-        "main_issues": [],
-        "stress_level": 0,
-        "risk_flags": [],
-        "conversation_count": 0,
-        "emotion_history": []
-    }
+    memory = existing_memory or {}
 
+    # ✅ SAFE DEFAULTS (FIX)
+    memory.setdefault("emotional_state", None)
+    memory.setdefault("main_issues", [])
+    memory.setdefault("stress_level", 0)
+    memory.setdefault("risk_flags", [])
+    memory.setdefault("conversation_count", 0)
+    memory.setdefault("emotion_history", [])
+
+    # ✅ NOW SAFE
     memory["conversation_count"] += 1
 
     # -------- EMOTIONAL DETECTION --------
