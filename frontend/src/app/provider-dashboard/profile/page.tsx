@@ -179,7 +179,7 @@ export default function ProviderProfilePage() {
     if (!user) return;
 
     try {
-      const docRef = doc(db, "providers", user.uid);
+      const docRef = doc(db, "providers", user.id);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
@@ -285,7 +285,7 @@ export default function ProviderProfilePage() {
     setSaveError(null);
 
     try {
-      const docRef = doc(db, "providers", user.uid);
+      const docRef = doc(db, "providers", user.id);
       await setDoc(docRef, payload, { merge: true });
       alert("Profile updated successfully!");
     } catch (error: any) {
