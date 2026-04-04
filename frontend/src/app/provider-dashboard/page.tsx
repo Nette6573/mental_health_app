@@ -34,6 +34,7 @@ import {
 export default function ProviderDashboardPage() {
   const [userName, setUserName] = useState("");
   useEffect(() => {
+  const fetchUser = async () => {
   const auth = getAuth();
 
   const unsubscribe = auth.onAuthStateChanged(async (user) => {
