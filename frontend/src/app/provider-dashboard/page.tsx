@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, getDocs } from "firebase/firestore";
 //import { db } from "@/lib/firebase/firebaseClient";
 import { getAuth } from "firebase/auth";
 import Link from 'next/link'
@@ -43,30 +43,31 @@ import {
 } from 'lucide-react'
 
 export default function ProviderDashboardPage() {
+  const [firstName, setFirstName] = useState<string>("");
+  const [lastName, setLastName] = useState<string>("");
+  const [providerTitle, setProviderTitle] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(true);
+
 useEffect(() => {
   const auth = getAuth();
   const unsubscribe = auth.onAuthStateChanged(async (user) => {
     if (user) {
       try {
-        // Query by professional_email field (or "email" if you have it)
         const usersRef = collection(db, "users");
+        // Matches the professional_email field stored in Firestore
         const q = query(usersRef, where("professional_email", "==", user.email));
         const querySnapshot = await getDocs(q);
-        
+
         if (!querySnapshot.empty) {
           const data = querySnapshot.docs[0].data();
-          const title = data.professional_title || "";
-          const firstName = data.first_name || "";
-          const lastName = data.last_name || "";
-          const fullName = `${title} ${firstName} ${lastName}`.trim();
-          setUserName(fullName || "Provider");
+          setFirstName(data.first_name || "");
+          setLastName(data.last_name || "");
+          setProviderTitle(data.professional_title || "");
         } else {
-          console.error("No document found with email:", user.email);
-          setUserName("Provider");
+          console.error("No Firestore document found for email:", user.email);
         }
       } catch (error) {
         console.error("Query error:", error);
-        setUserName("Provider");
       } finally {
         setLoading(false);
       }
@@ -196,7 +197,7 @@ useEffect(() => {
 
               <div>
                <h2 className="text-xl font-semibold">
-                Welcome back, {loading ? "Loading..." : (userName || "Provider")}
+                Welcome back, {loading ? "Loading..." : (firstName || "Provider")}
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Here&apos;s your practice overview
@@ -217,10 +218,10 @@ useEffect(() => {
               <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-700">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-medium">
-                    Dr. {loading ? "..." : (userName.split(" ").pop() || "Provider")}
+                    {loading ? "..." : (`${firstName} ${lastName}`.trim() || "Provider")}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Clinical Psychologist
+                    {loading ? "" : (providerTitle || "Provider")}
                   </p>
                 </div>
                 <img
