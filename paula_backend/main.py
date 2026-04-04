@@ -83,6 +83,7 @@ from app.routes.auth import router as auth_router
 from app.routes.resources import router as resources_router
 from app.routes.user import router as user_router
 from app.routes.mood import router as mood_router
+from app.routes import user
 
 logger.info("✅ Routes imported successfully")
 
@@ -92,6 +93,7 @@ app.include_router(auth_router, prefix="/api", tags=["auth"])
 app.include_router(resources_router, prefix="/api", tags=["resources"])
 app.include_router(user_router, prefix="/api", tags=["user"])
 app.include_router(mood_router, prefix="/api", tags=["mood"])
+app.include_router(user.router, prefix="/api")
 
 logger.info("✅ Routers mounted successfully")
 

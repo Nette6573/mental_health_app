@@ -18,6 +18,25 @@ export default function DashboardPage() {
   const [userData, setUserData] = useState(null)
   const [phq9Data, setPhq9Data] = useState([])
   const [moodData, setMoodData] = useState([])
+  const [proactiveMessage, setProactiveMessage] = useState(null)
+
+
+ // ---------------- PROACTIVE MESSAGES----------------
+  useEffect(() => {
+    const fetchProactive = async () => {
+    const uid = localStorage.getItem("uid")
+    if (!uid) return
+
+    const res = await fetch(`http://127.0.0.1:8000/api/user/${uid}/proactive`)
+    const data = await res.json()
+    
+    if (data.message) {
+      setProactiveMessage(data.message)
+    }
+  }
+  
+  fetchProactive()
+}, [])
 
   // ---------------- AUTH CHECK ----------------
   useEffect(() => {
@@ -74,6 +93,15 @@ export default function DashboardPage() {
 
         {/* Welcome */}
         <WelcomeBanner user={userData || user} />
+
+        {/* 💛 PROACTIVE MESSAGE */}
+        {proactiveMessage && (
+          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl shadow-sm">
+            <p className="text-sm text-yellow-800">
+              💛 {proactiveMessage}
+              </p>
+              </div>
+            )}
 
         {/* Stats */}
         <StatsCards userData={userData} />

@@ -21,19 +21,54 @@ def extract_memory(message: str, existing_memory: dict):
     memory = existing_memory or {
         "emotional_state": None,
         "main_issues": [],
-        "habits": []
+        "stress_level": 0,
+        "risk_flags": [],
+        "conversation_count": 0
     }
 
-    if "stress" in msg or "overwhelmed" in msg:
-        memory["emotional_state"] = "stressed"
+    memory["conversation_count"] += 1
 
+    # -------- EMOTIONAL DETECTION --------
+    if any(word in msg for word in ["stress", "overwhelmed", "pressure"]):
+        memory["emotional_state"] = "stressed"
+        memory["stress_level"] += 1
+
+    if any(word in msg for word in ["sad", "down", "tired", "empty"]):
+        memory["emotional_state"] = "low"
+        memory["stress_level"] += 1
+
+    # -------- ISSUE TRACKING --------
     if "exam" in msg:
         if "exam pressure" not in memory["main_issues"]:
             memory["main_issues"].append("exam pressure")
 
-    if "break" in msg and "no" in msg:
-        if "not taking breaks" not in memory["habits"]:
-            memory["habits"].append("not taking breaks")
+    if "work" in msg:
+        if "work stress" not in memory["main_issues"]:
+            memory["main_issues"].append("work stress")
+
+    # -------- RISK DETECTION --------
+    if memory["stress_level"] >= 3:
+        if "burnout_risk" not in memory["risk_flags"]:
+            memory["risk_flags"].append("burnout_risk")
+
+    if any(word in msg for word in ["hopeless", "pointless"]):
+        if "depression_risk" not in memory["risk_flags"]:
+            memory["risk_flags"].append("depression_risk")
+
+    # -------- EMOTIONAL HISTORY --------
+    if "emotion_history" not in memory:
+        memory["emotion_history"] = []
+        
+        current_emotion = memory.get("emotional_state")
+
+    if current_emotion:
+        memory["emotion_history"].append({
+        "emotion": current_emotion,
+        "time": datetime.utcnow()
+        })
+
+    # keep last 10 only
+    memory["emotion_history"] = memory["emotion_history"][-10:]
 
     return memory
 
