@@ -3,14 +3,19 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 
+
 class MessageIn(BaseModel):
     """Incoming message schema"""
     text: str
-    
+    user_id: str
+    chat_id: Optional[str] = None
+
     class Config:
         json_schema_extra = {
             "example": {
-                "text": "Mi feeling down today"
+                "text": "Mi feeling down today",
+                "user_id": "abc123",
+                "chat_id": None
             }
         }
 

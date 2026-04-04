@@ -95,13 +95,11 @@ def update_user_memory(user_id, new_memory):
 # ---------------- MAIN ROUTE ---------------- #
 
 @router.post("/send", response_model=MessageOut)
-async def send_message(
-    request: Request,
-    data: MessageIn,
-    user_id: str = Query(...),
-    chat_id: Optional[str] = Query(None)
-):
+async def send_message(data: MessageIn):
     try:
+        user_id = data.user_id
+        chat_id = data.chat_id
+
         # ---------------- CREATE OR LOAD CHAT ---------------- #
         if chat_id:
             try:
@@ -111,7 +109,6 @@ async def send_message(
 
             chat = chats.find_one({"_id": chat_obj_id})
 
-            # ✅ AUTO FIX
             if not chat:
                 chat_data = new_chat(user_id)
                 result = chats.insert_one(chat_data)
