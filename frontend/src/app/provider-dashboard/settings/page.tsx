@@ -97,14 +97,14 @@ export default function ProviderSettingsPage() {
   // ── Load all Firestore settings (mirrors profile page pattern) ──────────
   useEffect(() => {
     const loadSettings = async () => {
-      if (!user) return;
-
-      // Seed email & username directly from the auth user
-      setEmail(user.email ?? "");
-      setUsername(user.email ?? "");
-
-      const uid = user.uid ?? user.id;
+      // Get uid directly from Firebase Auth — this works even if AuthContext
+      // returns null due to the email-verification gate on regular users.
+      const uid = auth.currentUser?.uid ?? user?.uid ?? user?.id;
       if (!uid) return;
+
+      // Seed email & username from Firebase Auth directly
+      setEmail(auth.currentUser?.email ?? user?.email ?? "");
+      setUsername(auth.currentUser?.email ?? user?.email ?? "");
 
       try {
         // provider_settings — timezone, language, plan
@@ -154,15 +154,10 @@ export default function ProviderSettingsPage() {
   };
 
   const handleSave = async () => {
-    if (!user) {
-      showToast("Not signed in — please log in again.", false);
-      return;
-    }
-
-    // AuthContext may expose uid as user.uid or user.id — use whichever is set
-    const uid = user.uid ?? user.id;
+    // Get uid directly from Firebase Auth — bypasses AuthContext email-verification gate
+    const uid = auth.currentUser?.uid ?? user?.uid ?? user?.id;
     if (!uid) {
-      showToast("Could not determine user ID. Please log in again.", false);
+      showToast("Not signed in — please log in again.", false);
       return;
     }
 
@@ -228,7 +223,7 @@ export default function ProviderSettingsPage() {
 
   // Firebase password reset
   const handlePasswordReset = async () => {
-    const userEmail = user?.email || email;
+    const userEmail = auth.currentUser?.email ?? user?.email ?? email;
     if (!userEmail) return;
     setResetLoading(true);
     setResetMessage(null);
@@ -600,7 +595,7 @@ export default function ProviderSettingsPage() {
                       <p className="text-sm text-slate-500 dark:text-slate-400">
                         A reset link will be sent to{" "}
                         <span className="font-medium text-slate-700 dark:text-slate-300">
-                          {user?.email || email}
+                          {auth.currentUser?.email ?? user?.email ?? email}
                         </span>
                       </p>
                       {resetMessage && (
