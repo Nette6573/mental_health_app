@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, getDocs } from "firebase/firestore";
 //import { db } from "@/lib/firebase/firebaseClient";
 import { getAuth } from "firebase/auth";
 import Link from 'next/link'
@@ -43,6 +43,9 @@ import {
 } from 'lucide-react'
 
 export default function ProviderDashboardPage() {
+  const [userName, setUserName] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(true);
+
 useEffect(() => {
   const auth = getAuth();
   const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -217,7 +220,7 @@ useEffect(() => {
               <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-700">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-medium">
-                    Dr. {loading ? "..." : (userName.split(" ").pop() || "Provider")}
+                    {loading ? "..." : (userName || "Provider")}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Clinical Psychologist
