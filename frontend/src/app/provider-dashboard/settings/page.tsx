@@ -103,9 +103,12 @@ export default function ProviderSettingsPage() {
       setEmail(user.email ?? "");
       setUsername(user.email ?? "");
 
+      const uid = user.uid ?? user.id;
+      if (!uid) return;
+
       try {
         // provider_settings — timezone, language, plan
-        const settingsSnap = await getDoc(doc(db, "provider_settings", user.id));
+        const settingsSnap = await getDoc(doc(db, "provider_settings", uid));
         if (settingsSnap.exists()) {
           const d = settingsSnap.data();
           if (d.timezone)          setTimezone(d.timezone);
@@ -114,7 +117,7 @@ export default function ProviderSettingsPage() {
         }
 
         // provider_security — notifications + login history
-        const securitySnap = await getDoc(doc(db, "provider_security", user.id));
+        const securitySnap = await getDoc(doc(db, "provider_security", uid));
         if (securitySnap.exists()) {
           const d = securitySnap.data();
           setEmailNotifications(d.email_notification === "true" || d.email_notification === true);
@@ -155,10 +158,18 @@ export default function ProviderSettingsPage() {
       showToast("Not signed in — please log in again.", false);
       return;
     }
+
+    // AuthContext may expose uid as user.uid or user.id — use whichever is set
+    const uid = user.uid ?? user.id;
+    if (!uid) {
+      showToast("Could not determine user ID. Please log in again.", false);
+      return;
+    }
+
     try {
       // Write general / display fields to provider_settings
       await setDoc(
-        doc(db, "provider_settings", user.id),
+        doc(db, "provider_settings", uid),
         {
           timezone,
           settings_language: language,
@@ -170,7 +181,7 @@ export default function ProviderSettingsPage() {
 
       // Write notification prefs to provider_security
       await setDoc(
-        doc(db, "provider_security", user.id),
+        doc(db, "provider_security", uid),
         {
           email_notification:    String(emailNotifications),
           sms_notification:      String(smsNotifications),
@@ -181,9 +192,9 @@ export default function ProviderSettingsPage() {
       );
 
       showToast("Settings saved successfully!");
-    } catch (err) {
-      console.error("Save failed:", err);
-      showToast("Failed to save settings. Please try again.", false);
+    } catch (err: any) {
+      console.error("Save failed — code:", err?.code, "message:", err?.message, "uid used:", uid);
+      showToast(`Failed to save: ${err?.code ?? err?.message ?? "unknown error"}`, false);
     }
   };
   const handleCancel = () => window.location.reload();
