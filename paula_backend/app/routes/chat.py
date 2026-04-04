@@ -23,7 +23,8 @@ def extract_memory(message: str, existing_memory: dict):
         "main_issues": [],
         "stress_level": 0,
         "risk_flags": [],
-        "conversation_count": 0
+        "conversation_count": 0,
+        "emotion_history": []
     }
 
     memory["conversation_count"] += 1
@@ -38,36 +39,28 @@ def extract_memory(message: str, existing_memory: dict):
         memory["stress_level"] += 1
 
     # -------- ISSUE TRACKING --------
-    if "exam" in msg:
-        if "exam pressure" not in memory["main_issues"]:
-            memory["main_issues"].append("exam pressure")
+    if "exam" in msg and "exam pressure" not in memory["main_issues"]:
+        memory["main_issues"].append("exam pressure")
 
-    if "work" in msg:
-        if "work stress" not in memory["main_issues"]:
-            memory["main_issues"].append("work stress")
+    if "work" in msg and "work stress" not in memory["main_issues"]:
+        memory["main_issues"].append("work stress")
 
     # -------- RISK DETECTION --------
-    if memory["stress_level"] >= 3:
-        if "burnout_risk" not in memory["risk_flags"]:
-            memory["risk_flags"].append("burnout_risk")
+    if memory["stress_level"] >= 3 and "burnout_risk" not in memory["risk_flags"]:
+        memory["risk_flags"].append("burnout_risk")
 
-    if any(word in msg for word in ["hopeless", "pointless"]):
-        if "depression_risk" not in memory["risk_flags"]:
-            memory["risk_flags"].append("depression_risk")
+    if any(word in msg for word in ["hopeless", "pointless"]) and "depression_risk" not in memory["risk_flags"]:
+        memory["risk_flags"].append("depression_risk")
 
-    # -------- EMOTIONAL HISTORY --------
-    if "emotion_history" not in memory:
-        memory["emotion_history"] = []
-        
-        current_emotion = memory.get("emotional_state")
+    # -------- EMOTION HISTORY FIX --------
+    current_emotion = memory.get("emotional_state")
 
     if current_emotion:
         memory["emotion_history"].append({
-        "emotion": current_emotion,
-        "time": datetime.utcnow()
+            "emotion": current_emotion,
+            "time": datetime.utcnow()
         })
 
-    # keep last 10 only
     memory["emotion_history"] = memory["emotion_history"][-10:]
 
     return memory
@@ -85,9 +78,7 @@ def update_user_memory(user_id, new_memory):
         "main_issues": list(set(
             existing.get("main_issues", []) + new_memory.get("main_issues", [])
         )),
-        "habits": list(set(
-            existing.get("habits", []) + new_memory.get("habits", [])
-        )),
+        "habits": existing.get("habits", []),
         "last_seen": datetime.utcnow()
     }
 
@@ -116,15 +107,21 @@ async def send_message(
                 raise HTTPException(status_code=400, detail="Invalid chat_id")
 
             chat = chats.find_one({"_id": chat_obj_id})
+
+            # ✅ AUTO FIX
             if not chat:
-                raise HTTPException(status_code=404, detail="Chat not found")
+                chat_data = new_chat(user_id)
+                result = chats.insert_one(chat_data)
+                chat_obj_id = result.inserted_id
+                chat_id = str(chat_obj_id)
+                chat = chats.find_one({"_id": chat_obj_id})
 
         else:
-            chat = new_chat(user_id)
-            result = chats.insert_one(chat)
+            chat_data = new_chat(user_id)
+            result = chats.insert_one(chat_data)
             chat_obj_id = result.inserted_id
             chat_id = str(chat_obj_id)
-            chat["_id"] = chat_obj_id
+            chat = chats.find_one({"_id": chat_obj_id})
 
         # ---------------- USER MESSAGE ---------------- #
         emotion = detect_emotion_ai(data.text)
@@ -141,16 +138,12 @@ async def send_message(
             {"$push": {"messages": user_message}}
         )
 
-        # ---------------- LOAD UPDATED CHAT ---------------- #
         updated_chat = chats.find_one({"_id": chat_obj_id})
-
-        if not updated_chat:
-            raise Exception("Chat not found after update")
 
         raw_history = updated_chat.get("messages", [])
         chat_memory = updated_chat.get("memory", {})
 
-        # ---------------- UPDATE MEMORY ---------------- #
+        # ---------------- MEMORY ---------------- #
         chat_memory = extract_memory(data.text, chat_memory)
 
         chats.update_one(
@@ -160,24 +153,18 @@ async def send_message(
 
         update_user_memory(user_id, chat_memory)
 
-        # ---------------- LOAD USER MEMORY ---------------- #
         user = users.find_one({"user_id": user_id}) or {}
         user_memory = user.get("memory", {})
 
-        # ---------------- SAFE HISTORY FORMAT ---------------- #
         all_history = [
-            {
-                "role": m.get("role", "user"),
-                "content": m.get("content", "")
-            }
+            {"role": m.get("role", "user"), "content": m.get("content", "")}
             for m in raw_history
         ]
 
-        # ---------------- STAGE ---------------- #
         count = len(all_history)
         stage = "early" if count < 3 else "middle" if count < 6 else "deep"
 
-        # ---------------- AI CALL ---------------- #
+        # ---------------- AI ---------------- #
         try:
             reply = ask_paula(
                 user_message=data.text,
@@ -195,7 +182,6 @@ async def send_message(
         if not reply:
             reply = "Mi deh yah fi yuh 💛"
 
-        # ---------------- SAVE AI MESSAGE ---------------- #
         assistant_message = {
             "role": "assistant",
             "content": reply,
@@ -207,7 +193,6 @@ async def send_message(
             {"$push": {"messages": assistant_message}}
         )
 
-        # ---------------- RESPONSE ---------------- #
         return MessageOut(
             response=reply,
             chat_id=chat_id,
