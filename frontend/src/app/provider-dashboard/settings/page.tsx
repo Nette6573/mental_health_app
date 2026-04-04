@@ -1,5 +1,6 @@
 'use client'
 
+import { useAuth } from "@/context/AuthContext";
 import { createContext, useContext, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
@@ -13,7 +14,8 @@ import {
   sendEmailVerification
 } from 'firebase/auth'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
-import { auth, db, googleProvider, facebookProvider } from "../lib/firebase";
+import { auth, db, googleProvider, facebookProvider } from "../lib/firebaseClient";
+
 
 const AuthContext = createContext(null)
 
