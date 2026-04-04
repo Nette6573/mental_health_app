@@ -32,24 +32,42 @@ import {
 } from 'lucide-react'
 
 export default function ProviderDashboardPage() {
-  const [userName, setUserName] = useState("");
- useEffect(() => {
+const [userName, setUserName] = useState("");
+const [loading, setLoading] = useState(true);  // add this state
+
+useEffect(() => {
   const auth = getAuth();
 
   const unsubscribe = auth.onAuthStateChanged(async (user) => {
     if (user) {
-      const docRef = doc(db, "users", user.uid);
-      const docSnap = await getDoc(docRef);
+      try {
+        const docRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(docRef);
 
-      if (docSnap.exists()) {
-        const data = docSnap.data();               // ✅ get the data first
-        const fullName = `${data.professional_title || ""} ${data.first_name || ""} ${data.last_name || ""}`.trim();
-        setUserName(fullName || "User");
-      } else {
-        console.log("No such document!");
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          console.log("Fetched user data:", data); // 🔍 check browser console
+
+          // Build full name safely
+          const title = data.professional_title || "";
+          const firstName = data.first_name || "";
+          const lastName = data.last_name || "";
+          const fullName = `${title} ${firstName} ${lastName}`.trim();
+
+          setUserName(fullName || "Provider");
+        } else {
+          console.error("No user document found for uid:", user.uid);
+          setUserName("Provider");
+        }
+      } catch (error) {
+        console.error("Firestore fetch error:", error);
+        setUserName("Provider");
+      } finally {
+        setLoading(false);
       }
     } else {
       console.log("No user logged in");
+      setLoading(false);
     }
   });
 
@@ -174,8 +192,8 @@ export default function ProviderDashboardPage() {
               </button>
 
               <div>
-                <h2 className="text-xl font-semibold text-slate-800 dark:text-white">
-                   Welcome back, {userName || "Loading..."}
+               <h2 className="text-xl font-semibold">
+                Welcome back, {loading ? "Loading..." : (userName || "Provider")}
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Here&apos;s your practice overview
@@ -195,8 +213,8 @@ export default function ProviderDashboardPage() {
 
               <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-700">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium text-slate-800 dark:text-white">
-                    Dr. {userName}
+                  <p className="text-sm font-medium">
+                    Dr. {loading ? "..." : (userName.split(" ").pop() || "Provider")}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Clinical Psychologist
