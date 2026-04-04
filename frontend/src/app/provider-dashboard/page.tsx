@@ -34,21 +34,25 @@ import {
 export default function ProviderDashboardPage() {
   const [userName, setUserName] = useState("");
   useEffect(() => {
-  const fetchUser = async () => {
-    const auth = getAuth();
-    const user = auth.currentUser;
+  const auth = getAuth();
 
+  const unsubscribe = auth.onAuthStateChanged(async (user) => {
     if (user) {
-      const docRef = doc(db, "users", user.uid); // "users" = your collection name
+      const docRef = doc(db, "users", user.uid);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        setUserName(docSnap.data().name); // make sure your field is called "name"
+        setUserName(docSnap.data().name);
       } else {
         console.log("No such document!");
       }
+    } else {
+      console.log("No user logged in");
     }
-  };
+  });
+
+  return () => unsubscribe(); // cleanup
+}, []);
 
   fetchUser();
 }, []);
