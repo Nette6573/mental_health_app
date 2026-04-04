@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BarChart3,
   BookOpen,
@@ -22,14 +23,18 @@ import {
   User,
   X,
 } from "lucide-react";
-import { db, auth } from "@/lib/firebase"; // adjust import path as needed
+import { db, auth } from "@/lib/firebase";
 import {
   doc,
   getDoc,
   setDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signOut,
+  type User as FirebaseUser,
+} from "firebase/auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -140,12 +145,23 @@ const DEFAULT_UPCOMING: UpcomingDay[] = [
   },
 ];
 
+// ─── Session timeout (ms) ─────────────────────────────────────────────────────
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of inactivity
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProviderAvailabilityPage() {
+  const router = useRouter();
   const [darkMode, setDarkMode] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+
+  // Tracks whether the auth check has resolved — prevents flash of content
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Inactivity timer ref
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Form state
   const [schedule, setSchedule] = useState<DaySchedule[]>(DEFAULT_SCHEDULE);
@@ -175,13 +191,94 @@ export default function ProviderAvailabilityPage() {
   );
   const [loading, setLoading] = useState(true);
 
+  // ── Secure sign-out helper ─────────────────────────────────────────────────
+  const secureSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch {
+      // swallow — redirect regardless
+    } finally {
+      // Replace history so the back button cannot return to this page
+      router.replace("/provider-dashboard/login");
+    }
+  };
+
+  // ── Inactivity timeout ─────────────────────────────────────────────────────
+  const resetInactivityTimer = () => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    inactivityTimer.current = setTimeout(() => {
+      secureSignOut();
+    }, SESSION_TIMEOUT_MS);
+  };
+
+  useEffect(() => {
+    const events = ["mousemove", "keydown", "mousedown", "touchstart", "scroll"];
+    events.forEach((e) => window.addEventListener(e, resetInactivityTimer));
+    resetInactivityTimer(); // start on mount
+
+    return () => {
+      events.forEach((e) =>
+        window.removeEventListener(e, resetInactivityTimer)
+      );
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Prevent back-navigation into protected page after sign-out ────────────
+  useEffect(() => {
+    // Push a duplicate history entry so there is always something to pop to
+    // without actually going back to this page when unauthenticated.
+    window.history.pushState(null, "", window.location.href);
+
+    const handlePopState = () => {
+      if (!auth.currentUser) {
+        // User is not authenticated — push them forward again (block back nav)
+        window.history.pushState(null, "", window.location.href);
+        router.replace("/provider-dashboard/login");
+      } else {
+        // Authenticated — re-push so the trap stays active
+        window.history.pushState(null, "", window.location.href);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [router]);
+
+  // ── Visibility change: re-verify auth when tab regains focus ─────────────
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && !auth.currentUser) {
+        router.replace("/provider-dashboard/login");
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [router]);
+
   // ── Auth listener ──────────────────────────────────────────────────────────
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) setUserId(user.uid);
-      else setUserId(null);
+      if (user) {
+        // Only allow providers with a verified email
+        if (!user.emailVerified) {
+          secureSignOut();
+          return;
+        }
+        setCurrentUser(user);
+        setUserId(user.uid);
+      } else {
+        // No session — redirect immediately, replacing history
+        setCurrentUser(null);
+        setUserId(null);
+        router.replace("/provider-dashboard/login");
+      }
+      setAuthChecked(true);
     });
     return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Theme ──────────────────────────────────────────────────────────────────
@@ -250,8 +347,15 @@ export default function ProviderAvailabilityPage() {
 
   // ── Save to Firestore ──────────────────────────────────────────────────────
   const handleSaveChanges = async () => {
-    if (!userId) {
-      alert("You must be logged in to save changes.");
+    // Re-check auth state immediately before writing
+    const live = auth.currentUser;
+    if (!live || !userId || live.uid !== userId) {
+      await secureSignOut();
+      return;
+    }
+    // Require verified email at write time
+    if (!live.emailVerified) {
+      await secureSignOut();
       return;
     }
 
@@ -340,9 +444,7 @@ export default function ProviderAvailabilityPage() {
     }
   };
 
-  const logout = () => {
-    window.location.href = "/provider-dashboard/login";
-  };
+  const logout = () => secureSignOut();
 
   // ── Nav items ──────────────────────────────────────────────────────────────
   const navItems = [
@@ -375,6 +477,20 @@ export default function ProviderAvailabilityPage() {
   ];
 
   // ── Render ─────────────────────────────────────────────────────────────────
+
+  // Block render entirely until Firebase auth has resolved.
+  // This prevents any flash of protected content for unauthenticated users.
+  if (!authChecked) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-sky-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Redundant guard — router.replace already fired in the auth listener,
+  // but this prevents any content flash during the redirect.
+  if (!currentUser) return null;
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-800 antialiased dark:bg-slate-900 dark:text-slate-100">
       {/* Mobile sidebar overlay */}
