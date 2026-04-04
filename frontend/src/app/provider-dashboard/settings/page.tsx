@@ -107,19 +107,13 @@ export default function ProviderSettingsPage() {
       setUsername(auth.currentUser?.email ?? user?.email ?? "");
 
       try {
-        // provider_settings — timezone, language, plan
+        // Everything lives in provider_settings
         const settingsSnap = await getDoc(doc(db, "provider_settings", uid));
         if (settingsSnap.exists()) {
           const d = settingsSnap.data();
           if (d.timezone)          setTimezone(d.timezone);
           if (d.settings_language) setLanguage(d.settings_language);
-          if (d.plan)              setSelectedPlan(d.plan);
-        }
-
-        // provider_security — notifications + login history
-        const securitySnap = await getDoc(doc(db, "provider_security", uid));
-        if (securitySnap.exists()) {
-          const d = securitySnap.data();
+          if (d.current_plan)      setSelectedPlan(d.current_plan);
           setEmailNotifications(d.email_notification === "true" || d.email_notification === true);
           setSmsNotifications(d.sms_notification === "true" || d.sms_notification === true);
           setMarketingEmails(d.marketing_emails === "true" || d.marketing_emails === true);
@@ -162,26 +156,17 @@ export default function ProviderSettingsPage() {
     }
 
     try {
-      // Write general / display fields to provider_settings
       await setDoc(
         doc(db, "provider_settings", uid),
         {
           timezone,
           settings_language: language,
-          plan: selectedPlan,
-          updated_at: serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      // Write notification prefs to provider_security
-      await setDoc(
-        doc(db, "provider_security", uid),
-        {
+          current_plan:          selectedPlan,
           email_notification:    String(emailNotifications),
           sms_notification:      String(smsNotifications),
           marketing_emails:      String(marketingEmails),
           appointment_reminders: String(appointmentReminders),
+          updated_at:            serverTimestamp(),
         },
         { merge: true }
       );
