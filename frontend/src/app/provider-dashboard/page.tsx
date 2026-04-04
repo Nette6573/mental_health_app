@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
-import { doc, getDoc, getDocs } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 //import { db } from "@/lib/firebase/firebaseClient";
 import { getAuth } from "firebase/auth";
 import Link from 'next/link'
@@ -53,21 +53,20 @@ useEffect(() => {
   const unsubscribe = auth.onAuthStateChanged(async (user) => {
     if (user) {
       try {
-        const usersRef = collection(db, "users");
-        // Matches the professional_email field stored in Firestore
-        const q = query(usersRef, where("professional_email", "==", user.email));
-        const querySnapshot = await getDocs(q);
+        // Fetch directly by UID — no collection scan, matches your security rules
+        const userDocRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userDocRef);
 
-        if (!querySnapshot.empty) {
-          const data = querySnapshot.docs[0].data();
+        if (userSnap.exists()) {
+          const data = userSnap.data();
           setFirstName(data.first_name || "");
           setLastName(data.last_name || "");
           setProviderTitle(data.professional_title || "");
         } else {
-          console.error("No Firestore document found for email:", user.email);
+          console.error("No Firestore document found for UID:", user.uid);
         }
       } catch (error) {
-        console.error("Query error:", error);
+        console.error("Firestore fetch error:", error);
       } finally {
         setLoading(false);
       }
