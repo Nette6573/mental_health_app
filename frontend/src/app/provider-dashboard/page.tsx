@@ -42,11 +42,10 @@ export default function ProviderDashboardPage() {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        setUserName(docSnap.dconst data = docSnap.data();
-
+        const data = docSnap.data();
         const fullName = `${data.professional_title || ""} ${data.first_name || ""} ${data.last_name || ""}`.trim();
-        
-        setUserName(fullName || "User");ata().name);
+        setUserName(fullName || "User");
+      }
       } else {
         console.log("No such document!");
       }
