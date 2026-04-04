@@ -249,14 +249,17 @@ class PaulaClient:
         # ---------------- THERAPEUTIC INTERVENTION ---------------- #
         intervention = detect_need(user_message)
 
-        if intervention == "grounding":
-            response.append(grounding_exercise())
+        # ✅ ONLY TRIGGER DEEP INTERVENTIONS LATER
+        if stage == "deep":
 
-        elif intervention == "cbt":
-            response.append(cbt_reframe())
+            if intervention == "grounding":
+                response.append(grounding_exercise())
 
-        elif intervention == "breathing":
-            response.append(breathing_exercise())
+            elif intervention == "cbt":
+                response.append(cbt_reframe())
+
+            elif intervention == "breathing":
+                response.append(breathing_exercise())
 
         # ---------------- PHQ9 OFFER ---------------- #
         if "sad" in user_message.lower() or "hopeless" in user_message.lower():
