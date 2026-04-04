@@ -22,9 +22,11 @@ import {
   User,
   UserCog,
 } from "lucide-react";
-import { onAuthStateChanged, sendPasswordResetEmail, User } from "firebase/auth";
+import { useAuth } from "@/context/AuthContext";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "@/lib/firebase/firebaseClient";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase/firebaseClient";
 
 type TabKey = "general" | "notifications" | "security" | "billing";
 
@@ -41,8 +43,8 @@ export default function ProviderSettingsPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("general");
 
-  // Authenticated user
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // Authenticated user — same pattern as profile page
+  const { user } = useAuth() as any;
 
   // Account — seeded from auth once user is known
   const [email, setEmail] = useState("");
@@ -92,20 +94,18 @@ export default function ProviderSettingsPage() {
     else document.documentElement.classList.remove("dark");
   }, []);
 
-  // ── Auth listener + load all Firestore settings ─────────────────────────
+  // ── Load all Firestore settings (mirrors profile page pattern) ──────────
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-
+    const loadSettings = async () => {
       if (!user) return;
 
-      // Seed email & username from the authenticated user immediately
+      // Seed email & username directly from the auth user
       setEmail(user.email ?? "");
       setUsername(user.email ?? "");
 
       try {
-        // Load from provider_settings (general / display fields)
-        const settingsSnap = await getDoc(doc(db, "provider_settings", user.uid));
+        // provider_settings — timezone, language, plan
+        const settingsSnap = await getDoc(doc(db, "provider_settings", user.id));
         if (settingsSnap.exists()) {
           const d = settingsSnap.data();
           if (d.timezone)          setTimezone(d.timezone);
@@ -113,8 +113,8 @@ export default function ProviderSettingsPage() {
           if (d.plan)              setSelectedPlan(d.plan);
         }
 
-        // Load from provider_security (notifications + login history)
-        const securitySnap = await getDoc(doc(db, "provider_security", user.uid));
+        // provider_security — notifications + login history
+        const securitySnap = await getDoc(doc(db, "provider_security", user.id));
         if (securitySnap.exists()) {
           const d = securitySnap.data();
           setEmailNotifications(d.email_notification === "true" || d.email_notification === true);
@@ -127,11 +127,10 @@ export default function ProviderSettingsPage() {
       } catch (err) {
         console.error("Failed to load settings:", err);
       }
-    });
+    };
 
-    return () => unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    loadSettings();
+  }, [user]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const toggleDarkMode = () => {
@@ -152,14 +151,14 @@ export default function ProviderSettingsPage() {
   };
 
   const handleSave = async () => {
-    if (!currentUser) {
+    if (!user) {
       showToast("Not signed in — please log in again.", false);
       return;
     }
     try {
       // Write general / display fields to provider_settings
       await setDoc(
-        doc(db, "provider_settings", currentUser.uid),
+        doc(db, "provider_settings", user.id),
         {
           timezone,
           settings_language: language,
@@ -171,7 +170,7 @@ export default function ProviderSettingsPage() {
 
       // Write notification prefs to provider_security
       await setDoc(
-        doc(db, "provider_security", currentUser.uid),
+        doc(db, "provider_security", user.id),
         {
           email_notification:    String(emailNotifications),
           sms_notification:      String(smsNotifications),
@@ -218,7 +217,7 @@ export default function ProviderSettingsPage() {
 
   // Firebase password reset
   const handlePasswordReset = async () => {
-    const userEmail = currentUser?.email || email;
+    const userEmail = user?.email || email;
     if (!userEmail) return;
     setResetLoading(true);
     setResetMessage(null);
@@ -590,7 +589,7 @@ export default function ProviderSettingsPage() {
                       <p className="text-sm text-slate-500 dark:text-slate-400">
                         A reset link will be sent to{" "}
                         <span className="font-medium text-slate-700 dark:text-slate-300">
-                          {currentUser?.email || email}
+                          {user?.email || email}
                         </span>
                       </p>
                       {resetMessage && (
