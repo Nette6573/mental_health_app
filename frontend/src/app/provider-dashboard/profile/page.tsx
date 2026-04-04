@@ -1,6 +1,6 @@
 "use client";
 import { useAuth } from "@/context/AuthContext"; 
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firebaseClient";
 
 import Link from "next/link";
@@ -88,6 +88,8 @@ export default function ProviderProfilePage() {
   //This is to get the logged in user
   const { user } = useAuth() as any;
   const [darkMode, setDarkMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const [fullName, setFullName] = useState("");
@@ -177,7 +179,7 @@ export default function ProviderProfilePage() {
     if (!user) return;
 
     try {
-      const docRef = doc(db, "providers", user.id);
+      const docRef = doc(db, "providers", user.uid);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
@@ -194,14 +196,37 @@ export default function ProviderProfilePage() {
         setPhone(data.phone_number ?? "");
         setWebsite(data.website ?? "");
 
-        setBio(data.bio ?? "");
+        setBio(data.bio ?? data.experience ?? "");
 
         // Specializations (handle string or array)
         if (Array.isArray(data.practice_areas)) {
           setSelectedSpecializations(data.practice_areas);
-        } else if (data.practice_areas) {
-          setSelectedSpecializations([data.practice_areas]);
+        } else if (typeof data.practice_areas === "string" && data.practice_areas) {
+          setSelectedSpecializations(data.practice_areas.split(",").map((s: string) => s.trim()).filter(Boolean));
         }
+
+        // Languages (handle string or array)
+        if (Array.isArray(data.languages)) {
+          setLanguages(data.languages.filter(Boolean));
+        } else if (typeof data.languages === "string" && data.languages) {
+          setLanguages(data.languages.split(",").map((s: string) => s.trim()).filter(Boolean));
+        }
+
+        // Session types
+        if (typeof data.session_types === "string" && data.session_types) {
+          const types = data.session_types.toLowerCase();
+          setSessionTypes({
+            inPerson: types.includes("in person") || types.includes("in-person"),
+            virtual: types.includes("virtual") || types.includes("online"),
+            phone: types.includes("phone"),
+          });
+        }
+
+        // Session cost
+        if (data.session_cost) setSessionCost(String(data.session_cost));
+
+        // Payment / sliding scale
+        if (data.payment_options) setSlidingScale(data.payment_options);
 
       } else {
         console.log("No provider document found");
@@ -222,9 +247,53 @@ export default function ProviderProfilePage() {
     window.location.href = "/provider-dashboard/login";
   };
 
-  const handleSave = (e?: FormEvent<HTMLFormElement>) => {
+  const handleSave = async (e?: FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
-    alert("Profile updated successfully!");
+    if (!user) return;
+
+    // Split full name back into first / last
+    const nameParts = fullName.trim().split(/\s+/);
+    const first_name = nameParts[0] ?? "";
+    const last_name = nameParts.slice(1).join(" ");
+
+    // Build session_types string
+    const sessionTypeParts: string[] = [];
+    if (sessionTypes.inPerson) sessionTypeParts.push("In Person");
+    if (sessionTypes.virtual) sessionTypeParts.push("Virtual");
+    if (sessionTypes.phone) sessionTypeParts.push("Phone");
+
+    const payload = {
+      first_name,
+      last_name,
+      professional_title: professionalTitle,
+      organization: organization,
+      category: category,
+      parish: parish,
+      professional_email: email,
+      phone_number: phone,
+      website: website,
+      experience: bio,
+      practice_areas: selectedSpecializations.join(", "),
+      specialization: selectedSpecializations.join(", "),
+      languages: languages.filter(Boolean).join(", "),
+      session_types: sessionTypeParts.join(", "),
+      session_cost: sessionCost,
+      payment_options: slidingScale,
+    };
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const docRef = doc(db, "providers", user.uid);
+      await setDoc(docRef, payload, { merge: true });
+      alert("Profile updated successfully!");
+    } catch (error: any) {
+      console.error("Error saving profile:", error);
+      setSaveError("Failed to save. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -458,9 +527,10 @@ export default function ProviderProfilePage() {
 
               <button
                 onClick={() => handleSave()}
-                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700"
+                disabled={isSaving}
+                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Save Changes
+                {isSaving ? "Saving…" : "Save Changes"}
               </button>
             </div>
           </div>
@@ -864,20 +934,26 @@ export default function ProviderProfilePage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-4 pb-8">
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="rounded-lg border border-slate-200 px-6 py-2 text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="rounded-lg bg-sky-600 px-6 py-2 font-medium text-white transition-colors hover:bg-sky-700"
-              >
-                Save Changes
-              </button>
+            <div className="flex flex-col items-end gap-2 pb-8">
+              {saveError && (
+                <p className="text-sm text-red-500">{saveError}</p>
+              )}
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="rounded-lg border border-slate-200 px-6 py-2 text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="rounded-lg bg-sky-600 px-6 py-2 font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
             </div>
           </form>
         </div>
