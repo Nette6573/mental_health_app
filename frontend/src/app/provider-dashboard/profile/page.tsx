@@ -66,6 +66,17 @@ const categoryOptions = [
   { value: "organization", label: "Mental Health Organization" },
 ];
 
+const experienceOptions = [
+  "Less than 1 year",
+  "1-3 years",
+  "4-5 years",
+  "6-7 years",
+  "8-9 years",
+  "10-15 years",
+  "16-20 years",
+  "20+ years",
+];
+
 const slidingScaleOptions = [
   "Yes - I offer sliding scale fees",
   "No - Fixed fee",
@@ -102,9 +113,8 @@ export default function ProviderProfilePage() {
   const [phone, setPhone] = useState("");
   const [website, setWebsite] = useState("");
 
-  const [bio, setBio] = useState(
-    ""
-  );
+  const [bio, setBio] = useState("");
+  const [experience, setExperience] = useState("");
 
   const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>([]);
 
@@ -196,13 +206,23 @@ export default function ProviderProfilePage() {
         setPhone(data.phone_number ?? "");
         setWebsite(data.website ?? "");
 
-        setBio(data.bio ?? data.experience ?? "");
+        setBio(data.biography ?? "");
+        setExperience(data.experience ?? "");
 
-        // Specializations (handle string or array)
+        // Specializations — case-insensitive match against option labels
         if (Array.isArray(data.practice_areas)) {
-          setSelectedSpecializations(data.practice_areas);
+          setSelectedSpecializations(
+            data.practice_areas.filter((a: string) =>
+              specializationOptions.some((o) => o.toLowerCase() === a.toLowerCase())
+            )
+          );
         } else if (typeof data.practice_areas === "string" && data.practice_areas) {
-          setSelectedSpecializations(data.practice_areas.split(",").map((s: string) => s.trim()).filter(Boolean));
+          const incoming = data.practice_areas.split(",").map((s: string) => s.trim());
+          setSelectedSpecializations(
+            specializationOptions.filter((o) =>
+              incoming.some((i) => i.toLowerCase() === o.toLowerCase())
+            )
+          );
         }
 
         // Languages (handle string or array)
@@ -272,7 +292,8 @@ export default function ProviderProfilePage() {
       professional_email: email,
       phone_number: phone,
       website: website,
-      experience: bio,
+      biography: bio,
+      experience: experience,
       practice_areas: selectedSpecializations.join(", "),
       specialization: selectedSpecializations.join(", "),
       languages: languages.filter(Boolean).join(", "),
@@ -668,13 +689,38 @@ export default function ProviderProfilePage() {
                 About / Bio
               </h3>
 
-              <textarea
-                rows={5}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="Tell potential clients about your approach, experience, and faith integration..."
-                className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              />
+              <div className="space-y-6">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Biography
+                  </label>
+                  <textarea
+                    rows={5}
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="Tell potential clients about your approach, experience, and faith integration..."
+                    className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Years of Experience
+                  </label>
+                  <select
+                    value={experience}
+                    onChange={(e) => setExperience(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                  >
+                    <option value="">Select experience range…</option>
+                    {experienceOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
