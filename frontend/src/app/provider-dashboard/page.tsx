@@ -43,53 +43,37 @@ import {
 } from 'lucide-react'
 
 export default function ProviderDashboardPage() {
-const [userName, setUserName] = useState("");
-const [loading, setLoading] = useState(true);
-
 useEffect(() => {
   const auth = getAuth();
-  console.log("1. Auth object:", auth);
-
   const unsubscribe = auth.onAuthStateChanged(async (user) => {
-    console.log("2. onAuthStateChanged triggered, user:", user);
-    
     if (user) {
-      console.log("3. User UID:", user.uid);
-      
       try {
-        const docRef = doc(db, "users", user.uid);
-        console.log("4. DocRef path:", docRef.path);
+        // Query by professional_email field (or "email" if you have it)
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("professional_email", "==", user.email));
+        const querySnapshot = await getDocs(q);
         
-        const docSnap = await getDoc(docRef);
-        console.log("5. Document exists?", docSnap.exists());
-        
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          console.log("6. Full data from Firestore:", data);
-          
+        if (!querySnapshot.empty) {
+          const data = querySnapshot.docs[0].data();
           const title = data.professional_title || "";
           const firstName = data.first_name || "";
           const lastName = data.last_name || "";
           const fullName = `${title} ${firstName} ${lastName}`.trim();
-          console.log("7. Constructed fullName:", fullName);
-          
           setUserName(fullName || "Provider");
         } else {
-          console.error("❌ Document does NOT exist for UID:", user.uid);
+          console.error("No document found with email:", user.email);
           setUserName("Provider");
         }
       } catch (error) {
-        console.error("❌ Firestore read error:", error);
+        console.error("Query error:", error);
         setUserName("Provider");
       } finally {
         setLoading(false);
       }
     } else {
-      console.log("❌ No user is signed in");
       setLoading(false);
     }
   });
-
   return () => unsubscribe();
 }, []);
   
