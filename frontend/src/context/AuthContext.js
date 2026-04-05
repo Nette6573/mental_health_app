@@ -13,9 +13,7 @@ import {
   sendEmailVerification
 } from 'firebase/auth'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
-// AuthContext.js
-import { auth, db, googleProvider, facebookProvider } from "../lib/firebase/firebaseClient";
-
+import { auth, db, googleProvider, facebookProvider } from "../lib/firebase/firebaseClient"
 
 const AuthContext = createContext(null)
 
@@ -39,6 +37,9 @@ export function AuthProvider({ children }) {
         avatar: profile.avatar || firebaseUser.photoURL || null,
         joinDate: profile.joinDate || firebaseUser.metadata?.creationTime || null,
         newsletter: profile.newsletter ?? false,
+
+        // ✅ ADDED ROLE SUPPORT
+        role: profile.role || "user",
       }
     } catch (err) {
       console.error('Error building user from Firebase:', err)
@@ -50,40 +51,46 @@ export function AuthProvider({ children }) {
         avatar: firebaseUser.photoURL || null,
         joinDate: firebaseUser.metadata?.creationTime || null,
         newsletter: false,
+
+        role: "user",
       }
     }
   }
 
   useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-    if (firebaseUser) {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
 
-      
-      if (!firebaseUser.emailVerified) {
-        // Allow user to exist, just don't redirect them
+        if (!firebaseUser.emailVerified) {
+          setUser(null)
+          setIsLoading(false)
+          return
+        }
+
+        const appUser = await buildUserFromFirebase(firebaseUser)
+        setUser(appUser)
+
+        const path = window.location.pathname
+
+        // ✅ UPDATED: ROLE-BASED REDIRECT
+        if (path === '/' || path.includes('/login') || path.includes('/auth')) {
+          if (appUser.role === "provider") {
+            router.replace('/provider-dashboard')
+          } else {
+            router.replace('/dashboard')
+          }
+        }
+
+      } else {
         setUser(null)
-        setIsLoading(false)
-        return
       }
-      //----------------------------------------
-
-      const appUser = await buildUserFromFirebase(firebaseUser)
-      setUser(appUser)
-
-      const path = window.location.pathname
-      if (path === '/' || path.includes('/login') || path.includes('/auth')) {
-        router.replace('/dashboard')
-      }
-    } else {
-      setUser(null)
-    }
-    setIsLoading(false)
-  })
-  return () => unsubscribe()
-}, [router])
+      setIsLoading(false)
+    })
+    return () => unsubscribe()
+  }, [router])
 
   // ----------------------------------
-  // EMAIL/PASSWORD LOGIN (FIXED)
+  // LOGIN
   // ----------------------------------
   const login = async (email, password) => {
     try {
@@ -91,15 +98,13 @@ export function AuthProvider({ children }) {
 
       const cred = await signInWithEmailAndPassword(auth, email, password)
 
-      // ---------- EMAIL VERIFICATION BLOCK ----------
       if (!cred.user.emailVerified) {
-        await signOut(auth) // force logout
+        await signOut(auth)
         return {
           success: false,
           error: "Please verify your email before signing in.",
         }
       }
-      //------------------------------------------------
 
       const appUser = await buildUserFromFirebase(cred.user)
       setUser(appUser)
@@ -120,7 +125,7 @@ export function AuthProvider({ children }) {
   }
 
   // ----------------------------------
-  // EMAIL/PASSWORD SIGNUP (FIXED)
+  // SIGNUP
   // ----------------------------------
   const signup = async ({ firstName, lastName, email, password, newsletter }) => {
     try {
@@ -129,17 +134,14 @@ export function AuthProvider({ children }) {
       const cred = await createUserWithEmailAndPassword(auth, email, password)
       const firebaseUser = cred.user
 
-      // Fix: wrong variable name before (userCredential.user)
       await sendEmailVerification(firebaseUser)
 
-      // Update Firebase Auth Display Name
       if (firstName || lastName) {
         await firebaseUpdateProfile(firebaseUser, {
           displayName: `${firstName} ${lastName}`.trim(),
         })
       }
 
-      // Save user in Firestore
       const userDocRef = doc(db, 'users', firebaseUser.uid)
       await setDoc(
         userDocRef,
@@ -149,6 +151,9 @@ export function AuthProvider({ children }) {
           email,
           newsletter: !!newsletter,
           joinDate: new Date().toISOString(),
+
+          // ✅ ADDED ROLE
+          role: "user",
         },
         { merge: true }
       )
@@ -204,16 +209,12 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // SOCIAL LOGIN (unchanged)
+  // SOCIAL LOGIN
   const loginWithProvider = async (provider) => {
     try {
       setIsLoading(true)
       const result = await signInWithPopup(auth, provider)
       const firebaseUser = result.user
-
-      console.log("LOGIN FUNCTION HIT") // debugging line
-
-      console.log("FIREBASE USER:", firebaseUser) // debugging line
 
       localStorage.setItem("uid", firebaseUser.uid)
 
@@ -240,6 +241,7 @@ export function AuthProvider({ children }) {
           email: firebaseUser.email,
           newsletter: true,
           joinDate: new Date().toISOString(),
+          role: "user", // ✅ ensure role
         })
       }
 
@@ -291,8 +293,12 @@ export function AuthProvider({ children }) {
 
   // HELPERS
   const isAuthenticated = !!user
+  const isProvider = user?.role === "provider"
+  const isUser = user?.role === "user"
+
   const getDisplayName = () =>
     user ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}` : 'User'
+
   const getInitials = () =>
     user ? ((user.firstName?.[0] || '') + (user.lastName?.[0] || '')).toUpperCase() : 'U'
 
@@ -302,6 +308,9 @@ export function AuthProvider({ children }) {
         user,
         isLoading,
         isAuthenticated,
+        isProvider,
+        isUser,
+
         login,
         signup,
         resetPassword,
