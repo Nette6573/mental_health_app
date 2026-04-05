@@ -1,13 +1,39 @@
 import { auth, db } from "./firebaseClient";
-import { createUserWithEmailAndPassword, setPersistence, browserLocalPersistence } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  setPersistence,
+  browserLocalPersistence,
+  sendEmailVerification,
+  User
+} from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { sendEmailVerification } from "firebase/auth";
 
-export const providerSignup = async (formData: any) => {
+interface ProviderSignupData {
+  first_name: string;
+  last_name: string;
+  professional_email: string;
+  password: string;
+  phone_number: string;
+  parish: string;
+  professional_title: string;
+  license: string;
+  specialization: string;
+  experience: string;
+  practice_areas: string;
+}
+
+interface SignupResult {
+  user?: User;
+  error?: string;
+}
+
+export const providerSignup = async (
+  formData: ProviderSignupData
+): Promise<SignupResult> => {
   try {
     await setPersistence(auth, browserLocalPersistence);
 
-    // 1. Create the Auth User
+    // ✅ 1. Create Firebase Auth User
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       formData.professional_email,
@@ -15,14 +41,14 @@ export const providerSignup = async (formData: any) => {
     );
 
     const user = userCredential.user;
-    //send verfication email to user
+
+    // ✅ 2. Send verification email
     await sendEmailVerification(user);
-    // 2. CRITICAL FIX: Force the SDK to recognize the user
-    // This waits for the token to be generated and attaches it to the client
+
+    // ✅ 3. Ensure token is ready
     await user.getIdToken(true);
 
-    // 3. SECURE WRITE: Write to Firestore
-    // Using user.uid here ensures it matches the rule match /providers/{providerId}
+    // ✅ 4. OPTIONAL: Save to Firestore (can remove later if unused)
     await setDoc(doc(db, "providers", user.uid), {
       first_name: formData.first_name,
       last_name: formData.last_name,
@@ -35,15 +61,24 @@ export const providerSignup = async (formData: any) => {
       experience: formData.experience,
       practice_areas: formData.practice_areas,
       role: "provider",
-      created_at: serverTimestamp(), // Use serverTimestamp for database consistency
+      created_at: serverTimestamp(),
       login_location: null,
     });
 
-    console.log("Provider doc written successfully!");
-    return { success: true };
+    console.log("✅ Provider created successfully");
 
-  } catch (error: any) {
-    console.error("Detailed Signup Error:", error.code, error.message);
-    return { error: error.message };
+    // 🔥 CRITICAL FIX: RETURN USER
+    return {
+      user
+    };
+
+  } catch (error: unknown) {
+    console.error("Detailed Signup Error:", error);
+
+    if (error instanceof Error) {
+      return { error: error.message };
+    }
+
+    return { error: "Unknown error occurred" };
   }
 };

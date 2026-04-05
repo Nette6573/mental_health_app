@@ -2,7 +2,8 @@
 
 import { useState, FormEvent } from "react";
 import Link from 'next/link';
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import Image from 'next/image';
+//import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 // I am assuming you are using lucide-react for icons based on the component names. 
 // If you use a different library, adjust these imports!
 import { Check, CheckCircle, Eye, EyeOff, Info, ArrowRight } from "lucide-react"; 
@@ -93,12 +94,17 @@ export default function ProviderSignupPage() {
 
       setShowSuccessModal(true);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Submission error:", error);
-      alert("Something went wrong: " + (error.message || "Unknown error"));
-    } finally {
-      setIsSubmitting(false);
-    }
+
+      if (error instanceof Error) {
+        alert("Something went wrong: " + error.message);
+      } else {
+          alert("Something went wrong");
+        }
+      } finally {      setIsSubmitting(false);
+
+      }
   };
   
 
@@ -126,9 +132,11 @@ export default function ProviderSignupPage() {
 
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-8">
-              <img
+              <Image
                 src="https://huggingface.co/spaces/brennanlondon/deepsite-project-q0z6c/resolve/main/images/hopepath.png"
                 alt="HopePath Logo"
+                width={64}
+                height={64}
                 className="w-16 h-16 rounded-xl object-cover shadow-lg bg-white/20 backdrop-blur-sm"
               />
               <div>
@@ -206,14 +214,14 @@ export default function ProviderSignupPage() {
                 {currentStep > 1 ? <Check className="w-4 h-4" /> : '1'}
               </div>
               <div className="flex-1 h-1 bg-slate-200 rounded-full overflow-hidden">
-                <div className="h-full bg-sky-600 transition-all duration-300" style={{ width: currentStep > 1 ? '100%' : '0%' }} />
+                <div className={`h-full bg-sky-600 transition-all duration-300 ${currentStep > 1 ? 'w-full' : 'w-0'}`} />
               </div>
 
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 2 ? 'bg-sky-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
                 {currentStep > 2 ? <Check className="w-4 h-4" /> : '2'}
               </div>
               <div className="flex-1 h-1 bg-slate-200 rounded-full overflow-hidden">
-                <div className="h-full bg-sky-600 transition-all duration-300" style={{ width: currentStep > 2 ? '100%' : '0%' }} />
+                <div className={`h-full bg-sky-600 transition-all duration-300 ${currentStep > 2 ? 'w-full' : 'w-0'}`} />
               </div>
 
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep === 3 ? 'bg-sky-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
@@ -249,8 +257,8 @@ export default function ProviderSignupPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">Parish <span className="text-red-500">*</span></label>
-                      <select required value={parish} onChange={(e) => setParish(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-600/20 focus:border-sky-600 outline-none transition-all bg-slate-50/50 hover:bg-white">
+                      <label htmlFor="parish" className="block text-sm font-medium text-slate-700 mb-1.5">Parish <span className="text-red-500">*</span></label>
+                      <select id="parish" required value={parish} onChange={(e) => setParish(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-600/20 focus:border-sky-600 outline-none transition-all bg-slate-50/50 hover:bg-white">
                         <option value="">Select parish...</option>
                         <option>Kingston</option>
                         <option>St. Andrew</option>
@@ -291,8 +299,8 @@ export default function ProviderSignupPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Specialization <span className="text-red-500">*</span></label>
-                    <select required value={specialization} onChange={(e) => setSpecialization(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-600/20 focus:border-sky-600 outline-none transition-all bg-slate-50/50 hover:bg-white">
+                    <label htmlFor="specialization" className="block text-sm font-medium text-slate-700 mb-1.5">Specialization <span className="text-red-500">*</span></label>
+                    <select id="specialization" required value={specialization} onChange={(e) => setSpecialization(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-600/20 focus:border-sky-600 outline-none transition-all bg-slate-50/50 hover:bg-white">
                       <option value="">Select specialization...</option>
                       <option>Clinical Psychology</option>
                       <option>Counseling Psychology</option>
@@ -306,8 +314,8 @@ export default function ProviderSignupPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Years of Experience <span className="text-red-500">*</span></label>
-                    <select required value={experience} onChange={(e) => setExperience(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-600/20 focus:border-sky-600 outline-none transition-all bg-slate-50/50 hover:bg-white">
+                    <label htmlFor="experience" className="block text-sm font-medium text-slate-700 mb-1.5">Years of Experience <span className="text-red-500">*</span></label>
+                    <select id="experience" required value={experience} onChange={(e) => setExperience(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-600/20 focus:border-sky-600 outline-none transition-all bg-slate-50/50 hover:bg-white">
                       <option value="">Select experience...</option>
                       <option>Less than 1 year</option>
                       <option>1-3 years</option>
@@ -381,8 +389,8 @@ export default function ProviderSignupPage() {
                   </div>
 
                   <div className="flex items-start gap-3 p-4 border border-slate-200 rounded-lg bg-slate-50">
-                    <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} className="w-5 h-5 text-sky-600 rounded focus:ring-sky-600 mt-0.5" />
-                    <label className="text-sm text-slate-600 cursor-pointer">
+                    <input id="terms-checkbox" type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} className="w-5 h-5 text-sky-600 rounded focus:ring-sky-600 mt-0.5" />
+                    <label htmlFor="terms-checkbox" className="text-sm text-slate-600 cursor-pointer">
                       I agree to the <a href="#" className="text-sky-600 hover:underline font-medium">Terms of Service</a> and <a href="#" className="text-sky-600 hover:underline font-medium">Privacy Policy</a>. I confirm that all information provided is accurate and I am a licensed mental health professional in good standing.
                     </label>
                   </div>
@@ -412,7 +420,7 @@ export default function ProviderSignupPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => alert('Google signup coming soon! Please use email registration for now.')} className="flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors text-sm font-medium text-slate-700">
-                  <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+                  <Image src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" width={20} height={20} className="w-5 h-5" />
                   Google
                 </button>
                 <button type="button" onClick={() => alert('Facebook signup coming soon! Please use email registration for now.')} className="flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors text-sm font-medium text-slate-700">

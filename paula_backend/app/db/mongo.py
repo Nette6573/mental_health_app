@@ -2,7 +2,7 @@
 
 import os
 import logging
-from pymongo import MongoClient
+from pymongo import MongoClient, ASCENDING
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 
 logging.basicConfig(level=logging.INFO)
@@ -59,17 +59,37 @@ else:
         users = db[USERS_COLLECTION]
         resources = db[RESOURCES_COLLECTION]
 
-        # Create indexes
+        # -------------------------------
+        # INDEXES (UPDATED FOR AI + THERAPIST CHAT)
+        # -------------------------------
         try:
+            # ---------- CHAT INDEXES ----------
+            # AI chat (existing)
             chats.create_index("session_id", unique=True, sparse=True)
+
+            # Common indexes
             chats.create_index("user_id")
             chats.create_index("created_at")
             chats.create_index("updated_at")
 
+            # NEW: chat type (ai | therapist)
+            chats.create_index("type")
+
+            # NEW: therapist chat lookup
+            chats.create_index(
+                [("user_id", ASCENDING), ("therapist_id", ASCENDING)],
+                name="user_therapist_chat_index"
+            )
+
+            # Optional: faster message sorting
+            chats.create_index("messages.created_at")
+
+            # ---------- USER INDEXES ----------
             users.create_index("email", unique=True, sparse=True)
             users.create_index("user_id", unique=True)
             users.create_index("created_at")
 
+            # ---------- RESOURCE INDEXES ----------
             resources.create_index("category")
             resources.create_index("type")
             resources.create_index("tags")
