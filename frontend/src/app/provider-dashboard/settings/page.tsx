@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import {
   AlertTriangle,
   BarChart3,
@@ -155,10 +156,12 @@ export default function ProviderSettingsPage() {
       >
         <div className="border-b border-slate-100 p-6 dark:border-slate-700">
           <div className="flex items-center gap-3">
-            <img
+            <Image
               src="https://huggingface.co/spaces/brennanlondon/deepsite-project-q0z6c/resolve/main/images/hopepath.png"
               alt="HopePath Logo"
-              className="h-10 w-10 rounded-xl object-cover shadow-lg"
+              width={40}
+              height={40}
+              className="rounded-xl object-cover shadow-lg"
             />
             <div>
               <h1 className="text-xl font-bold text-sky-600">HopePath</h1>
@@ -274,35 +277,49 @@ export default function ProviderSettingsPage() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                  <label
+                    htmlFor="email"
+                    className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200"
+                  >
                     Email Address
                   </label>
                   <input
+                    id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email address"
                     className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                  <label
+                    htmlFor="username"
+                    className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200"
+                  >
                     Username
                   </label>
                   <input
+                    id="username"
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter your username"
                     className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                <label
+                  htmlFor="timezone"
+                  className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200"
+                >
                   Timezone
                 </label>
                 <select
+                  id="timezone"
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
@@ -315,10 +332,14 @@ export default function ProviderSettingsPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                <label
+                  htmlFor="language"
+                  className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200"
+                >
                   Language
                 </label>
                 <select
+                  id="language"
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
@@ -353,6 +374,7 @@ export default function ProviderSettingsPage() {
                     checked={emailNotifications}
                     onChange={(e) => setEmailNotifications(e.target.checked)}
                     className="peer sr-only"
+                    aria-label="Email Notifications"
                   />
                   <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-sky-600 peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-slate-600" />
                 </label>
@@ -373,6 +395,7 @@ export default function ProviderSettingsPage() {
                     checked={smsNotifications}
                     onChange={(e) => setSmsNotifications(e.target.checked)}
                     className="peer sr-only"
+                    aria-label="SMS Notifications"
                   />
                   <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-sky-600 peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-slate-600" />
                 </label>
@@ -393,6 +416,7 @@ export default function ProviderSettingsPage() {
                     checked={marketingEmails}
                     onChange={(e) => setMarketingEmails(e.target.checked)}
                     className="peer sr-only"
+                    aria-label="Marketing Emails"
                   />
                   <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-sky-600 peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-slate-600" />
                 </label>
@@ -413,6 +437,7 @@ export default function ProviderSettingsPage() {
                     checked={appointmentReminders}
                     onChange={(e) => setAppointmentReminders(e.target.checked)}
                     className="peer sr-only"
+                    aria-label="Appointment Reminders"
                   />
                   <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-sky-600 peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-slate-600" />
                 </label>

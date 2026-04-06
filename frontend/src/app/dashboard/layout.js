@@ -1,4 +1,6 @@
-import { AuthProvider } from '@/context/AuthContext'
+'use client'
+
+import ProtectedRoute from "@/components/auth/ProtectedRoute"
 
 export const metadata = {
   title: 'Dashboard - HopePath',
@@ -7,8 +9,8 @@ export const metadata = {
 
 export default function DashboardLayout({ children }) {
   return (
-    <AuthProvider>
+    <ProtectedRoute allowedRole="user">
       {children}
-    </AuthProvider>
+    </ProtectedRoute>
   )
 }
