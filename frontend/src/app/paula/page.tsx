@@ -193,7 +193,7 @@ export default function PaulaChat() {
   }
 
   return (
-    <div className="flex flex-col items-center h-screen p-4 bg-gradient-to-b from-purple-100 to-gray-100">
+    <div className="flex flex-col items-center h-screen p-4 bg-linear-to-b from-purple-100 to-gray-100">
       
       <div className="flex justify-between w-full max-w-xl mb-2">
         <h1 className="text-3xl font-bold text-purple-700">

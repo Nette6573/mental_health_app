@@ -69,6 +69,7 @@ app.add_middleware(
     allow_origins=[
         "https://hopepath.online",
         "https://www.hopepath.online",
+        "https://mental-health-app-cyan.vercel.app",
         "https://mentalhealthapp-production.up.railway.app",
         "http://localhost:3000",
         "http://localhost:8000",
