@@ -1,14 +1,17 @@
 // frontend/next.config.js
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',  // This enables static export
+  // ❌ REMOVED: output: 'export'
+
   images: {
-    unoptimized: true, // Required for static export with Next.js Image component
+    unoptimized: true, // Kept this (safe)
   },
-  trailingSlash: true, // Optional but recommended for Cloudflare
+
+  // OPTIONAL: can remove this later if not needed
+  trailingSlash: true,
+
   eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // project has ESLint errors.
     ignoreDuringBuilds: true,
   },
 }
