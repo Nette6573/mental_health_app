@@ -64,13 +64,20 @@ app = FastAPI(
 )
 
 # ---------------- CORS ---------------- #
-app.add_middleware(
+aapp.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://hopepath.online",
         "https://www.hopepath.online",
+
+        # ✅ BOTH VERCEL URLS
         "https://mental-health-app-cyan.vercel.app",
+        "https://mental-health-m11k7o8ua-antoinettes-projects.vercel.app",
+
+        # backend (optional but fine)
         "https://mentalhealthapp-production.up.railway.app",
+
+        # local dev
         "http://localhost:3000",
         "http://localhost:8000",
     ],
