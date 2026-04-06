@@ -2,17 +2,20 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ❌ REMOVED: output: 'export'
-
   images: {
-    unoptimized: true, // Kept this (safe)
+    unoptimized: true,
   },
 
-  // OPTIONAL: can remove this later if not needed
   trailingSlash: true,
 
   eslint: {
     ignoreDuringBuilds: true,
+  },
+
+  // 🔥 CRITICAL FIX — DISABLE WEBPACK CACHE
+  webpack: (config) => {
+    config.cache = false
+    return config
   },
 }
 
