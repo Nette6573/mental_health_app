@@ -1,7 +1,7 @@
-// frontend/next.config.js
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export', // ✅ ADD THIS LINE
+
   images: {
     unoptimized: true,
   },
@@ -12,7 +12,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
-  // 🔥 CRITICAL FIX — DISABLE WEBPACK CACHE
+  // 🔥 CRITICAL FIX – DISABLE WEBPACK CACHE
   webpack: (config) => {
     config.cache = false
     return config
