@@ -124,16 +124,17 @@ export default function PaulaChat() {
     setLoading(true);
 
     try {
-      let url = `${baseUrl}/api/send?user_id=${encodeURIComponent(userId)}`;
-      if (chatId) url += `&chat_id=${encodeURIComponent(chatId)}`;
-
-      const res = await fetch(url, {
+      const res = await fetch(`${baseUrl}/api/send`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ text: userMessage.text }),
-      });
+        body: JSON.stringify({
+        user_id: userId,
+        chat_id: chatId,
+        text: userMessage.text,
+         }),
+    });
 
       if (!res.ok) throw new Error("Server error");
 
