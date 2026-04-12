@@ -18,7 +18,7 @@ email: string;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
-const baseUrl = API_BASE ? API_BASE.replace(/\/$/, "") : "";
+const baseUrl = "https://mentalhealthapp-production.up.railway.app";
 
 export default function PaulaChat() {
 const { user, isLoading } = (useAuth() as {
