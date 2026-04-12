@@ -39,40 +39,42 @@ export default function MoodEntryForm({ selectedDate, onSuccess, onCancel }) {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+  e.preventDefault()
 
-    if (!formData.mood) {
-      alert("Please select how you are feeling")
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      const uid = localStorage.getItem("uid")
-
-      if (!uid) throw new Error("User not found")
-
-      await saveMood(uid, {
-        mood: formData.mood,
-        note: formData.note || "",
-        activities: formData.activities || [],
-        emotions: formData.emotions || [],
-        sleepHours: formData.sleepHours || 0,
-        stressLevel: formData.stressLevel || 0,
-        date: selectedDate || new Date().toISOString()
-      })
-
-      if (onSuccess) onSuccess()
-
-    } catch (error) {
-      console.error("Mood save error:", error)
-      alert("Failed to save mood")
-    } finally {
-      setIsLoading(false)
-    }
+  if (!formData.mood) {
+    alert("Please select how you are feeling")
+    return
   }
 
+  const uid = user?.uid
+
+  if (!uid) {
+    alert("User not authenticated")
+    return
+  }
+
+  setIsLoading(true)
+
+  try {
+    await saveMood(uid, {
+      mood: formData.mood,
+      note: formData.note || "",
+      activities: formData.activities || [],
+      emotions: formData.emotions || [],
+      sleepHours: formData.sleepHours || 0,
+      stressLevel: formData.stressLevel || 0,
+      date: selectedDate || new Date().toISOString()
+    })
+
+    if (onSuccess) onSuccess()
+
+  } catch (error) {
+    console.error("Mood save error:", error)
+    alert("Failed to save mood")
+  } finally {
+    setIsLoading(false)
+  }
+}
   // ---------------- FORMAT DATE ----------------
 
   const formatDate = (date) => {
