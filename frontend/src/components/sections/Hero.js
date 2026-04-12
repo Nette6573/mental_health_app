@@ -12,7 +12,7 @@ export default function Hero() {
                 Mental Health Support for Jamaica
               </h1>
               <p className="text-xl mb-8 opacity-90">
-                Combining biblical encouragement with professional mental health resources to guide you toward healing and hope.
+                Combining encouragement with professional mental health resources to guide you toward healing and hope.
               </p>
               <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
                 <Button href="/auth/signup" variant="secondary" className="text-primary-600 bg-white hover:bg-gray-100">

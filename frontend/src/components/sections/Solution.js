@@ -8,7 +8,7 @@ export default function Solution() {
       <div className="container mx-auto px-4">
         <AnimatedSection animation="fade-in" className="text-center mb-12">
           <h2 className="font-heading text-3xl md:text-4xl font-bold mb-4">The HopePath Solution</h2>
-          <p className="text-lg max-w-3xl mx-auto">A comprehensive digital platform bridging faith and mental health support</p>
+          <p className="text-lg max-w-3xl mx-auto">A comprehensive digital platform bridging encouragement, upliftment and mental health support</p>
         </AnimatedSection>
         
         {/* AI Assessment Section */}
@@ -71,7 +71,7 @@ export default function Solution() {
             <AnimatedSection animation="slide-up">
               <h3 className="font-heading text-2xl md:text-3xl font-bold mb-6">Professional & Faith-Based Directory</h3>
               <p className="text-gray-600 dark:text-gray-300 mb-6">
-                Connect with licensed therapists, psychologists, and supportive churches across Jamaica through our comprehensive directory.
+                Connect with licensed therapists, psychologists, and support providers across Jamaica through our comprehensive directory.
               </p>
               <ul className="space-y-3">
                 {[

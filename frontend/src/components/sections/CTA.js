@@ -10,7 +10,7 @@ export default function CTA() {
         </AnimatedSection>
         <AnimatedSection animation="fade-in" delay={0.1}>
           <p className="text-xl max-w-2xl mx-auto mb-8 opacity-90">
-            Join HopePath today and take the first step toward mental wellness with faith-based support.
+            Join HopePath today and take the first step toward mental wellness with encouraging and uplifting support.
           </p>
         </AnimatedSection>
         <AnimatedSection animation="fade-in" delay={0.2} className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">

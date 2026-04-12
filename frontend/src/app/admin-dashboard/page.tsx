@@ -372,6 +372,10 @@ export default function AdminLandingPage() {
         }
         .footer-link:hover { color: var(--blue-200); }
 
+        .security-badge {
+          display: flex; align-items: center; gap: 8px; justify-content: center;
+        }
+
         @media (max-width: 900px) {
           .hero { grid-template-columns: 1fr; }
           .feature-grid { grid-template-columns: 1fr; }
@@ -384,7 +388,7 @@ export default function AdminLandingPage() {
           {/* ── Nav ── */}
           <nav className="nav">
             <div className="nav-inner">
-              <a href="/" className="logo">
+              <Link href="/" className="logo">
                 <div className="logo-icon">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                     <path d="M12 22s8-6 8-13A8 8 0 004 9c0 7 8 13 8 13z" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round"/>
@@ -393,7 +397,7 @@ export default function AdminLandingPage() {
                 </div>
                 <span className="logo-text">HopePath</span>
                 <span className="logo-badge">Admin Portal</span>
-              </a>
+              </Link>
               <div className="nav-status">
                 <div className="status-dot" />
                 System Operational
@@ -473,12 +477,12 @@ export default function AdminLandingPage() {
                 <div className="divider-line" />
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+              <div className="security-badge">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--blue-400)" strokeWidth="2">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                   <path d="M7 11V7a5 5 0 0110 0v4"/>
                 </svg>
-                <span style={{ fontSize: '0.78rem', color: 'var(--blue-400)', fontWeight: 500 }}>
+                <span className="security-text">
                   256-bit encrypted · Session monitored
                 </span>
               </div>

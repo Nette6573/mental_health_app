@@ -13,8 +13,8 @@ export default function Partners() {
       logo: "JPA"
     },
     { 
-      name: "Christian Therapists", 
-      description: "Faith-based counseling network",
+      name: "Therapists", 
+      description: "Professional counseling network",
       logo: "JACT"
     },
     { 
