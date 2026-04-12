@@ -20,7 +20,7 @@ const moodEmojis = {
 }
 
 export default function MoodEntryForm({ selectedDate, onSuccess, onCancel }) {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
 
   const [formData, setFormData] = useState({
@@ -38,17 +38,20 @@ export default function MoodEntryForm({ selectedDate, onSuccess, onCancel }) {
     setFormData(prev => ({ ...prev, mood: moodLevel }))
   }
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
   e.preventDefault()
+
+  if (loading) {
+    alert("Still loading user, please wait...")
+    return
+  }
 
   if (!formData.mood) {
     alert("Please select how you are feeling")
     return
   }
 
-  const uid = user?.uid
-
-  if (!uid) {
+  if (!user?.id) {
     alert("User not authenticated")
     return
   }
@@ -56,7 +59,7 @@ export default function MoodEntryForm({ selectedDate, onSuccess, onCancel }) {
   setIsLoading(true)
 
   try {
-    await saveMood(uid, {
+    await saveMood(user.id, {
       mood: formData.mood,
       note: formData.note || "",
       activities: formData.activities || [],
