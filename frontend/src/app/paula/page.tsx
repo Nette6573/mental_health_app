@@ -106,7 +106,7 @@ setInput("");
 setLoading(true);
 
 try {
-  const res = await fetch(`${baseUrl}/api/send/`, {
+  const res = await fetch(`${baseUrl}/api/send`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
