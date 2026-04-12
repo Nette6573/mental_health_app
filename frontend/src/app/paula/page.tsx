@@ -130,11 +130,12 @@ export default function PaulaChat() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-        user_id: userId,
-        chat_id: chatId,
-        text: userMessage.text,
-         }),
-    });
+          user_id: userId,
+          ...(chatId && { chat_id: chatId }), // ✅ only send if exists
+          text: userMessage.text,
+        }),
+      });
+
 
       if (!res.ok) throw new Error("Server error");
 
