@@ -1,5 +1,8 @@
 "use client";
 
+import { db, auth } from "@/lib/firebase"; // adjust path if needed
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -30,10 +33,11 @@ export default function ProviderSettingsPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("general");
 
-  const [email, setEmail] = useState("dr.anderson@hopepath.jm");
-  const [username, setUsername] = useState("dr.sarah.anderson");
-  const [timezone, setTimezone] = useState("(UTC-05:00) Eastern Time (Jamaica)");
-  const [language, setLanguage] = useState("English");
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [timezone, setTimezone] = useState("");
+  const [language, setLanguage] = useState("");
+  
 
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(false);
@@ -59,6 +63,31 @@ export default function ProviderSettingsPage() {
     }
   }, []);
 
+  useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+
+    const docRef = doc(db, "providers", user.uid);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+
+      setEmail(data.email || "");
+      setUsername(data.username || "");
+      setTimezone(data.timezone || "");
+      setLanguage(data.language || "");
+
+      setEmailNotifications(data.emailNotifications ?? true);
+      setSmsNotifications(data.smsNotifications ?? false);
+      setMarketingEmails(data.marketingEmails ?? true);
+      setAppointmentReminders(data.appointmentReminders ?? true);
+    }
+  });
+
+  return () => unsubscribe();
+  }, []);
+
   const toggleDarkMode = () => {
     const nextDarkMode = !darkMode;
     setDarkMode(nextDarkMode);
@@ -80,8 +109,29 @@ export default function ProviderSettingsPage() {
     window.location.href = "/provider-dashboard/login";
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  try {
+    const docRef = doc(db, "providers", user.uid);
+
+    await updateDoc(docRef, {
+      email,
+      username,
+      timezone,
+      language,
+      emailNotifications,
+      smsNotifications,
+      marketingEmails,
+      appointmentReminders,
+    });
+
     alert("Settings saved successfully!");
+  } catch (error) {
+    console.error(error);
+    alert("Error saving settings");
+    }
   };
 
   const handleCancel = () => {
