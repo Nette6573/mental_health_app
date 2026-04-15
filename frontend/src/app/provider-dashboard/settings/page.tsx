@@ -1,8 +1,9 @@
 "use client";
 
-import { db, auth } from "@/lib/firebase"; // adjust path if needed
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase/firebaseClient";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -29,20 +30,30 @@ import {
 type TabKey = "general" | "notifications" | "security" | "billing";
 
 export default function ProviderSettingsPage() {
+  const { user } = useAuth() as any;
+  const router = useRouter();
+
   const [darkMode, setDarkMode] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("general");
+  const [isSaving, setIsSaving] = useState(false);
 
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [timezone, setTimezone] = useState("");
   const [language, setLanguage] = useState("");
-  
 
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(false);
   const [marketingEmails, setMarketingEmails] = useState(true);
   const [appointmentReminders, setAppointmentReminders] = useState(true);
+
+  // ── Security: redirect unauthenticated users ──
+  useEffect(() => {
+    if (user === null) {
+      router.replace("/provider-dashboard/login");
+    }
+  }, [user, router]);
 
   useEffect(() => {
     const savedTheme =
@@ -63,30 +74,46 @@ export default function ProviderSettingsPage() {
     }
   }, []);
 
+  // ── Fetch Data from providers & provider_settings ──
   useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (user) => {
-    if (!user) return;
+    const fetchSettingsData = async () => {
+      if (!user) return;
 
-    const docRef = doc(db, "providers", user.uid);
-    const docSnap = await getDoc(docRef);
+      try {
+        // Fetch from providers collection
+        const providerRef = doc(db, "providers", user.id);
+        const providerSnap = await getDoc(providerRef);
 
-    if (docSnap.exists()) {
-      const data = docSnap.data();
+        if (providerSnap.exists()) {
+          const providerData = providerSnap.data();
+          setEmail(providerData.professional_email || "");
+          // Mapping first and last name to the username field for display
+          setUsername(`${providerData.first_name || ""} ${providerData.last_name || ""}`.trim());
+        }
 
-      setEmail(data.email || "");
-      setUsername(data.username || "");
-      setTimezone(data.timezone || "");
-      setLanguage(data.language || "");
+        // Fetch from provider_settings collection
+        const settingsRef = doc(db, "provider_settings", user.id);
+        const settingsSnap = await getDoc(settingsRef);
 
-      setEmailNotifications(data.emailNotifications ?? true);
-      setSmsNotifications(data.smsNotifications ?? false);
-      setMarketingEmails(data.marketingEmails ?? true);
-      setAppointmentReminders(data.appointmentReminders ?? true);
-    }
-  });
+        if (settingsSnap.exists()) {
+          const settingsData = settingsSnap.data();
+          
+          setTimezone(settingsData.timezone || "");
+          setLanguage(settingsData.settings_language || "");
 
-  return () => unsubscribe();
-  }, []);
+          // Convert string values back to boolean for UI toggles
+          setEmailNotifications(settingsData.email_notification === "true");
+          setSmsNotifications(settingsData.sms_notification === "true");
+          setMarketingEmails(settingsData.marketing_emails === "true");
+          setAppointmentReminders(settingsData.appointment_reminders === "true");
+        }
+      } catch (error) {
+        console.error("Error fetching settings:", error);
+      }
+    };
+
+    fetchSettingsData();
+  }, [user]);
 
   const toggleDarkMode = () => {
     const nextDarkMode = !darkMode;
@@ -106,31 +133,49 @@ export default function ProviderSettingsPage() {
   };
 
   const logout = () => {
-    window.location.href = "/provider-dashboard/login";
+    router.replace("/provider-dashboard/login");
   };
 
+  // ── Save Data to respective collections ──
   const handleSave = async () => {
-  const user = auth.currentUser;
-  if (!user) return;
+    if (!user) return;
+    setIsSaving(true);
 
-  try {
-    const docRef = doc(db, "providers", user.uid);
+    try {
+      const providerRef = doc(db, "providers", user.id);
+      const settingsRef = doc(db, "provider_settings", user.id);
 
-    await updateDoc(docRef, {
-      email,
-      username,
-      timezone,
-      language,
-      emailNotifications,
-      smsNotifications,
-      marketingEmails,
-      appointmentReminders,
-    });
+      // We use Promise.all to run both updates concurrently
+      await Promise.all([
+        setDoc(
+          providerRef,
+          {
+            professional_email: email,
+            // Omitting username here so we don't accidentally overwrite first_name/last_name
+          },
+          { merge: true }
+        ),
+        setDoc(
+          settingsRef,
+          {
+            timezone: timezone,
+            settings_language: language,
+            // Storing as strings based on your schema requirements
+            email_notification: String(emailNotifications),
+            sms_notification: String(smsNotifications),
+            marketing_emails: String(marketingEmails),
+            appointment_reminders: String(appointmentReminders),
+          },
+          { merge: true }
+        ),
+      ]);
 
-    alert("Settings saved successfully!");
-  } catch (error) {
-    console.error(error);
-    alert("Error saving settings");
+      alert("Settings saved successfully!");
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      alert("Failed to save settings. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -374,6 +419,7 @@ export default function ProviderSettingsPage() {
                   onChange={(e) => setTimezone(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 >
+                  <option value="">Select your timezone</option>
                   <option>(UTC-05:00) Eastern Time (Jamaica)</option>
                   <option>(UTC-04:00) Atlantic Time</option>
                   <option>(UTC+00:00) London</option>
@@ -394,6 +440,7 @@ export default function ProviderSettingsPage() {
                   onChange={(e) => setLanguage(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-sky-600 focus:ring-2 focus:ring-sky-600/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 >
+                  <option value="">Select your language</option>
                   <option>English</option>
                   <option>Spanish</option>
                   <option>French</option>
@@ -613,10 +660,11 @@ export default function ProviderSettingsPage() {
             </button>
             <button
               type="button"
+              disabled={isSaving}
               onClick={handleSave}
-              className="rounded-lg bg-sky-600 px-6 py-2 font-medium text-white transition-colors hover:bg-sky-700"
+              className="rounded-lg bg-sky-600 px-6 py-2 font-medium text-white transition-colors hover:bg-sky-700 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Save Changes
+              {isSaving ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </div>
