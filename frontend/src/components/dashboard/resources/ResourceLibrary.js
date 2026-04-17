@@ -117,8 +117,7 @@ export default function ResourceLibrary() {
           featured: true,
           tags: ['Meditation', 'Mindfulness', 'Stress Relief'],
 
-         fileUrl: 'https://drive.google.com/file/d/13qYCtqJ6mr7y0HLspH-_J1mRsOV95PdC/preview',
-          //audioUrl: '/audio/mindfulness.mp3', // 👈 IMPORTANT
+          audioUrl: '/audio/mindfulness.mp3', // 👈 IMPORTANT
 
           content: {
             intro:
@@ -139,8 +138,6 @@ export default function ResourceLibrary() {
           reviews: 203,
           featured: false,
           tags: ['CBT', 'Therapy', 'Skills'],
-
-          fileUrl: 'https://docs.google.com/document/d/1Pa3TXQdlocnYU2sao5D6BrcKwsxoboSuRUZVCnNS2jM/preview',
 
           content: {
             intro:
@@ -244,8 +241,7 @@ export default function ResourceLibrary() {
           reviews: 67,
           featured: false,
           tags: ['Self-Care', 'Worksheet', 'Habits'],
-          fileUrl: 'https://drive.google.com/file/d/1ad3ySBuZXeHMMEbF63G26RzW4yES05mY/preview'
-          //pdfUrl: '/worksheets/daily-self-care-checklist.pdf'
+          pdfUrl: '/worksheets/daily-self-care-checklist.pdf'
         },
         {
           id: 5,
@@ -261,8 +257,6 @@ export default function ResourceLibrary() {
           reviews: 156,
           featured: true,
           tags: ['Faith', 'Spirituality', 'Hope'],
-
-          fileUrl: "https://drive.google.com/file/d/13qYCtqJ6mr7y0HLspH-_J1mRsOV95PdC/preview",
 
           content: {
             intro:
@@ -449,11 +443,10 @@ export default function ResourceLibrary() {
         featured: true,
         tags: ['Crisis', 'Emergency', 'Support'],
 
-        fileUrl: 'https://www.youtube.com/embed/5EXpkVw3fh0'
-        /*embedUrls: [
+        embedUrls: [
           'https://www.youtube.com/embed/5-PgSUTOSeM',
           'https://www.youtube.com/embed/fKyapN8B3Mw' // add more here
-        ]*/
+        ]
       }
       ]
       
