@@ -3,7 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/firebaseClient";
 import { getAuth, sendPasswordResetEmail } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc, addDoc, collection, query, orderBy, limit, getDocs, serverTimestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -101,9 +101,10 @@ export default function ProviderSettingsPage() {
   useEffect(() => {
     const fetchSettingsData = async () => {
       if (!user) return;
+      const uid = user.uid ?? user.id;
 
       try {
-        const providerRef = doc(db, "providers", user.uid ?? user.id);
+        const providerRef = doc(db, "providers", uid);
         const providerSnap = await getDoc(providerRef);
 
         if (providerSnap.exists()) {
@@ -114,7 +115,7 @@ export default function ProviderSettingsPage() {
           );
         }
 
-        const settingsRef = doc(db, "provider_settings", user.uid ?? user.id);
+        const settingsRef = doc(db, "provider_settings", uid);
         const settingsSnap = await getDoc(settingsRef);
 
         if (settingsSnap.exists()) {
@@ -126,6 +127,21 @@ export default function ProviderSettingsPage() {
           setMarketingEmails(settingsData.marketing_emails === "true");
           setAppointmentReminders(settingsData.appointment_reminders === "true");
         }
+
+        // ── Record this session in login_history subcollection ──
+        const historyRef = collection(db, "provider_settings", uid, "login_history");
+        await addDoc(historyRef, {
+          timestamp: serverTimestamp(),
+          device_info:
+            typeof navigator !== "undefined" ? navigator.userAgent : "Unknown",
+        });
+
+        // Also keep last_login field on the settings doc in sync
+        await setDoc(
+          settingsRef,
+          { last_login: serverTimestamp() },
+          { merge: true }
+        );
       } catch (error) {
         console.error("Error fetching settings:", error);
       }
