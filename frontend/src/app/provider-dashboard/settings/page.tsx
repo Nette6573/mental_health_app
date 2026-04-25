@@ -61,12 +61,12 @@ export default function ProviderSettingsPage() {
   const [appointmentReminders, setAppointmentReminders] = useState(true);
 
   // Section refs for scroll-to behaviour
-  const generalRef = useRef<HTMLDivElement>(null);
-  const notificationsRef = useRef<HTMLDivElement>(null);
-  const securityRef = useRef<HTMLDivElement>(null);
-  const billingRef = useRef<HTMLDivElement>(null);
+  const generalRef = useRef<HTMLDivElement | null>(null);
+  const notificationsRef = useRef<HTMLDivElement | null>(null);
+  const securityRef = useRef<HTMLDivElement | null>(null);
+  const billingRef = useRef<HTMLDivElement | null>(null);
 
-  const sectionRefs: Record<TabKey, React.RefObject<HTMLDivElement>> = {
+  const sectionRefs: Record<TabKey, React.RefObject<HTMLDivElement | null>> = {
     general: generalRef,
     notifications: notificationsRef,
     security: securityRef,
