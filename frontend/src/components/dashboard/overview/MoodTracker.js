@@ -1,7 +1,7 @@
 'use client'
 
 import Card from '@/components/ui/Card'
-import Button from '@/components/ui/Button'
+import Button from '@/components/ui/LandingButton'
 import { useState } from "react"
 import MoodEntryForm from '@/components/dashboard/mood/MoodEntryForm'
 

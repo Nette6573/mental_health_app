@@ -1,4 +1,4 @@
-import Button from '@/components/ui/Button'
+import Button from '@/components/ui/LandingButton'
 import { useAuth } from '@/context/AuthContext'
 
 export default function SocialLogin({ loading = false }) {
