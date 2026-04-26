@@ -16,8 +16,7 @@
     "forceConsistentCasingInFileNames": true,
 
     // ✅ THIS IS THE FIX
-    "baseUrl": ".",
-    "ignoreDeprecations": "5.0",  
+    "baseUrl": ".", 
 
     // ✅ KEEP THIS
     "paths": {
