@@ -10,6 +10,24 @@ import TherapistCard from "@/components/dashboard/therapists/TherapistCard";
 import SpecialtyFilters from "@/components/dashboard/therapists/SpecialtyFilters";
 import SearchBar from "@/components/dashboard/resources/SearchBar";
 
+// These match what your SpecialtyFilters component actually expects
+const SPECIALTIES = [
+  { value: "all", label: "All Specialties" },
+  { value: "anxiety", label: "Anxiety" },
+  { value: "depression", label: "Depression" },
+  { value: "trauma", label: "Trauma" },
+  { value: "couples", label: "Couples Therapy" },
+  { value: "addiction", label: "Addiction" },
+];
+
+const LOCATIONS = [
+  { value: "all", label: "All Locations" },
+  { value: "Kingston", label: "Kingston" },
+  { value: "Montego Bay", label: "Montego Bay" },
+  { value: "Spanish Town", label: "Spanish Town" },
+  { value: "Online", label: "Online" },
+];
+
 export default function TherapistsPage() {
   const { user, isLoading: authLoading } = useAuth() as any;
   const router = useRouter();
@@ -17,13 +35,10 @@ export default function TherapistsPage() {
   // ── State ──
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
+  const [providers, setProviders] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
   const [selectedLocation, setSelectedLocation] = useState("all");
-  const [activeFilters, setActiveFilters] = useState(new Set());
-
-  // Each provider is stored exactly as it comes from Firestore
-  const [providers, setProviders] = useState<any[]>([]);
 
   // ── Auth guard ──
   useEffect(() => {
@@ -43,7 +58,6 @@ export default function TherapistsPage() {
 
         const providersSnap = await getDocs(collection(db, "providers"));
 
-        // For each document, call .data() to get the fields — same pattern as settings page
         const providerList: any[] = [];
         providersSnap.forEach((providerDoc) => {
           const data = providerDoc.data();
@@ -75,7 +89,7 @@ export default function TherapistsPage() {
     fetchProviders();
   }, [user]);
 
-  // ── Filter logic — runs against the providers list ──
+  // ── Filter logic ──
   const filteredProviders = providers.filter((provider) => {
     const fullName = `${provider.first_name} ${provider.last_name}`.toLowerCase();
     const bio = provider.bio.toLowerCase();
@@ -100,7 +114,7 @@ export default function TherapistsPage() {
     router.push("/dashboard/chat");
   };
 
-  // ── Loading state ──
+  // ── Auth loading ──
   if (authLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -132,27 +146,15 @@ export default function TherapistsPage() {
           placeholder="Search by name or specialty..."
         />
 
-        {/* FILTERS */}
-        <div className="flex flex-wrap gap-3">
-          <SpecialtyFilters
-            selectedSpecialty={selectedSpecialty}
-            onSpecialtyChange={setSelectedSpecialty}
-            activeFilters={activeFilters}
-            onFiltersChange={setActiveFilters}
-          />
-
-          <select
-            value={selectedLocation}
-            onChange={(e) => setSelectedLocation(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
-          >
-            <option value="all">All Locations</option>
-            <option value="Kingston">Kingston</option>
-            <option value="Montego Bay">Montego Bay</option>
-            <option value="Spanish Town">Spanish Town</option>
-            <option value="Online">Online</option>
-          </select>
-        </div>
+        {/* FILTERS — passing props that match what SpecialtyFilters actually accepts */}
+        <SpecialtyFilters
+          specialties={SPECIALTIES}
+          locations={LOCATIONS}
+          selectedSpecialty={selectedSpecialty}
+          selectedLocation={selectedLocation}
+          onSpecialtyChange={setSelectedSpecialty}
+          onLocationChange={setSelectedLocation}
+        />
 
         {/* RESULTS COUNT */}
         {!isLoading && !fetchError && (
