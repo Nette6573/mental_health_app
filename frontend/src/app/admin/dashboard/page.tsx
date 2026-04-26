@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import { signOut } from "firebase/auth"
+import { auth } from "@/lib/firebase"
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/LandingCard"  
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -47,9 +48,9 @@ export default function AdminDashboard() {
   const { toast } = useToast()
   const router = useRouter()
 
+  // ← Fixed: now uses Firebase signOut
   const handleSignOut = useCallback(async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
+    await signOut(auth)
     router.push("/auth/login")
   }, [router])
   
@@ -160,9 +161,6 @@ export default function AdminDashboard() {
     )
   }
 
-  // Calculate high-risk users (users who logged "struggling" mood recently)
-  const highRiskCount = 0 // Would need mood data aggregation
-
   const platformStats = [
     {
       label: "Total Users",
@@ -194,7 +192,6 @@ export default function AdminDashboard() {
     },
   ]
 
-  // Get recent users (last 10)
   const recentUsers = users.slice(0, 10)
 
   return (
@@ -206,7 +203,6 @@ export default function AdminDashboard() {
       onSignOut={handleSignOut}
     >
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {/* Stats Cards */}
         {platformStats.map((stat) => {
           const Icon = stat.icon
           return (
@@ -230,7 +226,6 @@ export default function AdminDashboard() {
           )
         })}
 
-        {/* User Management */}
         <Card className="md:col-span-2 lg:col-span-4">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -314,7 +309,6 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
         <Card className="md:col-span-2 lg:col-span-4">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold">Management Tools</CardTitle>
@@ -415,7 +409,7 @@ export default function AdminDashboard() {
                   <label className="text-sm font-medium">Change Role</label>
                   <Select
                     value={selectedUser.user.role}
-                    onValueChange={(value) => handleUpdateRole(selectedUser.user.id, value)}
+                    onValueChange={(value: string) => handleUpdateRole(selectedUser.user.id, value)}
                     disabled={isUpdatingUser}
                   >
                     <SelectTrigger className="mt-1">
