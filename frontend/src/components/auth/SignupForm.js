@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import Input from '@/components/ui/Input'
-import Button from '@/components/ui/Button'
+import Button from '@/components/ui/LandingButton'
 import Checkbox from '@/components/ui/Checkbox'
 import SocialLogin from './SocialLogin'
 

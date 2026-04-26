@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Input from '@/components/ui/Input'
-import Button from '@/components/ui/Button'
+import Button from '@/components/ui/LandingButton'
 import { useAuth } from '@/context/AuthContext'
 
 export default function ResetPasswordForm() {

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/LandingCard"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -56,11 +56,8 @@ export default function AdminInvitesPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const { toast } = useToast()
 
-  useEffect(() => {
-    fetchInvites()
-  }, [])
-
-  const fetchInvites = async () => {
+  // Define fetchInvites BEFORE useEffect
+  const fetchInvites = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/invites")
       const data = await res.json()
@@ -76,7 +73,11 @@ export default function AdminInvitesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
+
+  useEffect(() => {
+    fetchInvites()
+  }, [fetchInvites])
 
   const createInvite = async () => {
     setCreating(true)
@@ -129,6 +130,7 @@ export default function AdminInvitesPage() {
   return (
     <DashboardLayout
       role="admin"
+      user={{ name: "Admin", email: "admin@hopepath.jm", avatar: "" }}
       title="Invite Codes"
       description="Manage admin and provider invite codes"
     >
@@ -197,7 +199,7 @@ export default function AdminInvitesPage() {
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label htmlFor="role">Role</Label>
-                    <Select value={newRole} onValueChange={(v) => setNewRole(v as "admin" | "provider")}>
+                    <Select value={newRole} onValueChange={(v: string) => setNewRole(v as "admin" | "provider")}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
