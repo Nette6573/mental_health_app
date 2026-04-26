@@ -4,37 +4,34 @@ import { ObjectId } from "mongodb"
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const client = await clientPromise
-    const db = client.db("hopepath") // Replace with your DB name
+    const db = client.db("hopepath_user")
 
-    const userId = params.id
-
-    // Get user profile
-    const user = await db.collection("users").findOne({ _id: new ObjectId(userId) })
+    const user = await db.collection("users").findOne({ _id: new ObjectId(id) })
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Get related data
     const moodEntries = await db
       .collection("moods")
-      .find({ user_id: userId })
+      .find({ user_id: id })
       .sort({ logged_at: -1 })
       .toArray()
 
     const sessions = await db
       .collection("sessions")
-      .find({ user_id: userId })
+      .find({ user_id: id })
       .sort({ scheduled_at: -1 })
       .toArray()
 
     const journalEntries = await db
       .collection("journals")
-      .find({ user_id: userId })
+      .find({ user_id: id })
       .sort({ created_at: -1 })
       .toArray()
 
@@ -82,17 +79,17 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const client = await clientPromise
-    const db = client.db("hopepath_user") // Replace with your DB name
+    const db = client.db("hopepath_user")
 
-    const userId = params.id
     const updates = await request.json()
 
     const result = await db.collection("users").updateOne(
-      { _id: new ObjectId(userId) },
+      { _id: new ObjectId(id) },
       { $set: { ...updates, updated_at: new Date().toISOString() } }
     )
 

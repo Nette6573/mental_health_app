@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     const client = await clientPromise
-    const db = client.db("hopepath") // Replace with your DB name
+    const db = client.db("hopepath_user") // Replace with your DB name
 
     const userId = params.id
 
