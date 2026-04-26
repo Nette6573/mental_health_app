@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase/firebaseClient";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/dashboard/layout/DashboardLayout";
@@ -15,6 +15,7 @@ export default function TherapistsPage() {
   const [fetchError, setFetchError] = useState("");
   const [providers, setProviders] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [layoutUser, setLayoutUser] = useState<any>(null);
 
   // ── Redirect if not logged in ──
   useEffect(() => {
@@ -23,17 +24,38 @@ export default function TherapistsPage() {
     }
   }, [user, authLoading, router]);
 
-  // ── Fetch providers from Firebase once user is confirmed ──
+  // ── Fetch the logged-in user's own profile + all providers ──
   useEffect(() => {
     if (!user) return;
 
-    const fetchProviders = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
         setFetchError("");
 
-        const snapshot = await getDocs(collection(db, "providers"));
+        const uid = user.uid ?? user.id;
 
+        // 1. Fetch the logged-in user's own data from "users" collection
+        //    so the sidebar/topbar gets firstName, lastName, email correctly
+        const userSnap = await getDoc(doc(db, "users", uid));
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          setLayoutUser({
+            firstName: userData.first_name || userData.firstName || "",
+            lastName: userData.last_name || userData.lastName || "",
+            email: userData.email || user.email || "",
+          });
+        } else {
+          // Fallback to whatever is on the auth user object
+          setLayoutUser({
+            firstName: user.displayName?.split(" ")[0] || "",
+            lastName: user.displayName?.split(" ")[1] || "",
+            email: user.email || "",
+          });
+        }
+
+        // 2. Fetch all providers
+        const snapshot = await getDocs(collection(db, "providers"));
         const providerList: any[] = [];
         snapshot.forEach((providerDoc) => {
           const data = providerDoc.data();
@@ -55,14 +77,14 @@ export default function TherapistsPage() {
 
         setProviders(providerList);
       } catch (error: any) {
-        console.error("Error fetching providers:", error);
+        console.error("Error fetching data:", error);
         setFetchError(error.message || "Failed to load therapists");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchProviders();
+    fetchData();
   }, [user]);
 
   // ── Search filter ──
@@ -76,7 +98,7 @@ export default function TherapistsPage() {
     );
   });
 
-  // ── Auth still loading ──
+  // ── Still checking auth ──
   if (authLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -88,8 +110,8 @@ export default function TherapistsPage() {
   if (!user) return null;
 
   return (
-    <DashboardLayout user={user}>
-      <div className="space-y-6 p-4 sm:p-8">
+    <DashboardLayout user={layoutUser}>
+      <div className="space-y-6">
 
         {/* HEADER */}
         <div>
@@ -122,7 +144,10 @@ export default function TherapistsPage() {
         {isLoading && (
           <div className="space-y-4">
             {[1, 2, 3].map((n) => (
-              <div key={n} className="h-32 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />
+              <div
+                key={n}
+                className="h-32 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700"
+              />
             ))}
           </div>
         )}
@@ -149,7 +174,7 @@ export default function TherapistsPage() {
           </div>
         )}
 
-        {/* PROVIDER CARDS — pure Firebase data, no external components */}
+        {/* PROVIDER CARDS */}
         {!isLoading && !fetchError && filteredProviders.length > 0 && (
           <div className="space-y-4">
             {filteredProviders.map((provider) => (
@@ -159,7 +184,7 @@ export default function TherapistsPage() {
               >
                 <div className="flex items-start gap-4">
 
-                  {/* Avatar / Profile Photo */}
+                  {/* Avatar */}
                   {provider.profile_photo ? (
                     <img
                       src={provider.profile_photo}
@@ -167,18 +192,18 @@ export default function TherapistsPage() {
                       className="h-16 w-16 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sky-600 text-lg font-bold text-white">
-                      {provider.first_name?.[0] || ""}{provider.last_name?.[0] || ""}
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-sky-600 text-lg font-bold text-white">
+                      {(provider.first_name?.[0] || "").toUpperCase()}
+                      {(provider.last_name?.[0] || "").toUpperCase()}
                     </div>
                   )}
 
                   {/* Info */}
                   <div className="flex-1 space-y-1">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <h3 className="text-lg font-semibold text-slate-800 dark:text-white">
                         {provider.first_name} {provider.last_name}
                       </h3>
-                      {/* Accepting clients badge */}
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-medium ${
                           provider.is_accepting_clients
@@ -186,24 +211,24 @@ export default function TherapistsPage() {
                             : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                         }`}
                       >
-                        {provider.is_accepting_clients ? "Accepting Clients" : "Not Accepting"}
+                        {provider.is_accepting_clients
+                          ? "Accepting Clients"
+                          : "Not Accepting"}
                       </span>
                     </div>
 
-                    {/* Bio */}
                     {provider.bio && (
                       <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2">
                         {provider.bio}
                       </p>
                     )}
 
-                    {/* Details row */}
                     <div className="flex flex-wrap gap-x-6 gap-y-1 pt-1 text-sm text-slate-500 dark:text-slate-400">
                       {provider.location && (
                         <span>📍 {provider.location}</span>
                       )}
                       {provider.years_of_experience && (
-                        <span>🎓 {provider.years_of_experience} years experience</span>
+                        <span>🎓 {provider.years_of_experience} yrs experience</span>
                       )}
                       {provider.session_rate && (
                         <span>💵 {provider.session_rate}</span>
@@ -213,7 +238,6 @@ export default function TherapistsPage() {
                       )}
                     </div>
 
-                    {/* Specializations */}
                     {provider.specialization.length > 0 && (
                       <div className="flex flex-wrap gap-2 pt-2">
                         {provider.specialization.map((spec: string) => (
@@ -232,13 +256,17 @@ export default function TherapistsPage() {
                 {/* Actions */}
                 <div className="mt-4 flex gap-3 border-t border-slate-100 pt-4 dark:border-slate-700">
                   <button
-                    onClick={() => router.push(`/dashboard/therapists/${provider.id}`)}
+                    onClick={() =>
+                      router.push(`/dashboard/therapists/${provider.id}`)
+                    }
                     className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-700"
                   >
                     View Profile
                   </button>
                   <button
-                    onClick={() => router.push(`/dashboard/chat?therapist=${provider.id}`)}
+                    onClick={() =>
+                      router.push(`/dashboard/chat?therapist=${provider.id}`)
+                    }
                     className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
                   >
                     Send Message
@@ -248,7 +276,6 @@ export default function TherapistsPage() {
             ))}
           </div>
         )}
-
       </div>
     </DashboardLayout>
   );
