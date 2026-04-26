@@ -7,38 +7,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/dashboard/layout/DashboardLayout";
 import TherapistCard from "@/components/dashboard/therapists/TherapistCard";
-import SpecialtyFilters from "@/components/dashboard/therapists/SpecialtyFilters";
 import SearchBar from "@/components/dashboard/resources/SearchBar";
-
-// These match what your SpecialtyFilters component actually expects
-const SPECIALTIES = [
-  { value: "all", label: "All Specialties" },
-  { value: "anxiety", label: "Anxiety" },
-  { value: "depression", label: "Depression" },
-  { value: "trauma", label: "Trauma" },
-  { value: "couples", label: "Couples Therapy" },
-  { value: "addiction", label: "Addiction" },
-];
-
-const LOCATIONS = [
-  { value: "all", label: "All Locations" },
-  { value: "Kingston", label: "Kingston" },
-  { value: "Montego Bay", label: "Montego Bay" },
-  { value: "Spanish Town", label: "Spanish Town" },
-  { value: "Online", label: "Online" },
-];
 
 export default function TherapistsPage() {
   const { user, isLoading: authLoading } = useAuth() as any;
   const router = useRouter();
 
-  // ── State ──
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
   const [providers, setProviders] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSpecialty, setSelectedSpecialty] = useState("all");
-  const [selectedLocation, setSelectedLocation] = useState("all");
 
   // ── Auth guard ──
   useEffect(() => {
@@ -89,30 +67,13 @@ export default function TherapistsPage() {
     fetchProviders();
   }, [user]);
 
-  // ── Filter logic ──
+  // ── Search filter ──
   const filteredProviders = providers.filter((provider) => {
+    if (!searchQuery) return true;
     const fullName = `${provider.first_name} ${provider.last_name}`.toLowerCase();
     const bio = provider.bio.toLowerCase();
-    const query = searchQuery.toLowerCase();
-
-    const matchesSearch =
-      !searchQuery || fullName.includes(query) || bio.includes(query);
-
-    const matchesSpecialty =
-      selectedSpecialty === "all" ||
-      provider.specialization.includes(selectedSpecialty);
-
-    const matchesLocation =
-      selectedLocation === "all" || provider.location === selectedLocation;
-
-    return matchesSearch && matchesSpecialty && matchesLocation;
+    return fullName.includes(searchQuery.toLowerCase()) || bio.includes(searchQuery.toLowerCase());
   });
-
-  // ── Start chat ──
-  const startChat = (providerId: string) => {
-    localStorage.setItem("activeTherapist", providerId);
-    router.push("/dashboard/chat");
-  };
 
   // ── Auth loading ──
   if (authLoading) {
@@ -143,17 +104,7 @@ export default function TherapistsPage() {
         <SearchBar
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Search by name or specialty..."
-        />
-
-        {/* FILTERS — passing props that match what SpecialtyFilters actually accepts */}
-        <SpecialtyFilters
-          specialties={SPECIALTIES}
-          locations={LOCATIONS}
-          selectedSpecialty={selectedSpecialty}
-          selectedLocation={selectedLocation}
-          onSpecialtyChange={setSelectedSpecialty}
-          onLocationChange={setSelectedLocation}
+          placeholder="Search by name..."
         />
 
         {/* RESULTS COUNT */}
@@ -194,7 +145,7 @@ export default function TherapistsPage() {
         {!isLoading && !fetchError && filteredProviders.length === 0 && (
           <div className="rounded-xl border border-slate-200 p-10 text-center text-gray-500">
             <p className="text-lg font-medium">No therapists found</p>
-            <p className="text-sm">Try adjusting your search or filters</p>
+            <p className="text-sm">Try adjusting your search</p>
           </div>
         )}
 
@@ -205,7 +156,6 @@ export default function TherapistsPage() {
               <TherapistCard
                 key={provider.id}
                 therapist={provider}
-                onChat={() => startChat(provider.id)}
               />
             ))}
           </div>
