@@ -17,6 +17,7 @@
 
     // ✅ THIS IS THE FIX
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",  
 
     // ✅ KEEP THIS
     "paths": {

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Logo from '@/components/shared/Logo'
 import DarkModeToggle from './DarkModeToggle'
-import Button from '@/components/ui/Button'
+import Button from '@/components/ui/LandingButton'
 import { navigation } from '@/constants/data'
 
 export default function Header() {
