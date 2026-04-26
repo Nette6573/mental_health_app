@@ -1,180 +1,186 @@
 'use client'
-
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
+import { db } from '@/lib/firebase/firebaseClient'
+import { collection, getDocs } from 'firebase/firestore'
 import DashboardLayout from '@/components/dashboard/layout/DashboardLayout'
-import WelcomeBanner from '@/components/dashboard/overview/WelcomeBanner'
-import StatsCards from '@/components/dashboard/overview/StatsCards'
-import MoodTracker from '@/components/dashboard/overview/MoodTracker'
-import RecentActivity from '@/components/dashboard/overview/RecentActivity'
-import QuickActions from '@/components/dashboard/overview/QuickActions'
+import TherapistCard from '@/components/dashboard/therapists/TherapistCard'
+import SearchBar from '@/components/dashboard/resources/SearchBar'
 
-export default function DashboardPage() {
-  const { user, isLoading } = useAuth()
+export default function TherapistsPage() {
+  const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
 
-  const [userData, setUserData] = useState(null)
-  const [phq9Data, setPhq9Data] = useState([])
-  const [moodData, setMoodData] = useState([])
-  const [proactiveMessage, setProactiveMessage] = useState(null)
+  const [therapists, setTherapists] = useState([])
+  const [filteredTherapists, setFilteredTherapists] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedSpecialty, setSelectedSpecialty] = useState('all')
+  const [selectedLocation, setSelectedLocation] = useState('all')
 
-
- // ---------------- PROACTIVE MESSAGES----------------
+  // ===============================
+  // FETCH PROVIDERS FROM FIREBASE
+  // ===============================
   useEffect(() => {
-    const fetchProactive = async () => {
-    const uid = localStorage.getItem("uid")
-    if (!uid) return
+    const fetchTherapists = async () => {
+      try {
+        setIsLoading(true)
 
-    const res = await fetch(`http://127.0.0.1:8000/api/user/${uid}/proactive`)
-    const data = await res.json()
-    
-    if (data.message) {
-      setProactiveMessage(data.message)
+        // Pull every document from the "providers" collection
+        const providersRef = collection(db, 'providers')
+        const snapshot = await getDocs(providersRef)
+
+        const providerList = snapshot.docs.map((doc) => ({
+          id: doc.id,           // Firebase document ID
+          ...doc.data(),        // All fields: first_name, last_name, etc.
+        }))
+
+        setTherapists(providerList)
+        setFilteredTherapists(providerList)
+      } catch (err) {
+        console.error('Failed to fetch providers from Firebase:', err)
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }
-  
-  fetchProactive()
-}, [])
 
-  // ---------------- AUTH CHECK ----------------
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/auth/login')
-    }
-  }, [user, isLoading, router])
-
-  // ---------------- LOAD DATA ----------------
-  useEffect(() => {
-    const uid = localStorage.getItem("uid")
-    if (!uid) return
-
-    // PHQ9 DATA
-    fetch(`http://127.0.0.1:8000/api/user/${uid}/assessments`)
-      .then(res => res.json())
-      .then(data => {
-        setPhq9Data(data.phq9 || [])
-      })
-      .catch(err => console.error(err))
-
-    // USER DATA (for mood later)
-    fetch(`http://127.0.0.1:8000/api/user/${uid}`)
-      .then(res => res.json())
-      .then(data => {
-        setUserData(data)
-        setMoodData(data.mood_log || [])
-      })
-      .catch(err => console.error(err))
-
+    fetchTherapists()
   }, [])
 
-  // ---------------- HELPERS ----------------
-  function getColor(score) {
-    if (score <= 4) return "text-green-500"
-    if (score <= 9) return "text-yellow-500"
-    if (score <= 14) return "text-orange-500"
-    return "text-red-500"
+  // ===============================
+  // START CHAT
+  // ===============================
+  const startChat = (therapistId) => {
+    localStorage.setItem('activeTherapist', therapistId)
+    router.push('/dashboard/chat')
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
-      </div>
-    )
+  // ===============================
+  // FILTER LOGIC
+  // ===============================
+  useEffect(() => {
+    let filtered = therapists
+
+    // Search by name or bio
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      filtered = filtered.filter((t) => {
+        const fullName = `${t.first_name || ''} ${t.last_name || ''}`.toLowerCase()
+        const bio = (t.bio || '').toLowerCase()
+        return fullName.includes(q) || bio.includes(q)
+      })
+    }
+
+    // Filter by specialty
+    if (selectedSpecialty !== 'all') {
+      filtered = filtered.filter((t) =>
+        (t.specialization || []).includes(selectedSpecialty)
+      )
+    }
+
+    // Filter by location
+    if (selectedLocation !== 'all') {
+      filtered = filtered.filter((t) => t.location === selectedLocation)
+    }
+
+    setFilteredTherapists(filtered)
+  }, [searchQuery, selectedSpecialty, selectedLocation, therapists])
+
+  // ===============================
+  // AUTH CHECK
+  // ===============================
+  if (authLoading) {
+    return <div className="p-10">Loading...</div>
   }
 
-  if (!user) return null
+  if (!user) {
+    router.push('/auth/login')
+    return null
+  }
 
   return (
     <DashboardLayout user={user}>
       <div className="space-y-6">
 
-        {/* Welcome */}
-        <WelcomeBanner user={userData || user} />
-
-        {/* 💛 PROACTIVE MESSAGE */}
-        {proactiveMessage && (
-          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl shadow-sm">
-            <p className="text-sm text-yellow-800">
-              💛 {proactiveMessage}
-              </p>
-              </div>
-            )}
-
-        {/* Stats */}
-        <StatsCards userData={userData} />
-
-        {/* PHQ9 */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow border">
-          <h3 className="text-lg font-semibold mb-4">
-            Mental Health Assessment
-          </h3>
-
-          {phq9Data.length === 0 ? (
-            <p>No assessments yet</p>
-          ) : (
-            phq9Data.slice(-1).map((item, index) => (
-              <div key={index}>
-                <p className={getColor(item.score)}>
-                  Score: {item.score}
-                </p>
-                <p>Level: {item.level}</p>
-
-                {item.score >= 10 ? (
-                  <p className="text-red-500 mt-2">
-                    We recommend speaking with a professional.
-                  </p>
-                ) : (
-                  <p className="text-green-500 mt-2">
-                    Keep using self-help tools.
-                  </p>
-                )}
-
-                <div className="mt-3 flex gap-2">
-                  <Link href="/dashboard/therapists">
-                    <button className="bg-blue-500 text-white px-3 py-2 rounded">
-                      Talk to Therapist
-                    </button>
-                  </Link>
-
-                  <Link href="/dashboard/resources">
-                    <button className="bg-green-500 text-white px-3 py-2 rounded">
-                      Resources
-                    </button>
-                  </Link>
-                </div>
-              </div>
-            ))
-          )}
+        {/* HEADER */}
+        <div>
+          <h1 className="text-2xl font-bold">Find Your Therapist</h1>
+          <p className="text-gray-600">
+            Connect with licensed providers on the platform
+          </p>
         </div>
 
-        {/* GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* SEARCH */}
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search therapists by name..."
+        />
 
-          {/* LEFT */}
-          <div className="lg:col-span-2 space-y-6">
-            <MoodTracker moodData={moodData} />
-            <RecentActivity />
-          </div>
+        {/* FILTERS */}
+        <div className="flex flex-wrap gap-3">
+          <select
+            value={selectedSpecialty}
+            onChange={(e) => setSelectedSpecialty(e.target.value)}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+          >
+            <option value="all">All Specialties</option>
+            <option value="anxiety">Anxiety</option>
+            <option value="depression">Depression</option>
+            <option value="trauma">Trauma</option>
+            <option value="couples">Couples Therapy</option>
+            <option value="addiction">Addiction</option>
+          </select>
 
-          {/* RIGHT */}
-          <div className="space-y-6">
-            <QuickActions />
-
-            {/* Weekly Insight (kept, Paula card removed) */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow border">
-              <h3 className="text-lg font-semibold mb-4">
-                Weekly Insight
-              </h3>
-              <p className="text-sm">
-                You're making progress. Small steps still count.
-              </p>
-            </div>
-
-          </div>
+          <select
+            value={selectedLocation}
+            onChange={(e) => setSelectedLocation(e.target.value)}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+          >
+            <option value="all">All Locations</option>
+            <option value="Kingston">Kingston</option>
+            <option value="Montego Bay">Montego Bay</option>
+            <option value="Spanish Town">Spanish Town</option>
+            <option value="Online">Online</option>
+          </select>
         </div>
+
+        {/* RESULTS COUNT */}
+        {!isLoading && (
+          <p className="text-sm text-gray-500">
+            {filteredTherapists.length}{' '}
+            {filteredTherapists.length === 1 ? 'therapist' : 'therapists'} found
+          </p>
+        )}
+
+        {/* CONTENT */}
+        {isLoading ? (
+          <div className="space-y-4">
+            {/* Loading skeleton */}
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                className="h-32 animate-pulse rounded-xl bg-slate-100"
+              />
+            ))}
+          </div>
+        ) : filteredTherapists.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 p-10 text-center text-gray-500">
+            <p className="text-lg font-medium">No therapists found</p>
+            <p className="text-sm">Try adjusting your search or filters</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredTherapists.map((therapist) => (
+              <TherapistCard
+                key={therapist.id}
+                therapist={therapist}
+                onChat={() => startChat(therapist.id)}
+              />
+            ))}
+          </div>
+        )}
 
       </div>
     </DashboardLayout>
