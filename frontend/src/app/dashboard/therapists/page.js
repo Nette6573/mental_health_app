@@ -16,6 +16,7 @@ export default function TherapistsPage() {
   const [therapists, setTherapists] = useState([])
   const [filteredTherapists, setFilteredTherapists] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSpecialty, setSelectedSpecialty] = useState('all')
   const [selectedLocation, setSelectedLocation] = useState('all')
@@ -26,30 +27,45 @@ export default function TherapistsPage() {
   // FETCH PROVIDERS FROM FIREBASE
   // ===============================
   useEffect(() => {
+    // Don't fetch until we know who the user is
+    if (authLoading || !user) return
+
     const fetchTherapists = async () => {
       try {
         setIsLoading(true)
+        setFetchError(null)
 
-        // Pull all documents from the Firebase "providers" collection
         const providersRef = collection(db, 'providers')
         const snapshot = await getDocs(providersRef)
 
+        // Safety check — make sure docs exists before mapping
+        if (!snapshot || !snapshot.docs) {
+          setTherapists([])
+          setFilteredTherapists([])
+          return
+        }
+
         const providerList = snapshot.docs.map((doc) => ({
-          id: doc.id,       // Firebase document ID (replaces _id)
-          ...doc.data(),    // All fields: first_name, last_name, bio, etc.
+          id: doc.id,
+          ...doc.data(),
         }))
 
-        setTherapists(providerList)
-        setFilteredTherapists(providerList)
+        // Final safety check — make sure it's actually an array
+        const safeList = Array.isArray(providerList) ? providerList : []
+        setTherapists(safeList)
+        setFilteredTherapists(safeList)
       } catch (err) {
         console.error('Failed to fetch providers from Firebase:', err)
+        setFetchError(err.message || 'Failed to load therapists')
+        setTherapists([])
+        setFilteredTherapists([])
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchTherapists()
-  }, [])
+  }, [user, authLoading]) // re-runs when user is ready
 
   // ===============================
   // START CHAT
@@ -63,9 +79,11 @@ export default function TherapistsPage() {
   // FILTER LOGIC
   // ===============================
   useEffect(() => {
-    let filtered = therapists
+    // Always guard against therapists not being an array
+    if (!Array.isArray(therapists)) return
 
-    // Search by first + last name combined, or bio
+    let filtered = [...therapists]
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       filtered = filtered.filter((t) => {
@@ -77,7 +95,7 @@ export default function TherapistsPage() {
 
     if (selectedSpecialty !== 'all') {
       filtered = filtered.filter((t) =>
-        (t.specialization || []).includes(selectedSpecialty)
+        Array.isArray(t.specialization) && t.specialization.includes(selectedSpecialty)
       )
     }
 
@@ -92,7 +110,11 @@ export default function TherapistsPage() {
   // AUTH CHECK
   // ===============================
   if (authLoading) {
-    return <div className="p-10">Loading...</div>
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    )
   }
 
   if (!user) {
@@ -119,7 +141,7 @@ export default function TherapistsPage() {
           placeholder="Search therapists..."
         />
 
-        {/* SPECIALTY FILTERS — kept exactly as your original */}
+        {/* SPECIALTY FILTERS */}
         <SpecialtyFilters
           selectedSpecialty={selectedSpecialty}
           onSpecialtyChange={setSelectedSpecialty}
@@ -128,7 +150,7 @@ export default function TherapistsPage() {
         />
 
         {/* RESULTS COUNT */}
-        {!isLoading && (
+        {!isLoading && !fetchError && (
           <p className="text-sm text-gray-500">
             {filteredTherapists.length}{' '}
             {filteredTherapists.length === 1 ? 'therapist' : 'therapists'} found
@@ -145,11 +167,26 @@ export default function TherapistsPage() {
               />
             ))}
           </div>
+
+        ) : fetchError ? (
+          // Show the actual error so you can debug it
+          <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+            <p className="font-medium text-red-700">Failed to load therapists</p>
+            <p className="mt-1 text-sm text-red-500">{fetchError}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+            >
+              Try Again
+            </button>
+          </div>
+
         ) : filteredTherapists.length === 0 ? (
           <div className="rounded-xl border border-slate-200 p-10 text-center text-gray-500">
             <p className="text-lg font-medium">No therapists found</p>
             <p className="text-sm">Try adjusting your search or filters</p>
           </div>
+
         ) : (
           <div className="space-y-4">
             {filteredTherapists.map((therapist) => (
