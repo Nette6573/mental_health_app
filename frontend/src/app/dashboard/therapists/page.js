@@ -1,8 +1,9 @@
 'use client'
-
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
+import { db } from '@/lib/firebase/firebaseClient'
+import { collection, getDocs } from 'firebase/firestore'
 import DashboardLayout from '@/components/dashboard/layout/DashboardLayout'
 import TherapistCard from '@/components/dashboard/therapists/TherapistCard'
 import SpecialtyFilters from '@/components/dashboard/therapists/SpecialtyFilters'
@@ -15,7 +16,6 @@ export default function TherapistsPage() {
   const [therapists, setTherapists] = useState([])
   const [filteredTherapists, setFilteredTherapists] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSpecialty, setSelectedSpecialty] = useState('all')
   const [selectedLocation, setSelectedLocation] = useState('all')
@@ -23,21 +23,26 @@ export default function TherapistsPage() {
   const [sortBy, setSortBy] = useState('rating')
 
   // ===============================
-  // ✅ FETCH REAL THERAPISTS
+  // FETCH PROVIDERS FROM FIREBASE
   // ===============================
   useEffect(() => {
     const fetchTherapists = async () => {
       try {
         setIsLoading(true)
 
-        const res = await fetch('/api/therapists')
-        const data = await res.json()
+        // Pull all documents from the Firebase "providers" collection
+        const providersRef = collection(db, 'providers')
+        const snapshot = await getDocs(providersRef)
 
-        setTherapists(data)
-        setFilteredTherapists(data)
+        const providerList = snapshot.docs.map((doc) => ({
+          id: doc.id,       // Firebase document ID (replaces _id)
+          ...doc.data(),    // All fields: first_name, last_name, bio, etc.
+        }))
 
+        setTherapists(providerList)
+        setFilteredTherapists(providerList)
       } catch (err) {
-        console.error('Failed to fetch therapists:', err)
+        console.error('Failed to fetch providers from Firebase:', err)
       } finally {
         setIsLoading(false)
       }
@@ -47,7 +52,7 @@ export default function TherapistsPage() {
   }, [])
 
   // ===============================
-  // ✅ START CHAT
+  // START CHAT
   // ===============================
   const startChat = (therapistId) => {
     localStorage.setItem('activeTherapist', therapistId)
@@ -55,28 +60,29 @@ export default function TherapistsPage() {
   }
 
   // ===============================
-  // ✅ FILTER LOGIC (SAFE VERSION)
+  // FILTER LOGIC
   // ===============================
   useEffect(() => {
     let filtered = therapists
 
+    // Search by first + last name combined, or bio
     if (searchQuery) {
-      filtered = filtered.filter(t =>
-        (t.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (t.bio || '').toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      const q = searchQuery.toLowerCase()
+      filtered = filtered.filter((t) => {
+        const fullName = `${t.first_name || ''} ${t.last_name || ''}`.toLowerCase()
+        const bio = (t.bio || '').toLowerCase()
+        return fullName.includes(q) || bio.includes(q)
+      })
     }
 
     if (selectedSpecialty !== 'all') {
-      filtered = filtered.filter(t =>
+      filtered = filtered.filter((t) =>
         (t.specialization || []).includes(selectedSpecialty)
       )
     }
 
     if (selectedLocation !== 'all') {
-      filtered = filtered.filter(t =>
-        t.location === selectedLocation
-      )
+      filtered = filtered.filter((t) => t.location === selectedLocation)
     }
 
     setFilteredTherapists(filtered)
@@ -113,18 +119,44 @@ export default function TherapistsPage() {
           placeholder="Search therapists..."
         />
 
+        {/* SPECIALTY FILTERS — kept exactly as your original */}
+        <SpecialtyFilters
+          selectedSpecialty={selectedSpecialty}
+          onSpecialtyChange={setSelectedSpecialty}
+          activeFilters={activeFilters}
+          onFiltersChange={setActiveFilters}
+        />
+
+        {/* RESULTS COUNT */}
+        {!isLoading && (
+          <p className="text-sm text-gray-500">
+            {filteredTherapists.length}{' '}
+            {filteredTherapists.length === 1 ? 'therapist' : 'therapists'} found
+          </p>
+        )}
+
         {/* CONTENT */}
         {isLoading ? (
-          <p>Loading therapists...</p>
+          <div className="space-y-4">
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                className="h-32 animate-pulse rounded-xl bg-slate-100"
+              />
+            ))}
+          </div>
         ) : filteredTherapists.length === 0 ? (
-          <p>No therapists found</p>
+          <div className="rounded-xl border border-slate-200 p-10 text-center text-gray-500">
+            <p className="text-lg font-medium">No therapists found</p>
+            <p className="text-sm">Try adjusting your search or filters</p>
+          </div>
         ) : (
           <div className="space-y-4">
             {filteredTherapists.map((therapist) => (
               <TherapistCard
-                key={therapist._id} // ✅ FIXED
+                key={therapist.id}
                 therapist={therapist}
-                onChat={() => startChat(therapist._id)} // ✅ NEW
+                onChat={() => startChat(therapist.id)}
               />
             ))}
           </div>
