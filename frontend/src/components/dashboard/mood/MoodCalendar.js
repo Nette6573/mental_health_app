@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Card from '@/components/ui/Card'
-import { getMood } from "@/services/moodService";
+import { getMood } from "@/services/moodService"
+import { useAuth } from '@/context/AuthContext'
 
 const moodEmojis = {
   1: { emoji: '😢', label: 'Very Sad', color: 'bg-red-500' },
@@ -18,32 +19,31 @@ const moodEmojis = {
 }
 
 export default function MoodCalendar({ onDateSelect, refreshTrigger }) {
+  const { user } = useAuth()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [moodEntries, setMoodEntries] = useState({})
 
-  //  API call
   useEffect(() => {
-  const fetchMoodData = async () => {
-    const uid = localStorage.getItem("uid");
+    const fetchMoodData = async () => {
+      const uid = user?.uid ?? user?.id
+      if (!uid) return
 
-    if (!uid) return;
+      try {
+        const data = await getMood(uid)
+        const formatted = {}
+        data.mood_log.forEach(entry => {
+          const date = new Date(entry.date)
+          const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+          formatted[key] = entry
+        })
+        setMoodEntries(formatted)
+      } catch (err) {
+        console.error("MoodCalendar fetch error:", err)
+      }
+    }
 
-    const data = await getMood(uid);
-
-    const formatted = {};
-
-    data.mood_log.forEach(entry => {
-      const date = new Date(entry.date);
-      const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-
-      formatted[key] = entry;
-    });
-
-    setMoodEntries(formatted);
-  };
-
-  fetchMoodData();
-}, [currentDate, refreshTrigger]);
+    fetchMoodData()
+  }, [currentDate, refreshTrigger, user])
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear()
@@ -52,19 +52,9 @@ export default function MoodCalendar({ onDateSelect, refreshTrigger }) {
     const lastDay = new Date(year, month + 1, 0)
     const daysInMonth = lastDay.getDate()
     const startingDay = firstDay.getDay()
-
     const days = []
-    
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < startingDay; i++) {
-      days.push(null)
-    }
-    
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(new Date(year, month, day))
-    }
-    
+    for (let i = 0; i < startingDay; i++) days.push(null)
+    for (let day = 1; day <= daysInMonth; day++) days.push(new Date(year, month, day))
     return days
   }
 
@@ -82,81 +72,52 @@ export default function MoodCalendar({ onDateSelect, refreshTrigger }) {
   }
 
   const days = getDaysInMonth(currentDate)
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Mood Calendar
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Mood Calendar</h2>
         <div className="flex items-center space-x-4">
-          <button
-            onClick={() => navigateMonth(-1)}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+          <button onClick={() => navigateMonth(-1)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
           <span className="text-lg font-medium text-gray-900 dark:text-white min-w-48 text-center">
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </span>
-          <button
-            onClick={() => navigateMonth(1)}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+          <button onClick={() => navigateMonth(1)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </button>
         </div>
       </div>
 
-      {/* Day Headers */}
       <div className="grid grid-cols-7 gap-1 mb-4">
         {dayNames.map(day => (
-          <div key={day} className="text-center text-sm font-medium text-gray-500 dark:text-gray-400 py-2">
-            {day}
-          </div>
+          <div key={day} className="text-center text-sm font-medium text-gray-500 dark:text-gray-400 py-2">{day}</div>
         ))}
       </div>
 
-      {/* Calendar Grid */}
       <div className="grid grid-cols-7 gap-1">
         {days.map((date, index) => {
           const moodEntry = date ? getMoodForDate(date) : null
           const isToday = date && date.toDateString() === new Date().toDateString()
-          
           return (
             <button
               key={index}
               onClick={() => date && onDateSelect(date)}
               disabled={!date}
-              className={`
-                aspect-square p-2 rounded-lg border-2 transition-all duration-200
-                ${!date ? 'invisible' : ''}
-                ${isToday ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-transparent'}
-                ${moodEntry ? 'hover:scale-105 hover:shadow-md' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}
-                flex flex-col items-center justify-center relative
-              `}
+              className={`aspect-square p-2 rounded-lg border-2 transition-all duration-200 ${!date ? 'invisible' : ''} ${isToday ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-transparent'} ${moodEntry ? 'hover:scale-105 hover:shadow-md' : 'hover:bg-gray-50 dark:hover:bg-gray-700'} flex flex-col items-center justify-center`}
             >
               {date && (
                 <>
-                  <span className={`
-                    text-sm font-medium mb-1
-                    ${isToday ? 'text-primary-600 dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'}
-                  `}>
+                  <span className={`text-sm font-medium mb-1 ${isToday ? 'text-primary-600 dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'}`}>
                     {date.getDate()}
                   </span>
-                  
                   {moodEntry ? (
                     <div className="flex flex-col items-center">
-                      <span className="text-lg" title={moodEmojis[moodEntry.mood].label}>
-                        {moodEmojis[moodEntry.mood].emoji}
-                      </span>
-                      <div className={`w-2 h-2 rounded-full mt-1 ${moodEmojis[moodEntry.mood].color}`}></div>
+                      <span className="text-lg">{moodEmojis[moodEntry.mood]?.emoji}</span>
+                      <div className={`w-2 h-2 rounded-full mt-1 ${moodEmojis[moodEntry.mood]?.color}`} />
                     </div>
                   ) : (
                     <div className="w-6 h-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded flex items-center justify-center">
@@ -170,7 +131,6 @@ export default function MoodCalendar({ onDateSelect, refreshTrigger }) {
         })}
       </div>
 
-      {/* Legend */}
       <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
         <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Mood Scale</h4>
         <div className="flex flex-wrap gap-2">
