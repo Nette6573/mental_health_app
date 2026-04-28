@@ -161,29 +161,24 @@ export function AuthProvider({ children }) {
       }
       console.log('SIGNUP STEP 2 SUCCESS: Display name updated')
 
-      // Step 3: Write to Firestore using firebaseUser directly
-      // We already have the authenticated user object from Step 1
-      // No need to wait for onAuthStateChanged — use firebaseUser directly
-      console.log('SIGNUP STEP 3: Writing to Firestore using firebaseUser...')
-      console.log('SIGNUP STEP 3: uid =', firebaseUser.uid)
+      // Step 3: Write to Firestore
+      // Using setDoc WITHOUT merge:true so Firestore treats it as a pure CREATE
+      // merge:true causes Firestore to evaluate both create AND update rules
+      // which fails because update requires uid match that isn't ready yet
+      console.log('SIGNUP STEP 3: Writing to Firestore...')
 
-      // Force a fresh token so Firestore recognises the auth session
-      await firebaseUser.getIdToken(true)
-      console.log('SIGNUP STEP 3: Token refreshed')
+      // Small delay to ensure auth token is fully propagated
+      await new Promise(resolve => setTimeout(resolve, 500))
 
       const userDocRef = doc(db, 'users', firebaseUser.uid)
-      await setDoc(
-        userDocRef,
-        {
-          firstName,
-          lastName,
-          email,
-          newsletter: !!newsletter,
-          joinDate: new Date().toISOString(),
-          role: "user",
-        },
-        { merge: true }
-      )
+      await setDoc(userDocRef, {
+        firstName,
+        lastName,
+        email,
+        newsletter: !!newsletter,
+        joinDate: new Date().toISOString(),
+        role: "user",
+      })
       console.log('SIGNUP STEP 3 SUCCESS: Firestore write complete')
 
       // Step 4: Send verification email AFTER Firestore write
