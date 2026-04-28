@@ -37,9 +37,9 @@ export function AuthProvider({ children }) {
         avatar: profile.avatar || firebaseUser.photoURL || null,
         joinDate: profile.joinDate || firebaseUser.metadata?.creationTime || null,
         newsletter: profile.newsletter ?? false,
-
-        // ✅ ADDED ROLE SUPPORT
         role: profile.role || "user",
+        // ── flag so we know if a Firestore doc actually exists ──
+        hasUserDoc: snap.exists(),
       }
     } catch (err) {
       console.error('Error building user from Firebase:', err)
@@ -51,8 +51,8 @@ export function AuthProvider({ children }) {
         avatar: firebaseUser.photoURL || null,
         joinDate: firebaseUser.metadata?.creationTime || null,
         newsletter: false,
-
         role: "user",
+        hasUserDoc: false,
       }
     }
   }
@@ -61,6 +61,7 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
 
+        // Block unverified email users
         if (!firebaseUser.emailVerified) {
           setUser(null)
           setIsLoading(false)
@@ -68,11 +69,21 @@ export function AuthProvider({ children }) {
         }
 
         const appUser = await buildUserFromFirebase(firebaseUser)
+
+        // ── KEY FIX: If no document exists in the users collection,
+        //    sign them out and do NOT restore the session ──
+        if (!appUser.hasUserDoc) {
+          await signOut(auth)
+          setUser(null)
+          setIsLoading(false)
+          return
+        }
+
         setUser(appUser)
 
         const path = window.location.pathname
 
-        // ✅ UPDATED: ROLE-BASED REDIRECT
+        // Only redirect if they are on the login/auth pages
         if (path === '/' || path.includes('/login') || path.includes('/auth')) {
           if (appUser.role === "provider") {
             router.replace('/provider-dashboard')
@@ -103,6 +114,20 @@ export function AuthProvider({ children }) {
         return {
           success: false,
           error: "Please verify your email before signing in.",
+        }
+      }
+
+      // ── KEY FIX: Check if this user has a document in the users collection ──
+      const userDocRef = doc(db, 'users', cred.user.uid)
+      const userSnap = await getDoc(userDocRef)
+
+      if (!userSnap.exists()) {
+        // They have Firebase Auth credentials but no user profile
+        // Sign them out and tell them to sign up
+        await signOut(auth)
+        return {
+          success: false,
+          error: "No account found. Please sign up first.",
         }
       }
 
@@ -151,8 +176,6 @@ export function AuthProvider({ children }) {
           email,
           newsletter: !!newsletter,
           joinDate: new Date().toISOString(),
-
-          // ✅ ADDED ROLE
           role: "user",
         },
         { merge: true }
@@ -184,11 +207,9 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error('Reset password error:', error)
       let message = 'Failed to send password reset email.'
-
       if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
         message = 'Please enter a valid email address.'
       }
-
       return { success: false, error: message }
     } finally {
       setIsLoading(false)
@@ -220,9 +241,7 @@ export function AuthProvider({ children }) {
 
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/create-user`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           uid: firebaseUser.uid,
           email: firebaseUser.email,
@@ -241,7 +260,7 @@ export function AuthProvider({ children }) {
           email: firebaseUser.email,
           newsletter: true,
           joinDate: new Date().toISOString(),
-          role: "user", // ✅ ensure role
+          role: "user",
         })
       }
 
@@ -291,7 +310,6 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // HELPERS
   const isAuthenticated = !!user
   const isProvider = user?.role === "provider"
   const isUser = user?.role === "user"
@@ -310,7 +328,6 @@ export function AuthProvider({ children }) {
         isAuthenticated,
         isProvider,
         isUser,
-
         login,
         signup,
         resetPassword,
