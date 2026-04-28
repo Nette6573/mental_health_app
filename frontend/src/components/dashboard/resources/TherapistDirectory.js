@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { db } from '@/lib/firebase/firebaseClient'
 import {
-  collection, getDocs, doc, getDoc, query, where
+  collection, getDocs, doc, getDoc, addDoc, serverTimestamp, query, where
 } from 'firebase/firestore'
 import {
   MapPin, Clock, DollarSign, Globe,
@@ -172,7 +172,7 @@ export default function TherapistDirectory() {
     return date < today
   }
 
-  // ── Submit booking via API route — Admin SDK bypasses Firestore rules ──
+  // ── Submit booking — writes to providers/{providerId}/bookings subcollection ──
   const submitBooking = async () => {
     if (!selectedDate || !selectedTime) {
       alert('Please select a date and time.')
@@ -205,32 +205,27 @@ export default function TherapistDirectory() {
         console.warn('Could not fetch user name:', e)
       }
 
-      // POST to API route — uses Firebase Admin SDK on the server
-      const res = await fetch('/api/bookings/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          providerId: bookingProvider.id,
-          providerName: `${bookingProvider.first_name} ${bookingProvider.last_name}`,
-          providerTitle: bookingProvider.professional_title || '',
-          userId: uid,
-          userName,
-          userEmail: user.email || '',
-          date: selectedDate.toLocaleDateString('en-US', {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-          }),
-          time: selectedTime,
-          notes: bookingNotes || '',
-          status: 'pending',
+      // Write to providers/{providerId}/bookings subcollection
+      const bookingsRef = collection(db, 'providers', bookingProvider.id, 'bookings')
+      await addDoc(bookingsRef, {
+        providerId: bookingProvider.id,
+        providerName: `${bookingProvider.first_name} ${bookingProvider.last_name}`,
+        providerTitle: bookingProvider.professional_title || '',
+        userId: uid,
+        userName,
+        userEmail: user.email || '',
+        date: selectedDate.toLocaleDateString('en-US', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         }),
+        time: selectedTime,
+        notes: bookingNotes || '',
+        status: 'pending',
+        createdAt: serverTimestamp(),
       })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to create booking')
 
       setBookingSuccess(true)
     } catch (error) {
-      console.error('Booking error:', error.message)
+      console.error('Booking error:', error.code, error.message)
       alert(`Failed to submit booking: ${error.message}`)
     } finally {
       setIsSubmitting(false)
