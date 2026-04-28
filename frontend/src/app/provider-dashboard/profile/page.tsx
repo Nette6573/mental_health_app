@@ -24,7 +24,6 @@ import {
   ShieldCheck,
   Sun,
   Target,
-  UploadCloud,
   User,
   X,
   Loader2,
@@ -82,7 +81,6 @@ export default function ProviderProfilePage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const [isUploadingCover, setIsUploadingCover] = useState(false);
 
   const [fullName, setFullName] = useState("");
   const [professionalTitle, setProfessionalTitle] = useState("");
@@ -103,14 +101,11 @@ export default function ProviderProfilePage() {
 
   // Photo URLs — loaded from Firebase, updated after Cloudinary upload
   const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
-  const [coverPhotoUrl, setCoverPhotoUrl] = useState("");
 
   // Local previews before upload
   const [profilePreview, setProfilePreview] = useState("https://ui-avatars.com/api/?name=Provider&background=0ea5e9&color=fff&size=200");
-  const [coverPreview, setCoverPreview] = useState("");
 
   const profilePhotoInputRef = useRef<HTMLInputElement | null>(null);
-  const coverPhotoInputRef = useRef<HTMLInputElement | null>(null);
 
   // ── Dark mode ──
   useEffect(() => {
@@ -172,10 +167,7 @@ export default function ProviderProfilePage() {
             setProfilePhotoUrl(data.profile_photo_url);
             setProfilePreview(data.profile_photo_url);
           }
-          if (data.cover_photo_url) {
-            setCoverPhotoUrl(data.cover_photo_url);
-            setCoverPreview(data.cover_photo_url);
-          }
+
         }
       } catch (error) {
         console.error("Error fetching provider:", error);
@@ -257,46 +249,7 @@ export default function ProviderProfilePage() {
     }
   };
 
-  // ── Handle cover photo selection — upload immediately on selection ──
-  const handleCoverPhotoChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file.");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Cover image must be 5MB or less.");
-      return;
-    }
-
-    const localPreview = URL.createObjectURL(file);
-    setCoverPreview(localPreview);
-
-    try {
-      setIsUploadingCover(true);
-      const uid = user.uid ?? user.id;
-
-      const url = await uploadPhotoToCloudinary(file, "cover");
-
-      const docRef = doc(db, "providers", uid);
-      await setDoc(docRef, { cover_photo_url: url }, { merge: true });
-
-      setCoverPhotoUrl(url);
-      setCoverPreview(url);
-      URL.revokeObjectURL(localPreview);
-
-      alert("Cover photo updated successfully!");
-    } catch (err: any) {
-      console.error("Cover photo upload error:", err);
-      alert("Failed to upload cover: " + err.message);
-      setCoverPreview(coverPhotoUrl || "");
-    } finally {
-      setIsUploadingCover(false);
-      e.target.value = "";
-    }
-  };
 
   // ── Save all other profile fields ──
   const handleSave = async (e?: FormEvent<HTMLFormElement>) => {
@@ -337,9 +290,8 @@ export default function ProviderProfilePage() {
         session_types: sessionTypeParts.join(", "),
         session_cost: sessionCost,
         payment_options: slidingScale,
-        // Photos are already saved immediately on upload — just keep existing URLs
+        // Photo already saved immediately on upload
         profile_photo_url: profilePhotoUrl,
-        cover_photo_url: coverPhotoUrl,
       }, { merge: true });
 
       alert("Profile updated successfully!");
@@ -630,27 +582,6 @@ export default function ProviderProfilePage() {
                   <input ref={profilePhotoInputRef} type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" onChange={handleProfilePhotoChange} />
                 </div>
 
-                {/* Cover Photo */}
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Cover Image</label>
-                  <button type="button" onClick={() => coverPhotoInputRef.current?.click()} disabled={isUploadingCover} className="relative flex h-full min-h-[220px] w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 p-6 text-center transition-colors hover:border-sky-600 dark:border-slate-600 disabled:opacity-60">
-                    {isUploadingCover && (
-                      <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-white/80 dark:bg-slate-800/80">
-                        <Loader2 className="h-8 w-8 animate-spin text-sky-600" />
-                      </div>
-                    )}
-                    {coverPreview ? (
-                      <img src={coverPreview} alt="Cover" className="mb-3 h-32 w-full rounded-lg object-cover" />
-                    ) : (
-                      <UploadCloud className="mx-auto mb-2 h-8 w-8 text-slate-400" />
-                    )}
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {isUploadingCover ? "Uploading..." : "Upload cover image"}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">Recommended: 1200x400px</p>
-                  </button>
-                  <input ref={coverPhotoInputRef} type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" onChange={handleCoverPhotoChange} />
-                </div>
 
               </div>
             </div>
