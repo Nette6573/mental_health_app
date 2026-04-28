@@ -141,20 +141,30 @@ export function AuthProvider({ children }) {
   // SIGNUP
   // ----------------------------------
   const signup = async ({ firstName, lastName, email, password, newsletter }) => {
+    let firebaseUser = null
     try {
       setIsLoading(true)
 
+      // Step 1: Create the Firebase Auth account
+      console.log('SIGNUP STEP 1: Creating Firebase Auth account...')
       const cred = await createUserWithEmailAndPassword(auth, email, password)
-      const firebaseUser = cred.user
+      firebaseUser = cred.user
+      console.log('SIGNUP STEP 1 SUCCESS: Auth account created, uid:', firebaseUser.uid)
+      console.log('SIGNUP STEP 1: emailVerified:', firebaseUser.emailVerified)
 
-      await sendEmailVerification(firebaseUser)
-
+      // Step 2: Update display name
+      console.log('SIGNUP STEP 2: Updating display name...')
       if (firstName || lastName) {
         await firebaseUpdateProfile(firebaseUser, {
           displayName: `${firstName} ${lastName}`.trim(),
         })
       }
+      console.log('SIGNUP STEP 2 SUCCESS: Display name updated')
 
+      // Step 3: Write to Firestore users collection
+      console.log('SIGNUP STEP 3: Writing to Firestore users collection...')
+      console.log('SIGNUP STEP 3: uid =', firebaseUser.uid)
+      console.log('SIGNUP STEP 3: auth.currentUser =', auth.currentUser?.uid)
       const userDocRef = doc(db, 'users', firebaseUser.uid)
       await setDoc(
         userDocRef,
@@ -168,16 +178,45 @@ export function AuthProvider({ children }) {
         },
         { merge: true }
       )
+      console.log('SIGNUP STEP 3 SUCCESS: Firestore write complete')
+
+      // Step 4: Send verification email AFTER Firestore write
+      console.log('SIGNUP STEP 4: Sending verification email...')
+      await sendEmailVerification(firebaseUser)
+      console.log('SIGNUP STEP 4 SUCCESS: Verification email sent')
+
+      // Step 5: Sign out so they must verify email before accessing the app
+      console.log('SIGNUP STEP 5: Signing out...')
+      await signOut(auth)
+      console.log('SIGNUP STEP 5 SUCCESS: Signed out')
 
       return {
         success: true,
         message: "A verification link has been sent to your email.",
       }
     } catch (error) {
-      console.error('Signup error:', error)
+      console.error('SIGNUP FAILED at error:')
+      console.error('  code:', error.code)
+      console.error('  message:', error.message)
+      console.error('  full error:', error)
+
+      // If Firestore write failed but Auth account was created, clean up
+      if (firebaseUser) {
+        try {
+          await signOut(auth)
+        } catch (e) {
+          console.error('Cleanup signOut error:', e)
+        }
+      }
+
       let message = 'Registration failed. Please try again.'
-      if (error.code === 'auth/email-already-in-use') message = 'This email is already in use.'
-      else if (error.code === 'auth/weak-password') message = 'Password is too weak.'
+      if (error.code === 'auth/email-already-in-use') {
+        message = 'This email is already in use. Please sign in or use a different email.'
+      } else if (error.code === 'auth/weak-password') {
+        message = 'Password is too weak. Please use at least 6 characters.'
+      } else if (error.code === 'permission-denied' || error.message?.includes('permission')) {
+        message = 'Account created but profile could not be saved. Please contact support.'
+      }
       return { success: false, error: message }
     } finally {
       setIsLoading(false)
