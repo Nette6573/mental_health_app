@@ -3,9 +3,12 @@
 import { db } from "@/lib/firebase/firebaseClient";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  doc, getDoc, collection, query,
+  where, onSnapshot, orderBy, limit, getDocs
+} from "firebase/firestore";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   LayoutDashboard, User, Briefcase, Calendar, ShieldCheck,
   MessageSquare, BarChart3, BookOpen, Settings, LogOut,
@@ -15,37 +18,39 @@ import {
 
 export default function ProviderDashboardPage() {
   const { user } = useAuth() as any;
-  const [firstName, setFirstName] = useState<string>("");
-  const [lastName, setLastName] = useState<string>("");
-  const [providerTitle, setProviderTitle] = useState<string>("");
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(true);
   const router = useRouter();
 
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [providerTitle, setProviderTitle] = useState("");
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  // Real data state
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [recentMessages, setRecentMessages] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [appointmentCount, setAppointmentCount] = useState(0);
+
+  const uid = user?.uid ?? user?.id;
+
   const handleLogout = () => {
-    // Clear any local storage items
     localStorage.removeItem("activeTherapist");
-    // Replace history so back button cannot return to dashboard
     router.replace("/provider-dashboard/login");
   };
 
+  // ── Fetch provider profile ──
   useEffect(() => {
     const fetchProviderData = async () => {
-      if (!user) return;
+      if (!uid) return;
       try {
-        const uid = user.uid ?? user.id;
-        const docRef = doc(db, "providers", uid);
-        const docSnap = await getDoc(docRef);
-
+        const docSnap = await getDoc(doc(db, "providers", uid));
         if (docSnap.exists()) {
           const data = docSnap.data();
           setFirstName(data.first_name || "");
           setLastName(data.last_name || "");
           setProviderTitle(data.professional_title || "");
-          // Pull Cloudinary profile photo URL saved by the profile page
           setProfilePhotoUrl(data.profile_photo_url || "");
-        } else {
-          console.error("No provider document found for uid:", uid);
         }
       } catch (error) {
         console.error("Firestore fetch error:", error);
@@ -53,12 +58,85 @@ export default function ProviderDashboardPage() {
         setLoading(false);
       }
     };
-
     fetchProviderData();
-  }, [user]);
+  }, [uid]);
 
-  // Initials fallback if no photo uploaded yet
+  // ── Fetch upcoming appointments from bookings collection ──
+  useEffect(() => {
+    if (!uid) return;
+
+    const q = query(
+      collection(db, "bookings"),
+      where("providerId", "==", uid),
+      orderBy("createdAt", "desc"),
+      limit(5)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const bookings = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setAppointments(bookings);
+      setAppointmentCount(snapshot.size);
+    });
+
+    return () => unsubscribe();
+  }, [uid]);
+
+  // ── Fetch recent messages from chats collection in real-time ──
+  useEffect(() => {
+    if (!uid) return;
+
+    const q = query(
+      collection(db, "chats"),
+      where("participants", "array-contains", uid)
+    );
+
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const chats = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      // Sort by lastMessageAt
+      chats.sort((a: any, b: any) => {
+        const aTime = a.lastMessageAt?.seconds || 0;
+        const bTime = b.lastMessageAt?.seconds || 0;
+        return bTime - aTime;
+      });
+
+      setRecentMessages(chats.slice(0, 3));
+
+      // Count chats with unread messages (has lastMessage and not from provider)
+      const unread = chats.filter((c: any) => c.lastMessage && c.lastMessage.length > 0).length;
+      setUnreadCount(unread);
+    });
+
+    return () => unsubscribe();
+  }, [uid]);
+
   const initials = `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase() || "P";
+
+  const getOtherPersonName = (chat: any) => {
+    if (!chat.participantNames || !uid) return "User";
+    const otherUid = chat.participants?.find((p: string) => p !== uid);
+    return chat.participantNames?.[otherUid] || "User";
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'confirmed': return 'bg-sky-100 text-sky-600 dark:bg-sky-900/20';
+      case 'pending': return 'bg-orange-100 text-orange-600 dark:bg-orange-900/20';
+      case 'cancelled': return 'bg-red-100 text-red-600 dark:bg-red-900/20';
+      default: return 'bg-orange-100 text-orange-600 dark:bg-orange-900/20';
+    }
+  };
+
+  const navItems = [
+    { href: "/provider-dashboard", label: "Dashboard", icon: LayoutDashboard, active: true },
+    { href: "/provider-dashboard/profile", label: "Profile", icon: User },
+    { href: "/provider-dashboard/services", label: "Services", icon: Briefcase },
+    { href: "/provider-dashboard/availability", label: "Availability", icon: Calendar },
+    { href: "/provider-dashboard/credentials", label: "Verification", icon: ShieldCheck },
+    { href: "/provider-dashboard/messaging", label: "Messages", icon: MessageSquare, badge: unreadCount > 0 ? String(unreadCount) : undefined },
+    { href: "/provider-dashboard/analytics", label: "Analytics", icon: BarChart3 },
+    { href: "/provider-dashboard/resources", label: "Resources", icon: BookOpen },
+  ];
 
   return (
     <div className="flex min-h-screen overflow-hidden bg-slate-50 font-sans text-slate-800 dark:bg-slate-900 dark:text-slate-100">
@@ -76,23 +154,33 @@ export default function ProviderDashboardPage() {
         </div>
 
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          <Link href="/provider-dashboard" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg bg-sky-100 text-sky-600"><LayoutDashboard className="w-5 h-5" />Dashboard</Link>
-          <Link href="/provider-dashboard/profile" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"><User className="w-5 h-5" />Profile</Link>
-          <Link href="/provider-dashboard/services" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"><Briefcase className="w-5 h-5" />Services</Link>
-          <Link href="/provider-dashboard/availability" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"><Calendar className="w-5 h-5" />Availability</Link>
-          <Link href="/provider-dashboard/credentials" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"><ShieldCheck className="w-5 h-5" />Verification</Link>
-          <Link href="/provider-dashboard/messaging" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"><MessageSquare className="w-5 h-5" />Messages<span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">3</span></Link>
-          <Link href="/provider-dashboard/analytics" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"><BarChart3 className="w-5 h-5" />Analytics</Link>
-          <Link href="/provider-dashboard/resources" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"><BookOpen className="w-5 h-5" />Resources</Link>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.label} href={item.href}
+                className={item.active ? "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg bg-sky-100 text-sky-600" : "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"}
+              >
+                <Icon className="w-5 h-5" />
+                {item.label}
+                {item.badge && (
+                  <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">{item.badge}</span>
+                )}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="p-4 border-t border-slate-200 space-y-1 dark:border-slate-700">
-          <Link href="/provider-dashboard/settings" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"><Settings className="w-5 h-5" />Settings</Link>
-          <button type="button" onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-red-600 hover:bg-red-50 transition-colors dark:hover:bg-red-900/20"><LogOut className="w-5 h-5" />Logout</button>
+          <Link href="/provider-dashboard/settings" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white">
+            <Settings className="w-5 h-5" />Settings
+          </Link>
+          <button type="button" onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-red-600 hover:bg-red-50 transition-colors dark:hover:bg-red-900/20">
+            <LogOut className="w-5 h-5" />Logout
+          </button>
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="flex-1 md:ml-64 overflow-y-auto">
         {/* Top Bar */}
         <header className="bg-white border-b border-slate-200 sticky top-0 z-10 px-4 sm:px-8 py-4 dark:bg-slate-800 dark:border-slate-700">
@@ -104,26 +192,18 @@ export default function ProviderDashboardPage() {
                 <p className="text-sm text-slate-500 dark:text-slate-400">Here&apos;s your practice overview</p>
               </div>
             </div>
-
             <div className="flex items-center gap-4">
-              <button type="button" className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors dark:hover:bg-slate-700" aria-label="Notifications">
+              <button type="button" className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors dark:hover:bg-slate-700">
                 <Bell className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />}
               </button>
-
               <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-700">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-medium">{loading ? "..." : (`${firstName} ${lastName}`.trim() || "Provider")}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">{loading ? "" : (providerTitle || "Provider")}</p>
                 </div>
-
-                {/* ── Profile photo from Cloudinary or initials fallback ── */}
                 {profilePhotoUrl ? (
-                  <img
-                    src={profilePhotoUrl}
-                    alt={`${firstName} ${lastName}`}
-                    className="w-10 h-10 rounded-full object-cover border-2 border-sky-100"
-                  />
+                  <img src={profilePhotoUrl} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-sky-100" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center border-2 border-sky-100">
                     <span className="text-white text-sm font-semibold">{initials}</span>
@@ -148,94 +228,116 @@ export default function ProviderDashboardPage() {
             <Link href="/provider-dashboard/credentials" className="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-medium hover:bg-sky-700 transition-colors">Complete Now</Link>
           </div>
 
-          {/* Stats Grid */}
+          {/* Stats Grid — real data */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-2 bg-sky-100 rounded-lg dark:bg-sky-900/20"><Eye className="w-5 h-5 text-sky-600" /></div>
-                <span className="text-xs font-medium text-sky-600 bg-sky-100 px-2 py-1 rounded-full dark:bg-sky-900/20">+12%</span>
               </div>
-              <p className="text-2xl font-bold text-slate-800 dark:text-white">1,284</p>
+              <p className="text-2xl font-bold text-slate-800 dark:text-white">—</p>
               <p className="text-sm text-slate-500 dark:text-slate-400">Profile Views</p>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-2 bg-cyan-100 rounded-lg dark:bg-cyan-900/20"><CalendarCheck className="w-5 h-5 text-cyan-600" /></div>
-                <span className="text-xs font-medium text-cyan-600 bg-cyan-100 px-2 py-1 rounded-full dark:bg-cyan-900/20">+5%</span>
+                {appointmentCount > 0 && <span className="text-xs font-medium text-cyan-600 bg-cyan-100 px-2 py-1 rounded-full dark:bg-cyan-900/20">{appointmentCount} total</span>}
               </div>
-              <p className="text-2xl font-bold text-slate-800 dark:text-white">24</p>
+              <p className="text-2xl font-bold text-slate-800 dark:text-white">{appointmentCount}</p>
               <p className="text-sm text-slate-500 dark:text-slate-400">Appointments</p>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-2 bg-amber-100 rounded-lg dark:bg-amber-900/20"><Star className="w-5 h-5 text-amber-600" /></div>
-                <span className="text-xs font-medium text-amber-600 bg-amber-100 px-2 py-1 rounded-full dark:bg-amber-900/20">4.9</span>
               </div>
-              <p className="text-2xl font-bold text-slate-800 dark:text-white">4.9</p>
+              <p className="text-2xl font-bold text-slate-800 dark:text-white">—</p>
               <p className="text-sm text-slate-500 dark:text-slate-400">Avg. Rating</p>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-2 bg-orange-100 rounded-lg dark:bg-orange-900/20"><MessageCircle className="w-5 h-5 text-orange-600" /></div>
-                <span className="text-xs font-medium text-orange-600 bg-orange-100 px-2 py-1 rounded-full dark:bg-orange-900/20">3 new</span>
+                {unreadCount > 0 && <span className="text-xs font-medium text-orange-600 bg-orange-100 px-2 py-1 rounded-full dark:bg-orange-900/20">{unreadCount} active</span>}
               </div>
-              <p className="text-2xl font-bold text-slate-800 dark:text-white">8</p>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Messages</p>
+              <p className="text-2xl font-bold text-slate-800 dark:text-white">{recentMessages.length}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Conversations</p>
             </div>
           </div>
 
-          {/* Main Content Grid */}
+          {/* Main Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
 
-              {/* Upcoming Appointments */}
+              {/* Upcoming Appointments — real from bookings collection */}
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center dark:border-slate-700">
                   <h3 className="font-semibold text-slate-800 dark:text-white">Upcoming Appointments</h3>
                   <Link href="/provider-dashboard/availability" className="text-sm text-sky-600 hover:underline">View All</Link>
                 </div>
                 <div className="divide-y divide-slate-100 dark:divide-slate-700">
-                  <div className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors dark:hover:bg-slate-700/50">
-                    <div className="flex-shrink-0 w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center dark:bg-sky-900/20"><span className="font-semibold text-sky-600">10:00</span></div>
-                    <div className="flex-1"><p className="font-medium text-slate-800 dark:text-white">Marcus Thompson</p><p className="text-sm text-slate-500 dark:text-slate-400">Individual Therapy • Virtual</p></div>
-                    <span className="px-3 py-1 bg-sky-100 text-sky-600 text-xs rounded-full dark:bg-sky-900/20">Confirmed</span>
-                  </div>
-                  <div className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors dark:hover:bg-slate-700/50">
-                    <div className="flex-shrink-0 w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center dark:bg-sky-900/20"><span className="font-semibold text-sky-600">14:00</span></div>
-                    <div className="flex-1"><p className="font-medium text-slate-800 dark:text-white">Jennifer Brown</p><p className="text-sm text-slate-500 dark:text-slate-400">Marriage Counseling • In Person</p></div>
-                    <span className="px-3 py-1 bg-orange-100 text-orange-600 text-xs rounded-full dark:bg-orange-900/20">Pending</span>
-                  </div>
-                  <div className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors dark:hover:bg-slate-700/50">
-                    <div className="flex-shrink-0 w-12 h-12 bg-sky-100 rounded-full flex items-center justify-center dark:bg-sky-900/20"><span className="font-semibold text-sky-600">16:30</span></div>
-                    <div className="flex-1"><p className="font-medium text-slate-800 dark:text-white">David Williams</p><p className="text-sm text-slate-500 dark:text-slate-400">Grief Support • Virtual</p></div>
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full dark:bg-blue-900/30">Confirmed</span>
-                  </div>
+                  {appointments.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500 dark:text-slate-400">
+                      <CalendarCheck className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                      <p className="text-sm">No appointments yet</p>
+                      <p className="text-xs mt-1">Bookings from clients will appear here</p>
+                    </div>
+                  ) : (
+                    appointments.map((appt) => (
+                      <div key={appt.id} className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors dark:hover:bg-slate-700/50">
+                        <div className="flex-shrink-0 w-16 h-12 bg-sky-100 rounded-lg flex flex-col items-center justify-center dark:bg-sky-900/20">
+                          <span className="text-xs font-bold text-sky-600">{appt.time}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-slate-800 dark:text-white truncate">{appt.userName}</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{appt.date}</p>
+                          {appt.notes && <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{appt.notes}</p>}
+                        </div>
+                        <span className={`shrink-0 px-3 py-1 text-xs rounded-full capitalize ${getStatusColor(appt.status)}`}>
+                          {appt.status || 'Pending'}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
-              {/* Recent Messages */}
+              {/* Recent Messages — real from chats collection */}
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center dark:border-slate-700">
                   <h3 className="font-semibold text-slate-800 dark:text-white">Recent Messages</h3>
                   <Link href="/provider-dashboard/messaging" className="text-sm text-sky-600 hover:underline">View All</Link>
                 </div>
                 <div className="divide-y divide-slate-100 dark:divide-slate-700">
-                  <div className="p-4 flex items-start gap-4 hover:bg-slate-50 transition-colors cursor-pointer dark:hover:bg-slate-700/50">
-                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center dark:bg-slate-700"><User className="w-5 h-5 text-slate-500" /></div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start mb-1"><p className="font-medium text-slate-800 dark:text-white">Emily Clarke</p><span className="text-xs text-slate-500 dark:text-slate-400">2h ago</span></div>
-                      <p className="text-sm text-slate-600 line-clamp-2 dark:text-slate-300">Hello Dr. Thomas, I am interested in scheduling a session for my daughter. She has been dealing with anxiety...</p>
+                  {recentMessages.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500 dark:text-slate-400">
+                      <MessageSquare className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                      <p className="text-sm">No messages yet</p>
+                      <p className="text-xs mt-1">Messages from clients will appear here</p>
                     </div>
-                    <span className="w-2 h-2 bg-cyan-500 rounded-full mt-2" />
-                  </div>
-                  <div className="p-4 flex items-start gap-4 hover:bg-slate-50 transition-colors cursor-pointer dark:hover:bg-slate-700/50">
-                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center dark:bg-slate-700"><User className="w-5 h-5 text-slate-500" /></div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start mb-1"><p className="font-medium text-slate-800 dark:text-white">Robert Taylor</p><span className="text-xs text-slate-500 dark:text-slate-400">5h ago</span></div>
-                      <p className="text-sm text-slate-600 line-clamp-2 dark:text-slate-300">Thank you for yesterday session. I wanted to ask about the homework exercises you mentioned...</p>
-                    </div>
-                    <span className="w-2 h-2 bg-sky-500 rounded-full mt-2" />
-                  </div>
+                  ) : (
+                    recentMessages.map((chat: any) => {
+                      const otherName = getOtherPersonName(chat);
+                      return (
+                        <Link key={chat.id} href="/provider-dashboard/messaging" className="p-4 flex items-start gap-4 hover:bg-slate-50 transition-colors cursor-pointer dark:hover:bg-slate-700/50 block">
+                          <div className="w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center shrink-0">
+                            <span className="text-white text-sm font-semibold">{otherName?.[0]?.toUpperCase() || 'U'}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start mb-1">
+                              <p className="font-medium text-slate-800 dark:text-white">{otherName}</p>
+                              {chat.lastMessageAt && (
+                                <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0 ml-2">
+                                  {chat.lastMessageAt?.toDate?.()?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || ''}
+                                </span>
+                              )}
+                            </div>
+                            {chat.lastMessage && (
+                              <p className="text-sm text-slate-600 line-clamp-1 dark:text-slate-300">{chat.lastMessage}</p>
+                            )}
+                          </div>
+                          {chat.lastMessage && <span className="w-2 h-2 bg-sky-500 rounded-full mt-2 shrink-0" />}
+                        </Link>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
@@ -276,7 +378,7 @@ export default function ProviderDashboardPage() {
                   </Link>
                   <Link href="/provider-dashboard/availability" className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-sky-400 hover:bg-sky-50 transition-colors group dark:border-slate-700 dark:hover:border-sky-500 dark:hover:bg-sky-900/10">
                     <div className="p-2 bg-slate-100 rounded-lg group-hover:bg-white dark:bg-slate-700 dark:group-hover:bg-slate-600"><Clock className="w-4 h-4 text-slate-600 group-hover:text-sky-600 dark:text-slate-400" /></div>
-                    <div><p className="text-sm font-medium text-slate-800 dark:text-white">Set Hours</p><p className="text-xs text-slate-500 dark:text-slate.400">Manage availability</p></div>
+                    <div><p className="text-sm font-medium text-slate-800 dark:text-white">Set Hours</p><p className="text-xs text-slate-500 dark:text-slate-400">Manage availability</p></div>
                   </Link>
                 </div>
               </div>
