@@ -1,29 +1,36 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+import { db } from "@/lib/firebase/firebaseClient";
+import {
+  collection, addDoc, getDocs,
+  query, orderBy, serverTimestamp
+} from "firebase/firestore";
 
+// Save a mood entry to Firestore
 export async function saveMood(userId, moodData) {
-const res = await fetch(`${BASE_URL}/api/mood/${userId}`, {
-method: "POST",
-headers: {
-"Content-Type": "application/json"
-},
-body: JSON.stringify(moodData)
-});
-
-if (!res.ok) {
-const errorText = await res.text();
-console.error("Save mood error:", errorText);
-throw new Error("Failed to save mood");
+  const moodRef = collection(db, "users", userId, "mood_entries");
+  await addDoc(moodRef, {
+    mood: moodData.mood,
+    note: moodData.note || "",
+    activities: moodData.activities || [],
+    emotions: moodData.emotions || [],
+    sleepHours: moodData.sleepHours || 0,
+    stressLevel: moodData.stressLevel || 0,
+    date: moodData.date || new Date().toISOString(),
+    createdAt: serverTimestamp(),
+  });
 }
 
-return res.json();
-}
-
+// Get all mood entries for a user
 export async function getMood(userId) {
-const res = await fetch(`${BASE_URL}/api/mood/${userId}`);
+  const moodRef = collection(db, "users", userId, "mood_entries");
+  const q = query(moodRef, orderBy("createdAt", "asc"));
+  const snapshot = await getDocs(q);
 
-if (!res.ok) {
-throw new Error("Failed to fetch mood");
-}
+  const mood_log = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+    // Normalize date field
+    date: doc.data().date || doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+  }));
 
-return res.json();
+  return { mood_log };
 }
