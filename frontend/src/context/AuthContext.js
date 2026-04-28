@@ -70,20 +70,29 @@ export function AuthProvider({ children }) {
 
         const appUser = await buildUserFromFirebase(firebaseUser)
 
-        // ── KEY FIX: If no document exists in the users collection,
-        //    sign them out and do NOT restore the session ──
-        if (!appUser.hasUserDoc) {
+        // ── Check which collection this user belongs to ──
+        // Check providers collection first
+        const providerSnap = await getDoc(doc(db, 'providers', firebaseUser.uid))
+        const userSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
+
+        // If they exist in neither collection, sign them out
+        if (!providerSnap.exists() && !userSnap.exists()) {
           await signOut(auth)
           setUser(null)
           setIsLoading(false)
           return
         }
 
+        // Set role based on which collection they exist in
+        if (providerSnap.exists()) {
+          appUser.role = "provider"
+        }
+
         setUser(appUser)
 
         const path = window.location.pathname
 
-        // Only redirect if they are on the login/auth pages
+        // Only redirect if they are on a login/auth page
         if (path === '/' || path.includes('/login') || path.includes('/auth')) {
           if (appUser.role === "provider") {
             router.replace('/provider-dashboard')
@@ -117,13 +126,12 @@ export function AuthProvider({ children }) {
         }
       }
 
-      // ── KEY FIX: Check if this user has a document in the users collection ──
-      const userDocRef = doc(db, 'users', cred.user.uid)
-      const userSnap = await getDoc(userDocRef)
+      // ── Check which collection this user belongs to ──
+      const providerSnap = await getDoc(doc(db, 'providers', cred.user.uid))
+      const userSnap = await getDoc(doc(db, 'users', cred.user.uid))
 
-      if (!userSnap.exists()) {
-        // They have Firebase Auth credentials but no user profile
-        // Sign them out and tell them to sign up
+      // If they exist in neither collection, block login
+      if (!providerSnap.exists() && !userSnap.exists()) {
         await signOut(auth)
         return {
           success: false,
@@ -132,6 +140,12 @@ export function AuthProvider({ children }) {
       }
 
       const appUser = await buildUserFromFirebase(cred.user)
+
+      // Override role based on which collection they exist in
+      if (providerSnap.exists()) {
+        appUser.role = "provider"
+      }
+
       setUser(appUser)
 
       return { success: true, user: cred.user }
