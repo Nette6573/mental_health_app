@@ -12,28 +12,38 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get("file") as File;
     const documentType = formData.get("documentType") as string;
+    const providerId = formData.get("providerId") as string;
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Convert file to base64 so Cloudinary can accept it
+    // Convert file to base64
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const base64 = `data:${file.type};base64,${buffer.toString("base64")}`;
 
     // Upload to Cloudinary
     const result = await cloudinary.uploader.upload(base64, {
-      folder: "hopepath/providers",
-      upload_preset: "hopepath_uploads",
-      resource_type: "auto", // handles images AND PDFs/documents
-      use_filename: true,
+      folder: `hopepath/providers/${providerId}`,
+      resource_type: "auto",
     });
+
+    console.log("Cloudinary upload success:", result.secure_url);
+
+    // Build a viewable URL
+    // For PDFs: add fl_attachment so browser downloads it instead of blank page
+    // For images: use the direct URL
+    const isPdf = result.format === "pdf";
+    const viewUrl = isPdf
+      ? result.secure_url.replace("/upload/", "/upload/fl_attachment/")
+      : result.secure_url;
 
     return NextResponse.json({
       success: true,
-      url: result.secure_url,       // direct link to view/download file
-      publicId: result.public_id,   // used to delete later if needed
+      url: result.secure_url,    // original URL stored in Firebase
+      viewUrl,                   // URL used when clicking View
+      publicId: result.public_id,
       format: result.format,
       documentType,
     });
