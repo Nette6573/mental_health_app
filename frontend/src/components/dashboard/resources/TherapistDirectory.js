@@ -1,16 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { db } from '@/lib/firebase/firebaseClient'
 import {
-  collection, getDocs, doc, getDoc,
-  addDoc, serverTimestamp, query, where
+  collection, getDocs, doc, getDoc, query, where
 } from 'firebase/firestore'
-import { auth } from '@/lib/firebase/firebaseClient'
 import {
   MapPin, Clock, DollarSign, Globe,
-  Briefcase, X, ChevronLeft, ChevronRight, Send
+  Briefcase, X, ChevronLeft, ChevronRight
 } from 'lucide-react'
 
 export default function TherapistDirectory() {
@@ -21,7 +19,6 @@ export default function TherapistDirectory() {
   const [selectedProvider, setSelectedProvider] = useState(null)
   const [bookingProvider, setBookingProvider] = useState(null)
 
-  // ── Booking state ──
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedTime, setSelectedTime] = useState('')
   const [bookingNotes, setBookingNotes] = useState('')
@@ -31,7 +28,6 @@ export default function TherapistDirectory() {
   const [providerAvailability, setProviderAvailability] = useState(null)
   const [blockedDates, setBlockedDates] = useState([])
 
-  // ── Fetch providers from Firebase ──
   useEffect(() => {
     const fetchProviders = async () => {
       try {
@@ -71,7 +67,6 @@ export default function TherapistDirectory() {
     fetchProviders()
   }, [])
 
-  // ── Fetch provider availability when booking opens ──
   const openBooking = async (provider) => {
     setBookingProvider(provider)
     setSelectedDate(null)
@@ -85,12 +80,9 @@ export default function TherapistDirectory() {
       if (availSnap.exists()) {
         const data = availSnap.data()
         setProviderAvailability(data)
-
-        // Parse blocked dates
         if (data.blocked_dates) {
           try {
-            const parsed = JSON.parse(data.blocked_dates)
-            setBlockedDates(parsed)
+            setBlockedDates(JSON.parse(data.blocked_dates))
           } catch {
             setBlockedDates([])
           }
@@ -107,14 +99,10 @@ export default function TherapistDirectory() {
     }
   }
 
-  // ── Parse a blocked date string into actual Date objects ──
-  // Handles both single dates like "April 10, 2026"
-  // and ranges like "Aug 15-20, 2026"
+  // Parse blocked date strings including ranges like "Aug 15-20, 2026"
   const parseBlockedDate = (dateStr) => {
     if (!dateStr) return []
     const str = dateStr.trim()
-
-    // Try range format: "Aug 15-20, 2026" or "April 10-15, 2026"
     const rangeMatch = str.match(/^(\w+)\s+(\d+)-(\d+),\s*(\d{4})$/)
     if (rangeMatch) {
       const [, month, startDay, endDay, year] = rangeMatch
@@ -125,49 +113,32 @@ export default function TherapistDirectory() {
       }
       return dates
     }
-
-    // Try single date: "April 10, 2026"
     const parsed = new Date(str)
     if (!isNaN(parsed.getTime())) return [parsed]
-
     return []
   }
 
-  // ── Check if a day is available based on provider schedule ──
   const isDayAvailable = (date) => {
     if (!providerAvailability) return true
-
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
-    const dayName = dayNames[date.getDay()]
-    const encoded = providerAvailability[dayName]
+    const encoded = providerAvailability[dayNames[date.getDay()]]
     if (!encoded) return false
-
     const [avail] = encoded.split('|')
     if (avail !== '1') return false
-
-    // Check blocked dates — compare by date string (year/month/day)
     const dateKey = date.toDateString()
-    const isBlocked = blockedDates.some(b => {
-      const parsedDates = parseBlockedDate(b.date)
-      return parsedDates.some(pd => pd.toDateString() === dateKey)
-    })
-    return !isBlocked
+    return !blockedDates.some(b =>
+      parseBlockedDate(b.date).some(pd => pd.toDateString() === dateKey)
+    )
   }
 
-  // ── Get time slots for a day ──
   const getTimeSlots = (date) => {
-    if (!providerAvailability || !date) return defaultTimeSlots()
-
+    if (!providerAvailability || !date) return generateSlots('09:00', '17:00')
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
-    const dayName = dayNames[date.getDay()]
-    const encoded = providerAvailability[dayName]
-    if (!encoded) return defaultTimeSlots()
-
+    const encoded = providerAvailability[dayNames[date.getDay()]]
+    if (!encoded) return generateSlots('09:00', '17:00')
     const [, start, end] = encoded.split('|')
     return generateSlots(start || '09:00', end || '17:00')
   }
-
-  const defaultTimeSlots = () => generateSlots('09:00', '17:00')
 
   const generateSlots = (start, end) => {
     const slots = []
@@ -175,18 +146,15 @@ export default function TherapistDirectory() {
     const [endH, endM] = end.split(':').map(Number)
     let current = startH * 60 + startM
     const endMin = endH * 60 + endM
-
     while (current + 60 <= endMin) {
       const h = Math.floor(current / 60)
       const m = current % 60
-      const label = `${h % 12 || 12}:${m.toString().padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
-      slots.push(label)
+      slots.push(`${h % 12 || 12}:${m.toString().padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`)
       current += 60
     }
     return slots
   }
 
-  // ── Calendar helpers ──
   const getDaysInMonth = (date) => {
     const year = date.getFullYear()
     const month = date.getMonth()
@@ -204,7 +172,7 @@ export default function TherapistDirectory() {
     return date < today
   }
 
-  // ── Submit booking ──
+  // ── Submit booking via API route — Admin SDK bypasses Firestore rules ──
   const submitBooking = async () => {
     if (!selectedDate || !selectedTime) {
       alert('Please select a date and time.')
@@ -224,12 +192,6 @@ export default function TherapistDirectory() {
     setIsSubmitting(true)
 
     try {
-      // Debug: log auth state at time of booking
-      console.log('BOOKING: user object =', user)
-      console.log('BOOKING: uid =', uid)
-      console.log('BOOKING: auth.currentUser =', auth.currentUser?.uid)
-      console.log('BOOKING: auth.currentUser.emailVerified =', auth.currentUser?.emailVerified)
-
       // Get user name from Firestore
       let userName = user.email || 'User'
       try {
@@ -240,48 +202,48 @@ export default function TherapistDirectory() {
           if (fullName) userName = fullName
         }
       } catch (e) {
-        console.warn('Could not fetch user name, using email:', e)
+        console.warn('Could not fetch user name:', e)
       }
 
-      const bookingData = {
-        providerId: bookingProvider.id,
-        providerName: `${bookingProvider.first_name} ${bookingProvider.last_name}`,
-        providerTitle: bookingProvider.professional_title || '',
-        userId: uid,
-        userName,
-        userEmail: user.email || '',
-        date: selectedDate.toLocaleDateString('en-US', {
-          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      // POST to API route — uses Firebase Admin SDK on the server
+      const res = await fetch('/api/bookings/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          providerId: bookingProvider.id,
+          providerName: `${bookingProvider.first_name} ${bookingProvider.last_name}`,
+          providerTitle: bookingProvider.professional_title || '',
+          userId: uid,
+          userName,
+          userEmail: user.email || '',
+          date: selectedDate.toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+          }),
+          time: selectedTime,
+          notes: bookingNotes || '',
+          status: 'pending',
         }),
-        time: selectedTime,
-        notes: bookingNotes || '',
-        status: 'pending',
-        createdAt: serverTimestamp(),
-      }
+      })
 
-      console.log('Submitting booking:', bookingData)
-      const docRef = await addDoc(collection(db, 'bookings'), bookingData)
-      console.log('Booking created with ID:', docRef.id)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create booking')
 
       setBookingSuccess(true)
     } catch (error) {
-      console.error('Booking submission error:', error.code, error.message)
-      if (error.code === 'permission-denied') {
-        alert('Permission denied. Please make sure you are logged in and try again.')
-      } else {
-        alert(`Failed to submit booking: ${error.message}`)
-      }
+      console.error('Booking error:', error.message)
+      alert(`Failed to submit booking: ${error.message}`)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // ── Filter ──
   const filteredProviders = providers.filter((p) => {
     if (!searchQuery) return true
     const q = searchQuery.toLowerCase()
     const name = `${p.first_name} ${p.last_name}`.toLowerCase()
-    return name.includes(q) || (p.biography || '').toLowerCase().includes(q) || (p.professional_title || '').toLowerCase().includes(q) || (p.parish || '').toLowerCase().includes(q)
+    return name.includes(q) || (p.biography || '').toLowerCase().includes(q) ||
+      (p.professional_title || '').toLowerCase().includes(q) ||
+      (p.parish || '').toLowerCase().includes(q)
   })
 
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -309,12 +271,10 @@ export default function TherapistDirectory() {
         className="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2.5 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:bg-gray-800 dark:text-white"
       />
 
-      {/* Count */}
       <p className="text-sm text-gray-500 dark:text-gray-400">
         {filteredProviders.length} {filteredProviders.length === 1 ? 'therapist' : 'therapists'} found
       </p>
 
-      {/* Provider Cards */}
       {filteredProviders.length === 0 ? (
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-10 text-center text-gray-500">
           <p className="text-lg font-medium">No therapists found</p>
@@ -325,17 +285,13 @@ export default function TherapistDirectory() {
           {filteredProviders.map((provider) => (
             <div key={provider.id} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-start gap-4">
-
-                {/* Avatar */}
                 {provider.profile_photo_url ? (
-                  <img src={provider.profile_photo_url} alt={`${provider.first_name} ${provider.last_name}`} className="h-16 w-16 shrink-0 rounded-full object-cover" />
+                  <img src={provider.profile_photo_url} alt="" className="h-16 w-16 shrink-0 rounded-full object-cover" />
                 ) : (
                   <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary-500 text-lg font-bold text-white">
                     {(provider.first_name?.[0] || '').toUpperCase()}{(provider.last_name?.[0] || '').toUpperCase()}
                   </div>
                 )}
-
-                {/* Info */}
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
@@ -347,9 +303,7 @@ export default function TherapistDirectory() {
                       {provider.is_accepting_clients ? 'Accepting Clients' : 'Not Accepting'}
                     </span>
                   </div>
-
                   {provider.biography && <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{provider.biography}</p>}
-
                   <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-xs text-gray-500 dark:text-gray-400">
                     {provider.parish && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{provider.parish}</span>}
                     {provider.experience && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{provider.experience}</span>}
@@ -357,7 +311,6 @@ export default function TherapistDirectory() {
                     {provider.languages.length > 0 && <span className="flex items-center gap-1"><Globe className="h-3 w-3" />{provider.languages.join(', ')}</span>}
                     {provider.session_types && <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" />{provider.session_types}</span>}
                   </div>
-
                   {provider.practice_areas.length > 0 && (
                     <div className="flex flex-wrap gap-2 pt-2">
                       {provider.practice_areas.slice(0, 4).map((spec) => (
@@ -370,20 +323,11 @@ export default function TherapistDirectory() {
                   )}
                 </div>
               </div>
-
-              {/* Actions */}
               <div className="mt-4 flex gap-3 border-t border-gray-100 dark:border-gray-700 pt-4">
-                <button
-                  onClick={() => setSelectedProvider(provider)}
-                  className="rounded-lg border border-gray-200 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
+                <button onClick={() => setSelectedProvider(provider)} className="rounded-lg border border-gray-200 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   View Profile
                 </button>
-                <button
-                  onClick={() => openBooking(provider)}
-                  disabled={!provider.is_accepting_clients}
-                  className="rounded-lg bg-primary-500 hover:bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                <button onClick={() => openBooking(provider)} disabled={!provider.is_accepting_clients} className="rounded-lg bg-primary-500 hover:bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   Book Session
                 </button>
               </div>
@@ -406,13 +350,11 @@ export default function TherapistDirectory() {
         </div>
       </div>
 
-      {/* ── PROFILE POPUP ── */}
+      {/* PROFILE POPUP */}
       {selectedProvider && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setSelectedProvider(null)}>
           <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white dark:bg-gray-800 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setSelectedProvider(null)} className="absolute right-4 top-4 z-10 rounded-full bg-white/80 dark:bg-gray-700/80 p-2 text-gray-500 hover:text-gray-800">
-              <X className="h-5 w-5" />
-            </button>
+            <button onClick={() => setSelectedProvider(null)} className="absolute right-4 top-4 z-10 rounded-full bg-white/80 dark:bg-gray-700/80 p-2 text-gray-500 hover:text-gray-800"><X className="h-5 w-5" /></button>
             <div className="h-28 w-full rounded-t-2xl bg-gradient-to-r from-primary-500 to-primary-600" />
             <div className="px-6 pb-6">
               <div className="-mt-12 mb-4 flex items-end justify-between">
@@ -453,30 +395,21 @@ export default function TherapistDirectory() {
                 </div>
               )}
               <div className="mt-6 flex gap-3">
-                <button
-                  onClick={() => { setSelectedProvider(null); openBooking(selectedProvider) }}
-                  disabled={!selectedProvider.is_accepting_clients}
-                  className="flex-1 rounded-lg bg-primary-500 hover:bg-primary-600 py-3 text-sm font-medium text-white transition-colors disabled:opacity-50"
-                >
+                <button onClick={() => { setSelectedProvider(null); openBooking(selectedProvider) }} disabled={!selectedProvider.is_accepting_clients} className="flex-1 rounded-lg bg-primary-500 hover:bg-primary-600 py-3 text-sm font-medium text-white transition-colors disabled:opacity-50">
                   Book Session
                 </button>
-                <button onClick={() => setSelectedProvider(null)} className="rounded-lg border border-gray-200 dark:border-gray-600 px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
-                  Close
-                </button>
+                <button onClick={() => setSelectedProvider(null)} className="rounded-lg border border-gray-200 dark:border-gray-600 px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Close</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── BOOKING POPUP ── */}
+      {/* BOOKING POPUP */}
       {bookingProvider && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white dark:bg-gray-800 shadow-2xl">
-            <button onClick={() => setBookingProvider(null)} className="absolute right-4 top-4 z-10 rounded-full bg-white/80 dark:bg-gray-700/80 p-2 text-gray-500 hover:text-gray-800">
-              <X className="h-5 w-5" />
-            </button>
-
+            <button onClick={() => setBookingProvider(null)} className="absolute right-4 top-4 z-10 rounded-full bg-white/80 dark:bg-gray-700/80 p-2 text-gray-500 hover:text-gray-800"><X className="h-5 w-5" /></button>
             <div className="p-6">
               {bookingSuccess ? (
                 <div className="text-center py-8">
@@ -490,14 +423,11 @@ export default function TherapistDirectory() {
                   <p className="text-gray-500 dark:text-gray-400 text-sm mb-2">
                     <strong>{selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</strong> at <strong>{selectedTime}</strong>
                   </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-6">The provider will confirm your appointment shortly.</p>
-                  <button onClick={() => setBookingProvider(null)} className="rounded-lg bg-primary-500 px-6 py-2 text-sm font-medium text-white hover:bg-primary-600">
-                    Done
-                  </button>
+                  <p className="text-xs text-gray-400 mb-6">The provider will confirm your appointment shortly.</p>
+                  <button onClick={() => setBookingProvider(null)} className="rounded-lg bg-primary-500 px-6 py-2 text-sm font-medium text-white hover:bg-primary-600">Done</button>
                 </div>
               ) : (
                 <>
-                  {/* Header */}
                   <div className="mb-6 flex items-center gap-3">
                     {bookingProvider.profile_photo_url ? (
                       <img src={bookingProvider.profile_photo_url} alt="" className="h-12 w-12 rounded-full object-cover" />
@@ -517,20 +447,14 @@ export default function TherapistDirectory() {
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Select Date</h4>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => setCalendarDate(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d })} className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700">
-                          <ChevronLeft className="h-4 w-4" />
-                        </button>
+                        <button onClick={() => setCalendarDate(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d })} className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"><ChevronLeft className="h-4 w-4" /></button>
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{monthNames[calendarDate.getMonth()]} {calendarDate.getFullYear()}</span>
-                        <button onClick={() => setCalendarDate(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d })} className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700">
-                          <ChevronRight className="h-4 w-4" />
-                        </button>
+                        <button onClick={() => setCalendarDate(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d })} className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"><ChevronRight className="h-4 w-4" /></button>
                       </div>
                     </div>
-
                     <div className="grid grid-cols-7 gap-1 mb-2">
                       {dayNames.map(d => <div key={d} className="text-center text-xs font-medium text-gray-400 py-1">{d}</div>)}
                     </div>
-
                     <div className="grid grid-cols-7 gap-1">
                       {getDaysInMonth(calendarDate).map((date, i) => {
                         if (!date) return <div key={i} />
@@ -539,30 +463,20 @@ export default function TherapistDirectory() {
                         const isSelected = selectedDate?.toDateString() === date.toDateString()
                         const isToday = date.toDateString() === new Date().toDateString()
                         const disabled = past || unavailable
-
                         return (
-                          <button
-                            key={i}
-                            onClick={() => { if (!disabled) { setSelectedDate(date); setSelectedTime('') } }}
-                            disabled={disabled}
+                          <button key={i} onClick={() => { if (!disabled) { setSelectedDate(date); setSelectedTime('') } }} disabled={disabled}
                             className={`aspect-square rounded-lg text-sm font-medium transition-all ${
                               isSelected ? 'bg-primary-500 text-white' :
                               isToday && !disabled ? 'border-2 border-primary-500 text-primary-600 dark:text-primary-400' :
                               disabled ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' :
                               'hover:bg-primary-50 dark:hover:bg-primary-900/20 text-gray-700 dark:text-gray-300'
-                            }`}
-                          >
+                            }`}>
                             {date.getDate()}
                           </button>
                         )
                       })}
                     </div>
-
-                    {blockedDates.length > 0 && (
-                      <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                        Grey dates are unavailable or blocked by the provider.
-                      </p>
-                    )}
+                    {blockedDates.length > 0 && <p className="mt-2 text-xs text-gray-400">Grey dates are unavailable or blocked by the provider.</p>}
                   </div>
 
                   {/* Time Slots */}
@@ -571,15 +485,11 @@ export default function TherapistDirectory() {
                       <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Select Time</h4>
                       <div className="grid grid-cols-3 gap-2">
                         {getTimeSlots(selectedDate).map((slot) => (
-                          <button
-                            key={slot}
-                            onClick={() => setSelectedTime(slot)}
+                          <button key={slot} onClick={() => setSelectedTime(slot)}
                             className={`rounded-lg border py-2 text-xs font-medium transition-all ${
-                              selectedTime === slot
-                                ? 'border-primary-500 bg-primary-500 text-white'
-                                : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20'
-                            }`}
-                          >
+                              selectedTime === slot ? 'border-primary-500 bg-primary-500 text-white' :
+                              'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20'
+                            }`}>
                             {slot}
                           </button>
                         ))}
@@ -590,13 +500,7 @@ export default function TherapistDirectory() {
                   {/* Notes */}
                   <div className="mb-6">
                     <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Notes (optional)</h4>
-                    <textarea
-                      value={bookingNotes}
-                      onChange={(e) => setBookingNotes(e.target.value)}
-                      placeholder="Describe what you'd like to discuss or any relevant information..."
-                      rows={3}
-                      className="w-full rounded-lg border border-gray-200 dark:border-gray-600 px-3 py-2 text-sm outline-none focus:border-primary-500 dark:bg-gray-700 dark:text-white resize-none"
-                    />
+                    <textarea value={bookingNotes} onChange={(e) => setBookingNotes(e.target.value)} placeholder="Describe what you'd like to discuss..." rows={3} className="w-full rounded-lg border border-gray-200 dark:border-gray-600 px-3 py-2 text-sm outline-none focus:border-primary-500 dark:bg-gray-700 dark:text-white resize-none" />
                   </div>
 
                   {/* Summary */}
@@ -606,18 +510,12 @@ export default function TherapistDirectory() {
                       <p className="text-primary-600 dark:text-primary-400 mt-1">
                         {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} at {selectedTime}
                       </p>
-                      {bookingProvider.session_cost && (
-                        <p className="text-primary-600 dark:text-primary-400">Rate: JMD {bookingProvider.session_cost}</p>
-                      )}
+                      {bookingProvider.session_cost && <p className="text-primary-600 dark:text-primary-400">Rate: JMD {bookingProvider.session_cost}</p>}
                     </div>
                   )}
 
-                  {/* Submit */}
-                  <button
-                    onClick={submitBooking}
-                    disabled={!selectedDate || !selectedTime || isSubmitting}
-                    className="w-full rounded-lg bg-primary-500 hover:bg-primary-600 py-3 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
+                  <button onClick={submitBooking} disabled={!selectedDate || !selectedTime || isSubmitting}
+                    className="w-full rounded-lg bg-primary-500 hover:bg-primary-600 py-3 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     {isSubmitting ? 'Submitting...' : 'Confirm Booking'}
                   </button>
                 </>
