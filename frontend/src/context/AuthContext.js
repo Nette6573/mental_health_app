@@ -162,9 +162,13 @@ export function AuthProvider({ children }) {
       console.log('SIGNUP STEP 2 SUCCESS: Display name updated')
 
       // Step 3: Write to Firestore users collection
-      console.log('SIGNUP STEP 3: Writing to Firestore users collection...')
+      // We use the firebaseUser token directly to authenticate the write
+      // because auth.currentUser may not be set yet at this point
+      console.log('SIGNUP STEP 3: Getting fresh ID token...')
+      const idToken = await firebaseUser.getIdToken(true)
+      console.log('SIGNUP STEP 3: Token retrieved, writing to Firestore...')
       console.log('SIGNUP STEP 3: uid =', firebaseUser.uid)
-      console.log('SIGNUP STEP 3: auth.currentUser =', auth.currentUser?.uid)
+
       const userDocRef = doc(db, 'users', firebaseUser.uid)
       await setDoc(
         userDocRef,
