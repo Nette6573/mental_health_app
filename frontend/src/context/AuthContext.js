@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   onAuthStateChanged,
@@ -21,7 +21,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
-  const isSigningUp = { current: false } // flag to pause onAuthStateChanged during signup
+  const isSigningUp = useRef(false) // flag to pause onAuthStateChanged during signup
 
   const buildUserFromFirebase = async (firebaseUser) => {
     if (!firebaseUser) return null
