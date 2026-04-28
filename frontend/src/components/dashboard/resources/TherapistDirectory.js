@@ -106,9 +106,35 @@ export default function TherapistDirectory() {
     }
   }
 
+  // ── Parse a blocked date string into actual Date objects ──
+  // Handles both single dates like "April 10, 2026"
+  // and ranges like "Aug 15-20, 2026"
+  const parseBlockedDate = (dateStr) => {
+    if (!dateStr) return []
+    const str = dateStr.trim()
+
+    // Try range format: "Aug 15-20, 2026" or "April 10-15, 2026"
+    const rangeMatch = str.match(/^(\w+)\s+(\d+)-(\d+),\s*(\d{4})$/)
+    if (rangeMatch) {
+      const [, month, startDay, endDay, year] = rangeMatch
+      const dates = []
+      for (let d = parseInt(startDay); d <= parseInt(endDay); d++) {
+        const parsed = new Date(`${month} ${d}, ${year}`)
+        if (!isNaN(parsed.getTime())) dates.push(parsed)
+      }
+      return dates
+    }
+
+    // Try single date: "April 10, 2026"
+    const parsed = new Date(str)
+    if (!isNaN(parsed.getTime())) return [parsed]
+
+    return []
+  }
+
   // ── Check if a day is available based on provider schedule ──
   const isDayAvailable = (date) => {
-    if (!providerAvailability) return true // allow all if no schedule set
+    if (!providerAvailability) return true
 
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
     const dayName = dayNames[date.getDay()]
@@ -118,9 +144,12 @@ export default function TherapistDirectory() {
     const [avail] = encoded.split('|')
     if (avail !== '1') return false
 
-    // Check blocked dates
-    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    const isBlocked = blockedDates.some(b => b.date.includes(dateStr) || dateStr.includes(b.date))
+    // Check blocked dates — compare by date string (year/month/day)
+    const dateKey = date.toDateString()
+    const isBlocked = blockedDates.some(b => {
+      const parsedDates = parseBlockedDate(b.date)
+      return parsedDates.some(pd => pd.toDateString() === dateKey)
+    })
     return !isBlocked
   }
 
@@ -176,36 +205,65 @@ export default function TherapistDirectory() {
 
   // ── Submit booking ──
   const submitBooking = async () => {
-    if (!selectedDate || !selectedTime || !user) return
+    if (!selectedDate || !selectedTime) {
+      alert('Please select a date and time.')
+      return
+    }
+    if (!user) {
+      alert('You must be logged in to book.')
+      return
+    }
 
     const uid = user.uid ?? user.id
+    if (!uid) {
+      alert('Unable to identify user. Please log in again.')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
-      // Get user's name
-      const userSnap = await getDoc(doc(db, 'users', uid))
-      const userData = userSnap.exists() ? userSnap.data() : {}
-      const userName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || user.email
+      // Get user name from Firestore
+      let userName = user.email || 'User'
+      try {
+        const userSnap = await getDoc(doc(db, 'users', uid))
+        if (userSnap.exists()) {
+          const userData = userSnap.data()
+          const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim()
+          if (fullName) userName = fullName
+        }
+      } catch (e) {
+        console.warn('Could not fetch user name, using email:', e)
+      }
 
-      await addDoc(collection(db, 'bookings'), {
+      const bookingData = {
         providerId: bookingProvider.id,
         providerName: `${bookingProvider.first_name} ${bookingProvider.last_name}`,
-        providerTitle: bookingProvider.professional_title,
+        providerTitle: bookingProvider.professional_title || '',
         userId: uid,
         userName,
         userEmail: user.email || '',
-        date: selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-        dateTimestamp: selectedDate,
+        date: selectedDate.toLocaleDateString('en-US', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        }),
         time: selectedTime,
-        notes: bookingNotes,
+        notes: bookingNotes || '',
         status: 'pending',
         createdAt: serverTimestamp(),
-      })
+      }
+
+      console.log('Submitting booking:', bookingData)
+      const docRef = await addDoc(collection(db, 'bookings'), bookingData)
+      console.log('Booking created with ID:', docRef.id)
 
       setBookingSuccess(true)
     } catch (error) {
-      console.error('Booking error:', error)
-      alert('Failed to submit booking. Please try again.')
+      console.error('Booking submission error:', error.code, error.message)
+      if (error.code === 'permission-denied') {
+        alert('Permission denied. Please make sure you are logged in and try again.')
+      } else {
+        alert(`Failed to submit booking: ${error.message}`)
+      }
     } finally {
       setIsSubmitting(false)
     }
