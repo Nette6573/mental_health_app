@@ -4,10 +4,11 @@ import Logo from '@/components/shared/Logo'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: DashboardIcon },
-  { name: 'Chat with Paula', href: '/paula', icon: ChatIcon }, // ✅ NEW
+  { name: 'Chat with Paula', href: '/paula', icon: ChatIcon },
   { name: 'Mood Tracking', href: '/dashboard/mood', icon: MoodIcon },
   { name: 'Resources', href: '/dashboard/resources', icon: ResourcesIcon },
   { name: 'Therapists', href: '/dashboard/therapists', icon: TherapistIcon },
+  { name: 'Messages', href: '/dashboard/messages', icon: MessagesIcon },
   { name: 'Faith Resources', href: '/dashboard/faith', icon: FaithIcon },
   { name: 'Progress', href: '/dashboard/progress', icon: ProgressIcon },
   { name: 'Settings', href: '/dashboard/settings', icon: SettingsIcon },
@@ -129,6 +130,14 @@ function TherapistIcon(props) {
   return (
     <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeWidth={2} d="M12 14a7 7 0 00-7 7h14a7 7 0 00-7-7zM12 7a4 4 0 110-8 4 4 0 010 8z" />
+    </svg>
+  )
+}
+
+function MessagesIcon(props) {
+  return (
+    <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
     </svg>
   )
 }
