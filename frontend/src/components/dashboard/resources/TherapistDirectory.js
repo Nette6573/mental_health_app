@@ -7,6 +7,7 @@ import {
   collection, getDocs, doc, getDoc,
   addDoc, serverTimestamp, query, where
 } from 'firebase/firestore'
+import { auth } from '@/lib/firebase/firebaseClient'
 import {
   MapPin, Clock, DollarSign, Globe,
   Briefcase, X, ChevronLeft, ChevronRight, Send
@@ -223,6 +224,12 @@ export default function TherapistDirectory() {
     setIsSubmitting(true)
 
     try {
+      // Debug: log auth state at time of booking
+      console.log('BOOKING: user object =', user)
+      console.log('BOOKING: uid =', uid)
+      console.log('BOOKING: auth.currentUser =', auth.currentUser?.uid)
+      console.log('BOOKING: auth.currentUser.emailVerified =', auth.currentUser?.emailVerified)
+
       // Get user name from Firestore
       let userName = user.email || 'User'
       try {
