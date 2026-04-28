@@ -21,6 +21,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
+  const isSigningUp = { current: false } // flag to pause onAuthStateChanged during signup
 
   const buildUserFromFirebase = async (firebaseUser) => {
     if (!firebaseUser) return null
@@ -38,8 +39,6 @@ export function AuthProvider({ children }) {
         joinDate: profile.joinDate || firebaseUser.metadata?.creationTime || null,
         newsletter: profile.newsletter ?? false,
         role: profile.role || "user",
-        // ── flag so we know if a Firestore doc actually exists ──
-        hasUserDoc: snap.exists(),
       }
     } catch (err) {
       console.error('Error building user from Firebase:', err)
@@ -52,7 +51,6 @@ export function AuthProvider({ children }) {
         joinDate: firebaseUser.metadata?.creationTime || null,
         newsletter: false,
         role: "user",
-        hasUserDoc: false,
       }
     }
   }
@@ -60,6 +58,12 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+
+        // Skip during signup — signup manages its own auth state
+        if (isSigningUp.current) {
+          setIsLoading(false)
+          return
+        }
 
         // Block unverified email users
         if (!firebaseUser.emailVerified) {
@@ -71,8 +75,9 @@ export function AuthProvider({ children }) {
 
         const path = window.location.pathname
 
-        // ── Only restore session if already on a protected page ──
-        // Do NOT auto-login from the login or auth pages
+        // ── Do NOT auto-restore session on login/auth pages ──
+        // Each login page handles its own redirect after checking
+        // the correct Firestore collection (users or providers)
         const isLoginPage =
           path === '/' ||
           path.includes('/login') ||
@@ -80,15 +85,13 @@ export function AuthProvider({ children }) {
           path === '/admin'
 
         if (isLoginPage) {
-          // They are on a login page — do not auto-restore session
-          // Let them log in manually through the login form
           setUser(null)
           setIsLoading(false)
           return
         }
 
-        // They are already on a protected page (e.g. refreshed the dashboard)
-        // Restore their session so they don't get kicked out on refresh
+        // Already on a protected page (e.g. refreshed dashboard)
+        // Restore session so they don't get kicked out
         const appUser = await buildUserFromFirebase(firebaseUser)
         setUser(appUser)
 
@@ -121,7 +124,6 @@ export function AuthProvider({ children }) {
       const appUser = await buildUserFromFirebase(cred.user)
       setUser(appUser)
 
-      // Return the uid so login pages can check their own collection
       return { success: true, user: cred.user, uid: cred.user.uid }
     } catch (error) {
       console.error('Login error:', error)
@@ -144,30 +146,23 @@ export function AuthProvider({ children }) {
     let firebaseUser = null
     try {
       setIsLoading(true)
+      isSigningUp.current = true // pause onAuthStateChanged interference
 
-      // Step 1: Create the Firebase Auth account
-      console.log('SIGNUP STEP 1: Creating Firebase Auth account...')
+      // Step 1: Create Firebase Auth account
       const cred = await createUserWithEmailAndPassword(auth, email, password)
       firebaseUser = cred.user
-      console.log('SIGNUP STEP 1 SUCCESS: Auth account created, uid:', firebaseUser.uid)
-      console.log('SIGNUP STEP 1: emailVerified:', firebaseUser.emailVerified)
 
       // Step 2: Update display name
-      console.log('SIGNUP STEP 2: Updating display name...')
       if (firstName || lastName) {
         await firebaseUpdateProfile(firebaseUser, {
           displayName: `${firstName} ${lastName}`.trim(),
         })
       }
-      console.log('SIGNUP STEP 2 SUCCESS: Display name updated')
 
       // Step 3: Write to Firestore
-      // Using setDoc WITHOUT merge:true so Firestore treats it as a pure CREATE
-      // merge:true causes Firestore to evaluate both create AND update rules
-      // which fails because update requires uid match that isn't ready yet
-      console.log('SIGNUP STEP 3: Writing to Firestore...')
-
-      // Small delay to ensure auth token is fully propagated
+      // setDoc WITHOUT merge:true = pure CREATE operation
+      // merge:true causes Firestore to evaluate update rules too, which fails
+      // Small delay ensures auth token is fully propagated before the write
       await new Promise(resolve => setTimeout(resolve, 500))
 
       const userDocRef = doc(db, 'users', firebaseUser.uid)
@@ -179,35 +174,24 @@ export function AuthProvider({ children }) {
         joinDate: new Date().toISOString(),
         role: "user",
       })
-      console.log('SIGNUP STEP 3 SUCCESS: Firestore write complete')
 
-      // Step 4: Send verification email AFTER Firestore write
-      console.log('SIGNUP STEP 4: Sending verification email...')
+      // Step 4: Send verification email
       await sendEmailVerification(firebaseUser)
-      console.log('SIGNUP STEP 4 SUCCESS: Verification email sent')
 
-      // Step 5: Sign out so they must verify email before accessing the app
-      console.log('SIGNUP STEP 5: Signing out...')
+      // Step 5: Sign out — they must verify email before logging in
+      isSigningUp.current = false // re-enable onAuthStateChanged
       await signOut(auth)
-      console.log('SIGNUP STEP 5 SUCCESS: Signed out')
 
       return {
         success: true,
         message: "A verification link has been sent to your email.",
       }
     } catch (error) {
-      console.error('SIGNUP FAILED at error:')
-      console.error('  code:', error.code)
-      console.error('  message:', error.message)
-      console.error('  full error:', error)
+      console.error('Signup error:', error.code, error.message)
+      isSigningUp.current = false // re-enable on error too
 
-      // If Firestore write failed but Auth account was created, clean up
       if (firebaseUser) {
-        try {
-          await signOut(auth)
-        } catch (e) {
-          console.error('Cleanup signOut error:', e)
-        }
+        try { await signOut(auth) } catch (e) {}
       }
 
       let message = 'Registration failed. Please try again.'
@@ -215,8 +199,6 @@ export function AuthProvider({ children }) {
         message = 'This email is already in use. Please sign in or use a different email.'
       } else if (error.code === 'auth/weak-password') {
         message = 'Password is too weak. Please use at least 6 characters.'
-      } else if (error.code === 'permission-denied' || error.message?.includes('permission')) {
-        message = 'Account created but profile could not be saved. Please contact support.'
       }
       return { success: false, error: message }
     } finally {
@@ -224,6 +206,9 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // ----------------------------------
+  // RESET PASSWORD
+  // ----------------------------------
   const resetPassword = async (email) => {
     try {
       setIsLoading(true)
@@ -244,7 +229,9 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // ----------------------------------
   // LOGOUT
+  // ----------------------------------
   const logout = async () => {
     try {
       setIsLoading(true)
@@ -258,7 +245,9 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // ----------------------------------
   // SOCIAL LOGIN
+  // ----------------------------------
   const loginWithProvider = async (provider) => {
     try {
       setIsLoading(true)
@@ -310,7 +299,9 @@ export function AuthProvider({ children }) {
   const loginWithGoogle = () => loginWithProvider(googleProvider)
   const loginWithFacebook = () => loginWithProvider(facebookProvider)
 
+  // ----------------------------------
   // UPDATE PROFILE
+  // ----------------------------------
   const updateProfile = async (updates) => {
     if (!user) return { success: false, error: 'Not authenticated' }
     try {
@@ -324,9 +315,7 @@ export function AuthProvider({ children }) {
         const firebaseUser = auth.currentUser
         if (firebaseUser) {
           await firebaseUpdateProfile(firebaseUser, {
-            displayName: `${updates.firstName || user.firstName} ${
-              updates.lastName || user.lastName
-            }`.trim(),
+            displayName: `${updates.firstName || user.firstName} ${updates.lastName || user.lastName}`.trim(),
           })
         }
       }
