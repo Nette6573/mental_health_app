@@ -3,6 +3,7 @@
 import { db } from "@/lib/firebase/firebaseClient";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
 import {
@@ -19,6 +20,14 @@ export default function ProviderDashboardPage() {
   const [providerTitle, setProviderTitle] = useState<string>("");
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
+  const router = useRouter();
+
+  const handleLogout = () => {
+    // Clear any local storage items
+    localStorage.removeItem("activeTherapist");
+    // Replace history so back button cannot return to dashboard
+    router.replace("/provider-dashboard/login");
+  };
 
   useEffect(() => {
     const fetchProviderData = async () => {
@@ -79,7 +88,7 @@ export default function ProviderDashboardPage() {
 
         <div className="p-4 border-t border-slate-200 space-y-1 dark:border-slate-700">
           <Link href="/provider-dashboard/settings" className="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"><Settings className="w-5 h-5" />Settings</Link>
-          <button type="button" className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-red-600 hover:bg-red-50 transition-colors dark:hover:bg-red-900/20"><LogOut className="w-5 h-5" />Logout</button>
+          <button type="button" onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-red-600 hover:bg-red-50 transition-colors dark:hover:bg-red-900/20"><LogOut className="w-5 h-5" />Logout</button>
         </div>
       </aside>
 
