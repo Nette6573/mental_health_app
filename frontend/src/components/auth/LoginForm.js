@@ -35,28 +35,40 @@ export default function LoginForm() {
     e.preventDefault()
     setError('')
 
-    const result = await login(formData.email, formData.password)
+    try {
+      const result = await login(formData.email, formData.password)
 
-    if (!result.success) {
-      setError(result.error)
-      return
+      if (!result.success) {
+        setError(result.error || 'Login failed. Please try again.')
+        return
+      }
+
+      // Block unverified email users
+      if (!result.user.emailVerified) {
+        setError('Please verify your email before logging in. Check your inbox or spam folder.')
+        return
+      }
+
+      // ── Check if this person exists in the users collection ──
+      const uid = result.uid || result.user?.uid
+      if (!uid) {
+        setError('Something went wrong. Please try again.')
+        return
+      }
+
+      const userSnap = await getDoc(doc(db, 'users', uid))
+      if (!userSnap.exists()) {
+        setError('No user account found. Please sign up first, or use the Service Provider login if you are a provider.')
+        return
+      }
+
+      // All good — go to user dashboard
+      router.push('/dashboard')
+
+    } catch (err) {
+      setError('Something went wrong. Please try again.')
+      console.error('Login error:', err)
     }
-
-    // Block unverified email users
-    if (!result.user.emailVerified) {
-      setError('Please verify your email before logging in. Check your inbox or spam folder.')
-      return
-    }
-
-    // ── Check if this person exists in the users collection ──
-    const userSnap = await getDoc(doc(db, 'users', result.uid))
-    if (!userSnap.exists()) {
-      setError('No user account found. Please sign up first or log in as a Service Provider.')
-      return
-    }
-
-    // All good — go to user dashboard
-    router.push('/dashboard')
   }
 
   const handleGoogleLogin = async () => {
