@@ -2,50 +2,49 @@
 
 import { useState, useEffect } from 'react'
 import Card from '@/components/ui/Card'
-import { getMood } from "@/services/moodService";
+import { getMood } from "@/services/moodService"
+import { useAuth } from '@/context/AuthContext'
 
 const moodEmojis = {
-  1: '😢', 2: '😔', 3: '😐', 4: '🙂', 5: '😊', 
+  1: '😢', 2: '😔', 3: '😐', 4: '🙂', 5: '😊',
   6: '😄', 7: '🤩', 8: '🥰', 9: '😇', 10: '🌈'
 }
 
 export default function MoodHistory({ refreshTrigger }) {
+  const { user } = useAuth()
   const [moodEntries, setMoodEntries] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-  const fetchMoodHistory = async () => {
-    setIsLoading(true);
+    const fetchMoodHistory = async () => {
+      setIsLoading(true)
+      try {
+        const uid = user?.uid ?? user?.id
+        if (!uid) return
 
-    const uid = localStorage.getItem("uid");
+        const data = await getMood(uid)
+        const sorted = [...data.mood_log].sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
+        setMoodEntries(sorted.slice(0, 10))
+      } catch (err) {
+        console.error("MoodHistory fetch error:", err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-    if (!uid) return;
-
-    const data = await getMood(uid);
-
-    const sorted = data.mood_log
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    setMoodEntries(sorted.slice(0, 10));
-    setIsLoading(false);
-  };
-
-  fetchMoodHistory();
-}, [refreshTrigger]);
+    fetchMoodHistory()
+  }, [refreshTrigger, user])
 
   const formatDate = (dateString) => {
     const date = new Date(dateString)
     const now = new Date()
-    const diffTime = Math.abs(now - date)
+    const diffTime = Math.abs(now.getTime() - date.getTime())
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
     if (diffDays === 1) return 'Yesterday'
     if (diffDays < 7) return `${diffDays} days ago`
-    
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric'
-    })
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
   const getMoodColor = (mood) => {
@@ -79,12 +78,8 @@ export default function MoodHistory({ refreshTrigger }) {
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Recent Mood Entries
-        </h2>
-        <span className="text-sm text-gray-500 dark:text-gray-400">
-          {moodEntries.length} entries
-        </span>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Mood Entries</h2>
+        <span className="text-sm text-gray-500 dark:text-gray-400">{moodEntries.length} entries</span>
       </div>
 
       <div className="space-y-4">
@@ -95,27 +90,20 @@ export default function MoodHistory({ refreshTrigger }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              No mood entries yet
-            </h4>
-            <p className="text-gray-600 dark:text-gray-400">
-              Start tracking your mood to see your history here.
-            </p>
+            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No mood entries yet</h4>
+            <p className="text-gray-600 dark:text-gray-400">Start tracking your mood to see your history here.</p>
           </div>
         ) : (
-          moodEntries.map(entry => (
-            <div key={entry.id} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+          moodEntries.map((entry, index) => (
+            <div key={entry.id || index} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
               <div className="flex-shrink-0">
                 <div className="w-12 h-12 bg-white dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 flex items-center justify-center text-2xl">
                   {moodEmojis[entry.mood]}
                 </div>
               </div>
-              
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-2 mb-1">
-                  <span className={`text-lg font-bold ${getMoodColor(entry.mood)}`}>
-                    {entry.mood}/10
-                  </span>
+                  <span className={`text-lg font-bold ${getMoodColor(entry.mood)}`}>{entry.mood}/10</span>
                   {entry.activities && entry.activities.length > 0 && (
                     <span className="text-xs text-gray-500 dark:text-gray-400">
                       • {entry.activities.slice(0, 2).join(', ')}
@@ -123,26 +111,16 @@ export default function MoodHistory({ refreshTrigger }) {
                     </span>
                   )}
                 </div>
-                
                 {entry.note && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                    {entry.note}
-                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{entry.note}</p>
                 )}
-                
                 <div className="flex items-center space-x-4 mt-1">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatDate(entry.timestamp)}
-                  </span>
-                  {entry.sleepHours && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      💤 {entry.sleepHours}h
-                    </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{formatDate(entry.date)}</span>
+                  {entry.sleepHours > 0 && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">💤 {entry.sleepHours}h</span>
                   )}
-                  {entry.stressLevel && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      🎯 Stress: {entry.stressLevel}/10
-                    </span>
+                  {entry.stressLevel > 0 && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">🎯 Stress: {entry.stressLevel}/10</span>
                   )}
                 </div>
               </div>
@@ -150,14 +128,6 @@ export default function MoodHistory({ refreshTrigger }) {
           ))
         )}
       </div>
-
-      {moodEntries.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <button className="w-full text-center text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 text-sm font-medium">
-            View All Entries
-          </button>
-        </div>
-      )}
     </Card>
   )
 }
