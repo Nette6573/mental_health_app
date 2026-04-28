@@ -63,43 +63,34 @@ export function AuthProvider({ children }) {
 
         // Block unverified email users
         if (!firebaseUser.emailVerified) {
-          setUser(null)
-          setIsLoading(false)
-          return
-        }
-
-        const appUser = await buildUserFromFirebase(firebaseUser)
-
-        // ── Check which collection this user belongs to ──
-        // Check providers collection first
-        const providerSnap = await getDoc(doc(db, 'providers', firebaseUser.uid))
-        const userSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
-
-        // If they exist in neither collection, sign them out
-        if (!providerSnap.exists() && !userSnap.exists()) {
           await signOut(auth)
           setUser(null)
           setIsLoading(false)
           return
         }
 
-        // Set role based on which collection they exist in
-        if (providerSnap.exists()) {
-          appUser.role = "provider"
-        }
-
-        setUser(appUser)
-
         const path = window.location.pathname
 
-        // Only redirect if they are on a login/auth page
-        if (path === '/' || path.includes('/login') || path.includes('/auth')) {
-          if (appUser.role === "provider") {
-            router.replace('/provider-dashboard')
-          } else {
-            router.replace('/dashboard')
-          }
+        // ── Only restore session if already on a protected page ──
+        // Do NOT auto-login from the login or auth pages
+        const isLoginPage =
+          path === '/' ||
+          path.includes('/login') ||
+          path.includes('/auth') ||
+          path === '/admin'
+
+        if (isLoginPage) {
+          // They are on a login page — do not auto-restore session
+          // Let them log in manually through the login form
+          setUser(null)
+          setIsLoading(false)
+          return
         }
+
+        // They are already on a protected page (e.g. refreshed the dashboard)
+        // Restore their session so they don't get kicked out on refresh
+        const appUser = await buildUserFromFirebase(firebaseUser)
+        setUser(appUser)
 
       } else {
         setUser(null)
@@ -120,35 +111,18 @@ export function AuthProvider({ children }) {
 
       if (!cred.user.emailVerified) {
         await signOut(auth)
+        setUser(null)
         return {
           success: false,
           error: "Please verify your email before signing in.",
         }
       }
 
-      // ── Check which collection this user belongs to ──
-      const providerSnap = await getDoc(doc(db, 'providers', cred.user.uid))
-      const userSnap = await getDoc(doc(db, 'users', cred.user.uid))
-
-      // If they exist in neither collection, block login
-      if (!providerSnap.exists() && !userSnap.exists()) {
-        await signOut(auth)
-        return {
-          success: false,
-          error: "No account found. Please sign up first.",
-        }
-      }
-
       const appUser = await buildUserFromFirebase(cred.user)
-
-      // Override role based on which collection they exist in
-      if (providerSnap.exists()) {
-        appUser.role = "provider"
-      }
-
       setUser(appUser)
 
-      return { success: true, user: cred.user }
+      // Return the uid so login pages can check their own collection
+      return { success: true, user: cred.user, uid: cred.user.uid }
     } catch (error) {
       console.error('Login error:', error)
       let message = 'Login failed. Please try again.'
