@@ -18,7 +18,8 @@ import {
 
 // One uploaded document — stored in Firebase as part of provider's record
 type UploadedDoc = {
-  url: string;          // Cloudinary direct URL
+  url: string;          // Cloudinary original URL stored in Firebase
+  viewUrl: string;      // URL used when clicking View (handles PDFs)
   publicId: string;     // Cloudinary public ID
   documentType: string; // e.g. "Professional License"
   fileName: string;
@@ -97,8 +98,8 @@ export default function ProviderCredentialsPage() {
 
         if (providerSnap.exists()) {
           const data = providerSnap.data();
-          // credentials_documents is an array of UploadedDoc objects saved in Firebase
-          setUploadedDocuments(data.credentials_documents || []);
+          // credentials is an array of UploadedDoc objects saved in Firebase
+          setUploadedDocuments(data.credentials || []);
         }
       } catch (error) {
         console.error("Error loading documents:", error);
@@ -115,7 +116,7 @@ export default function ProviderCredentialsPage() {
     if (!user) return;
     const uid = user.uid ?? user.id;
     const providerRef = doc(db, "providers", uid);
-    await setDoc(providerRef, { credentials_documents: docs }, { merge: true });
+    await setDoc(providerRef, { credentials: docs }, { merge: true });
   };
 
   const toggleDarkMode = () => {
@@ -149,9 +150,11 @@ export default function ProviderCredentialsPage() {
       setIsUploading(true);
 
       // 1. Send file to our API route which uploads to Cloudinary
+      const uid = user.uid ?? user.id;
       const formData = new FormData();
       formData.append("file", file);
       formData.append("documentType", documentType);
+      formData.append("providerId", uid); // so files are organized by provider in Cloudinary
 
       const res = await fetch("/api/credentials/upload", {
         method: "POST",
@@ -163,7 +166,8 @@ export default function ProviderCredentialsPage() {
 
       // 2. Build the new document record
       const newDoc: UploadedDoc = {
-        url: data.url,               // Cloudinary URL
+        url: data.url,
+        viewUrl: data.viewUrl,   // viewable URL (handles PDFs correctly)
         publicId: data.publicId,
         documentType,
         fileName: file.name,
@@ -207,9 +211,9 @@ export default function ProviderCredentialsPage() {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openFilePicker(); }
   };
 
-  // ── View — just open the Cloudinary URL directly in a new tab ──
+  // ── View — open viewUrl which handles PDFs correctly ──
   const viewDocument = (doc: UploadedDoc) => {
-    window.open(doc.url, "_blank");
+    window.open(doc.viewUrl || doc.url, "_blank");
   };
 
   // ── Remove document from list and update Firebase ──
