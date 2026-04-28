@@ -20,6 +20,7 @@ export default function SignupForm() {
     newsletter: true,
   })
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
   const { signup, loginWithGoogle, loginWithFacebook, isLoading } = useAuth()
   const router = useRouter()
@@ -36,6 +37,7 @@ export default function SignupForm() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setSuccessMessage('')
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
@@ -61,7 +63,22 @@ export default function SignupForm() {
     })
 
     if (result.success) {
-      router.push('/dashboard')
+      // ── Show success message — do NOT redirect ──
+      // User must verify their email first before they can log in
+      setSuccessMessage(
+        result.message ||
+        'Account created successfully! Please check your email for a verification link before signing in.'
+      )
+      // Clear the form
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        acceptTerms: false,
+        newsletter: true,
+      })
     } else {
       setError(result.error)
     }
@@ -89,187 +106,178 @@ export default function SignupForm() {
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
+
+      {/* Error message */}
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
           <div className="flex items-center">
-            <svg
-              className="w-5 h-5 text-red-400 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
+            <svg className="w-5 h-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <Input
-          label="First name"
-          name="firstName"
-          type="text"
-          autoComplete="given-name"
-          required
-          placeholder="First name"
-          value={formData.firstName}
-          onChange={handleChange}
-        />
-        <Input
-          label="Last name"
-          name="lastName"
-          type="text"
-          autoComplete="family-name"
-          required
-          placeholder="Last name"
-          value={formData.lastName}
-          onChange={handleChange}
-        />
-      </div>
-
-      <Input
-        label="Email address"
-        name="email"
-        type="email"
-        autoComplete="email"
-        required
-        placeholder="Enter your email"
-        value={formData.email}
-        onChange={handleChange}
-        icon={MailIcon}
-      />
-
-      <Input
-        label="Password"
-        name="password"
-        type="password"
-        autoComplete="new-password"
-        required
-        placeholder="Create a password (min. 6 characters)"
-        value={formData.password}
-        onChange={handleChange}
-        icon={LockIcon}
-      />
-
-      <Input
-        label="Confirm password"
-        name="confirmPassword"
-        type="password"
-        autoComplete="new-password"
-        required
-        placeholder="Confirm your password"
-        value={formData.confirmPassword}
-        onChange={handleChange}
-        icon={LockIcon}
-      />
-
-      <div className="space-y-4">
-        <Checkbox
-          name="acceptTerms"
-          label={
-            <span>
-              I agree to the{' '}
+      {/* Success message — shown after successful signup */}
+      {successMessage && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-green-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                Account created successfully!
+              </p>
+              <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+                {successMessage}
+              </p>
+              <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+                If you don&apos;t see the email, please check your spam folder.
+              </p>
               <Link
-                href="/terms"
-                className="text-primary-600 hover:text-primary-500 dark:text-primary-400"
+                href="/auth/login"
+                className="inline-block mt-3 text-sm font-medium text-green-700 underline hover:text-green-600 dark:text-green-400"
               >
-                Terms of Service
-              </Link>{' '}
-              and{' '}
-              <Link
-                href="/privacy"
-                className="text-primary-600 hover:text-primary-500 dark:text-primary-400"
-              >
-                Privacy Policy
+                Go to Sign In →
               </Link>
-            </span>
-          }
-          required
-          checked={formData.acceptTerms}
-          onChange={handleChange}
-        />
-        <Checkbox
-          name="newsletter"
-          label="Send me mental health resources and updates"
-          checked={formData.newsletter}
-          onChange={handleChange}
-        />
-      </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-      <Button
-        type="submit"
-        variant="primary"
-        className="w-full justify-center py-3 text-base font-medium"
-        loading={isLoading}
-      >
-        {isLoading ? 'Creating account...' : 'Create account'}
-      </Button>
+      {/* Only show form fields if not yet successful */}
+      {!successMessage && (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="First name"
+              name="firstName"
+              type="text"
+              autoComplete="given-name"
+              required
+              placeholder="First name"
+              value={formData.firstName}
+              onChange={handleChange}
+            />
+            <Input
+              label="Last name"
+              name="lastName"
+              type="text"
+              autoComplete="family-name"
+              required
+              placeholder="Last name"
+              value={formData.lastName}
+              onChange={handleChange}
+            />
+          </div>
 
-      <SocialLogin
-        onGoogleLogin={handleGoogleLogin}
-        onFacebookLogin={handleFacebookLogin}
-        loading={isLoading}
-      />
+          <Input
+            label="Email address"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="Enter your email"
+            value={formData.email}
+            onChange={handleChange}
+            icon={MailIcon}
+          />
+
+          <Input
+            label="Password"
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            required
+            placeholder="Create a password (min. 6 characters)"
+            value={formData.password}
+            onChange={handleChange}
+            icon={LockIcon}
+          />
+
+          <Input
+            label="Confirm password"
+            name="confirmPassword"
+            type="password"
+            autoComplete="new-password"
+            required
+            placeholder="Confirm your password"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            icon={LockIcon}
+          />
+
+          <div className="space-y-4">
+            <Checkbox
+              name="acceptTerms"
+              label={
+                <span>
+                  I agree to the{' '}
+                  <Link href="/terms" className="text-primary-600 hover:text-primary-500 dark:text-primary-400">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link href="/privacy" className="text-primary-600 hover:text-primary-500 dark:text-primary-400">
+                    Privacy Policy
+                  </Link>
+                </span>
+              }
+              required
+              checked={formData.acceptTerms}
+              onChange={handleChange}
+            />
+            <Checkbox
+              name="newsletter"
+              label="Send me mental health resources and updates"
+              checked={formData.newsletter}
+              onChange={handleChange}
+            />
+          </div>
+
+          <Button
+            type="submit"
+            variant="primary"
+            className="w-full justify-center py-3 text-base font-medium"
+            loading={isLoading}
+          >
+            {isLoading ? 'Creating account...' : 'Create account'}
+          </Button>
+
+          <SocialLogin
+            onGoogleLogin={handleGoogleLogin}
+            onFacebookLogin={handleFacebookLogin}
+            loading={isLoading}
+          />
+        </>
+      )}
 
       <div className="text-center">
         <p className="text-sm text-gray-600 dark:text-gray-400">
           Already have an account?{' '}
-          <Link
-            href="/auth/login"
-            className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
-          >
+          <Link href="/auth/login" className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors">
             Sign in
           </Link>
         </p>
-        
-        {/* NEW LINE ADDED BELOW */}
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-          <Link
-            href="/provider-dashboard/signup"
-            className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
-          >
+          <Link href="/provider-dashboard/signup" className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors">
             Sign up as a Service Provider
           </Link>
         </p>
-
-        {/* <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-          <Link
-            href="/admin-dashboard"
-            className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
-          >
-            Sign up as an Admin
-          </Link>
-        </p> */}
       </div>
     </form>
   )
 }
 
-// Icons
 const MailIcon = (props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-    />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
   </svg>
 )
 
 const LockIcon = (props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-    />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
   </svg>
 )
