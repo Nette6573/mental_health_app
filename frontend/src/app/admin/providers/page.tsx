@@ -6,7 +6,7 @@ import { useAdminAuth } from '@/context/AdminAuthContext'
 import { db } from '@/lib/firebase/firebaseClient'
 import {
   collection, getDocs, doc, getDoc,
-  updateDoc, setDoc, serverTimestamp
+  updateDoc, serverTimestamp, query, where
 } from 'firebase/firestore'
 
 const Icon = ({ path, size = 16 }: { path: string; size?: number }) => (
@@ -23,14 +23,9 @@ const icons = {
   trash: 'M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6',
   unlock: 'M8 11V7a4 4 0 018 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z',
   mail: 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6',
-  phone: 'M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.67A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 8.91a16 16 0 006.18 6.18l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z',
-  map: 'M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z M12 10a1 1 0 100-2 1 1 0 000 2',
-  calendar: 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18',
-  briefcase: 'M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2',
-  clock: 'M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2',
+  back: 'M19 12H5M12 5l-7 7 7 7',
   check: 'M20 6L9 17l-5-5',
   alert: 'M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01',
-  back: 'M19 12H5M12 5l-7 7 7 7',
 }
 
 function Badge({ children, type = 'blue' }: { children: React.ReactNode; type?: string }) {
@@ -42,12 +37,7 @@ function Badge({ children, type = 'blue' }: { children: React.ReactNode; type?: 
     purple: { background: 'rgba(139,92,246,0.1)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.2)' },
   }
   return (
-    <span style={{
-      ...styles[type],
-      display: 'inline-flex', alignItems: 'center',
-      padding: '2px 9px', borderRadius: 20,
-      fontSize: 11.5, fontWeight: 600,
-    }}>
+    <span style={{ ...styles[type], display: 'inline-flex', alignItems: 'center', padding: '2px 9px', borderRadius: 20, fontSize: 11.5, fontWeight: 600 }}>
       {children}
     </span>
   )
@@ -87,27 +77,34 @@ export default function AdminProvidersPage() {
 
   const openDrawer = async (provider: any) => {
     setSelectedProvider(provider)
+    setDrawerData(null)
     setDrawerLoading(true)
     setActiveTab('overview')
     setActionMsg('')
     setConfirmDelete(false)
     try {
+      // Query provider_services where provider_id == provider.id
+      const servicesQuery = query(
+        collection(db, 'provider_services'),
+        where('provider_id', '==', provider.id)
+      )
       const [availSnap, servicesSnap, settingsSnap] = await Promise.all([
         getDoc(doc(db, 'provider_availability', provider.id)),
-        getDocs(collection(db, 'provider_services')),
+        getDocs(servicesQuery),
         getDoc(doc(db, 'provider_settings', provider.id)),
       ])
-      const services = servicesSnap.docs
-        .filter(d => d.data().provider_id === provider.id)
-        .map(d => ({ id: d.id, ...d.data() }))
+
+      console.log('Availability exists:', availSnap.exists(), availSnap.data())
+      console.log('Services count:', servicesSnap.size)
+      console.log('Settings exists:', settingsSnap.exists(), settingsSnap.data())
 
       setDrawerData({
         availability: availSnap.exists() ? availSnap.data() : null,
-        services,
+        services: servicesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
         settings: settingsSnap.exists() ? settingsSnap.data() : null,
       })
     } catch (e) {
-      console.error(e)
+      console.error('Drawer fetch error:', e)
     } finally {
       setDrawerLoading(false)
     }
@@ -204,14 +201,21 @@ export default function AdminProvidersPage() {
         .page-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: #e6edf3; }
         .page-sub { font-size: 13px; color: #8b949e; margin-top: 3px; }
 
+        .back-btn {
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 7px 14px; border-radius: 9px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          color: #8b949e; cursor: pointer; font-size: 13px;
+          font-weight: 500; transition: all 0.15s;
+          margin-bottom: 16px;
+          font-family: 'DM Sans', sans-serif;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.07); color: #c9d1d9; border-color: rgba(255,255,255,0.12); }
+
         .search-wrap { position: relative; display: flex; align-items: center; }
         .search-icon { position: absolute; left: 10px; color: #8b949e; pointer-events: none; }
-        .search-input {
-          background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 10px; padding: 8px 14px 8px 34px;
-          font-size: 13px; color: #c9d1d9; outline: none; width: 240px;
-          font-family: 'DM Sans', sans-serif; transition: border-color 0.2s;
-        }
+        .search-input { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 8px 14px 8px 34px; font-size: 13px; color: #c9d1d9; outline: none; width: 240px; font-family: 'DM Sans', sans-serif; transition: border-color 0.2s; }
         .search-input::placeholder { color: #8b949e; }
         .search-input:focus { border-color: rgba(37,150,190,0.4); }
 
@@ -236,29 +240,14 @@ export default function AdminProvidersPage() {
         .btn-green { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25); color: #34d399; }
         .btn-green:hover { background: rgba(16,185,129,0.18); }
 
-        /* Drawer */
         .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 80; }
-        .drawer {
-          position: fixed; top: 0; right: 0; bottom: 0; z-index: 90;
-          width: 520px; max-width: 100vw;
-          background: #161b22;
-          border-left: 1px solid rgba(255,255,255,0.07);
-          display: flex; flex-direction: column;
-          animation: slideInRight 0.25s ease;
-          overflow: hidden;
-        }
+        .drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 90; width: 520px; max-width: 100vw; background: #161b22; border-left: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; animation: slideInRight 0.25s ease; overflow: hidden; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        .drawer-header {
-          padding: 20px 24px;
-          border-bottom: 1px solid rgba(255,255,255,0.06);
-          display: flex; align-items: center; gap: 14px;
-          background: rgba(13,17,23,0.8);
-          flex-shrink: 0;
-        }
+        .drawer-header { padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 14px; background: rgba(13,17,23,0.8); flex-shrink: 0; }
         .drawer-body { flex: 1; overflow-y: auto; padding: 0; }
 
-        .tabs { display: flex; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(13,17,23,0.5); flex-shrink: 0; }
+        .tabs { display: flex; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(13,17,23,0.5); flex-shrink: 0; overflow-x: auto; }
         .tab { padding: 12px 18px; font-size: 13px; font-weight: 500; color: #8b949e; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; background: none; border-top: none; border-left: none; border-right: none; }
         .tab.active { color: #2596be; border-bottom-color: #2596be; }
         .tab:hover:not(.active) { color: #c9d1d9; }
@@ -272,24 +261,24 @@ export default function AdminProvidersPage() {
         .info-item-label { font-size: 10.5px; color: #8b949e; margin-bottom: 4px; font-weight: 500; }
         .info-item-value { font-size: 13px; color: #e6edf3; font-weight: 500; }
 
-        .day-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 13px; }
+        .day-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 13px; }
         .day-row:last-child { border-bottom: none; }
 
-        .service-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+        .service-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 14px; margin-bottom: 10px; }
         .service-card:last-child { margin-bottom: 0; }
 
         .action-row { display: flex; gap: 10px; flex-wrap: wrap; }
-
         .confirm-box { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 12px; padding: 14px 16px; margin-top: 12px; }
         .confirm-text { font-size: 13px; color: #f87171; margin-bottom: 12px; }
         .confirm-btns { display: flex; gap: 8px; }
-
         .msg-box { padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-top: 12px; }
         .msg-success { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); color: #34d399; }
         .msg-error { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #f87171; }
 
         .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: #2596be; border-radius: 50%; animation: spin 0.7s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-state { padding: 32px 0; text-align: center; color: #8b949e; font-size: 13px; }
 
         @media (max-width: 640px) {
           .drawer { width: 100vw; }
@@ -298,6 +287,13 @@ export default function AdminProvidersPage() {
       `}</style>
 
       <div className="page">
+
+        {/* ── Back button ── */}
+        <button className="back-btn" onClick={() => router.push('/admin/dashboard')}>
+          <Icon path={icons.back} size={14} />
+          Back to Dashboard
+        </button>
+
         {/* Header */}
         <div className="page-header">
           <div>
@@ -371,13 +367,12 @@ export default function AdminProvidersPage() {
         </div>
       </div>
 
-      {/* Drawer */}
+      {/* ── DRAWER ── */}
       {selectedProvider && (
         <>
           <div className="drawer-overlay" onClick={() => setSelectedProvider(null)} />
           <div className="drawer">
 
-            {/* Drawer Header */}
             <div className="drawer-header">
               {selectedProvider.profile_photo_url ? (
                 <img src={selectedProvider.profile_photo_url} alt="" style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }} />
@@ -395,7 +390,6 @@ export default function AdminProvidersPage() {
               </button>
             </div>
 
-            {/* Tabs */}
             <div className="tabs">
               {['overview', 'availability', 'services', 'settings', 'actions'].map(tab => (
                 <button key={tab} className={`tab${activeTab === tab ? ' active' : ''}`} onClick={() => setActiveTab(tab)}>
@@ -404,7 +398,6 @@ export default function AdminProvidersPage() {
               ))}
             </div>
 
-            {/* Drawer Body */}
             <div className="drawer-body">
               {drawerLoading ? (
                 <div style={{ padding: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: '#8b949e' }}>
@@ -412,7 +405,7 @@ export default function AdminProvidersPage() {
                 </div>
               ) : (
                 <>
-                  {/* OVERVIEW TAB */}
+                  {/* OVERVIEW */}
                   {activeTab === 'overview' && (
                     <>
                       <div className="drawer-section">
@@ -437,14 +430,12 @@ export default function AdminProvidersPage() {
                           ) : null)}
                         </div>
                       </div>
-
                       {selectedProvider.biography && (
                         <div className="drawer-section">
                           <div className="section-label">Biography</div>
                           <p style={{ fontSize: 13, color: '#c9d1d9', lineHeight: 1.7 }}>{selectedProvider.biography}</p>
                         </div>
                       )}
-
                       {Array.isArray(selectedProvider.practice_areas) && selectedProvider.practice_areas.length > 0 && (
                         <div className="drawer-section">
                           <div className="section-label">Practice Areas</div>
@@ -458,11 +449,11 @@ export default function AdminProvidersPage() {
                     </>
                   )}
 
-                  {/* AVAILABILITY TAB */}
+                  {/* AVAILABILITY */}
                   {activeTab === 'availability' && (
                     <div className="drawer-section">
                       {!drawerData?.availability ? (
-                        <p style={{ color: '#8b949e', fontSize: 13 }}>No availability set.</p>
+                        <div className="empty-state">No availability data found for this provider.</div>
                       ) : (
                         <>
                           <div className="section-label">Weekly Schedule</div>
@@ -471,9 +462,7 @@ export default function AdminProvidersPage() {
                             return (
                               <div key={day} className="day-row">
                                 <span style={{ color: '#c9d1d9', fontWeight: 500, textTransform: 'capitalize' }}>{day}</span>
-                                <span style={{ color: decoded ? '#34d399' : '#8b949e' }}>
-                                  {decoded || 'Unavailable'}
-                                </span>
+                                <span style={{ color: decoded ? '#34d399' : '#8b949e' }}>{decoded || 'Unavailable'}</span>
                               </div>
                             )
                           })}
@@ -498,7 +487,7 @@ export default function AdminProvidersPage() {
                           {drawerData.availability.blocked_dates && (() => {
                             try {
                               const blocked = JSON.parse(drawerData.availability.blocked_dates)
-                              if (blocked.length === 0) return null
+                              if (!blocked.length) return null
                               return (
                                 <div style={{ marginTop: 20 }}>
                                   <div className="section-label">Blocked Dates</div>
@@ -517,21 +506,23 @@ export default function AdminProvidersPage() {
                     </div>
                   )}
 
-                  {/* SERVICES TAB */}
+                  {/* SERVICES */}
                   {activeTab === 'services' && (
                     <div className="drawer-section">
                       <div className="section-label">Services ({drawerData?.services?.length || 0})</div>
                       {!drawerData?.services?.length ? (
-                        <p style={{ color: '#8b949e', fontSize: 13 }}>No services added yet.</p>
+                        <div className="empty-state">No services added yet.</div>
                       ) : (
                         drawerData.services.map((s: any) => (
                           <div key={s.id} className="service-card">
-                            <div style={{ fontWeight: 600, color: '#e6edf3', marginBottom: 6 }}>{s.name || s.title || 'Service'}</div>
-                            {s.description && <p style={{ fontSize: 12.5, color: '#8b949e', lineHeight: 1.6 }}>{s.description}</p>}
-                            <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                            <div style={{ fontWeight: 600, color: '#e6edf3', marginBottom: 6 }}>{s.name || s.service_name || s.title || 'Service'}</div>
+                            {s.description && <p style={{ fontSize: 12.5, color: '#8b949e', lineHeight: 1.6, marginBottom: 8 }}>{s.description}</p>}
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                               {s.price && <Badge type="green">JMD {s.price}</Badge>}
+                              {s.cost && <Badge type="green">JMD {s.cost}</Badge>}
                               {s.duration && <Badge type="blue">{s.duration}</Badge>}
                               {s.type && <Badge type="purple">{s.type}</Badge>}
+                              {s.session_type && <Badge type="purple">{s.session_type}</Badge>}
                             </div>
                           </div>
                         ))
@@ -539,11 +530,11 @@ export default function AdminProvidersPage() {
                     </div>
                   )}
 
-                  {/* SETTINGS TAB */}
+                  {/* SETTINGS */}
                   {activeTab === 'settings' && (
                     <div className="drawer-section">
                       {!drawerData?.settings ? (
-                        <p style={{ color: '#8b949e', fontSize: 13 }}>No settings data.</p>
+                        <div className="empty-state">No settings data found for this provider.</div>
                       ) : (
                         <>
                           <div className="section-label">Account Settings</div>
@@ -551,9 +542,9 @@ export default function AdminProvidersPage() {
                             {[
                               { label: 'Timezone', value: drawerData.settings.timezone },
                               { label: 'Language', value: drawerData.settings.settings_language },
-                              { label: 'Email Notifications', value: drawerData.settings.email_notification ? 'Enabled' : 'Disabled' },
-                              { label: 'SMS Notifications', value: drawerData.settings.sms_notification ? 'Enabled' : 'Disabled' },
-                              { label: 'Appointment Reminders', value: drawerData.settings.appointment_reminders ? 'Enabled' : 'Disabled' },
+                              { label: 'Email Notifications', value: drawerData.settings.email_notification !== undefined ? (drawerData.settings.email_notification ? 'Enabled' : 'Disabled') : null },
+                              { label: 'SMS Notifications', value: drawerData.settings.sms_notification !== undefined ? (drawerData.settings.sms_notification ? 'Enabled' : 'Disabled') : null },
+                              { label: 'Appointment Reminders', value: drawerData.settings.appointment_reminders !== undefined ? (drawerData.settings.appointment_reminders ? 'Enabled' : 'Disabled') : null },
                               { label: 'Last Login', value: drawerData.settings.last_login ? new Date(drawerData.settings.last_login).toLocaleString() : null },
                             ].map(item => item.value ? (
                               <div key={item.label} className="info-item">
@@ -567,7 +558,7 @@ export default function AdminProvidersPage() {
                     </div>
                   )}
 
-                  {/* ACTIONS TAB */}
+                  {/* ACTIONS */}
                   {activeTab === 'actions' && (
                     <div className="drawer-section">
                       <div className="section-label">Account Actions</div>
@@ -580,20 +571,11 @@ export default function AdminProvidersPage() {
                           {actionLoading === 'disable' ? <div className="spinner" /> : <Icon path={selectedProvider.disabled ? icons.unlock : icons.lock} size={12} />}
                           {selectedProvider.disabled ? 'Enable Account' : 'Disable Account'}
                         </button>
-
-                        <button
-                          className="action-btn btn-blue"
-                          onClick={handleResetPassword}
-                          disabled={actionLoading === 'reset'}
-                        >
+                        <button className="action-btn btn-blue" onClick={handleResetPassword} disabled={actionLoading === 'reset'}>
                           {actionLoading === 'reset' ? <div className="spinner" /> : <Icon path={icons.mail} size={12} />}
                           Reset Password
                         </button>
-
-                        <button
-                          className="action-btn btn-red"
-                          onClick={() => setConfirmDelete(true)}
-                        >
+                        <button className="action-btn btn-red" onClick={() => setConfirmDelete(true)}>
                           <Icon path={icons.trash} size={12} />
                           Delete Account
                         </button>
@@ -604,18 +586,14 @@ export default function AdminProvidersPage() {
                           <div className="confirm-text">Are you sure you want to permanently delete this account? This cannot be undone.</div>
                           <div className="confirm-btns">
                             <button className="action-btn btn-red" onClick={handleDelete} disabled={actionLoading === 'delete'}>
-                              {actionLoading === 'delete' ? <div className="spinner" /> : null}
-                              Yes, Delete
+                              {actionLoading === 'delete' ? <div className="spinner" /> : null} Yes, Delete
                             </button>
                             <button className="action-btn btn-blue" onClick={() => setConfirmDelete(false)}>Cancel</button>
                           </div>
                         </div>
                       )}
-
                       {actionMsg && (
-                        <div className={`msg-box ${actionMsg.includes('Failed') ? 'msg-error' : 'msg-success'}`}>
-                          {actionMsg}
-                        </div>
+                        <div className={`msg-box ${actionMsg.includes('Failed') ? 'msg-error' : 'msg-success'}`}>{actionMsg}</div>
                       )}
                     </div>
                   )}
