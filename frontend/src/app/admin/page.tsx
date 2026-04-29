@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAdminAuth } from '@/contexts/AdminAuthContext'
+import { useAdminAuth } from '../context/AdminAuthContext'
 
 export default function AdminLoginPage() {
   const { state, login, clearError } = useAdminAuth()
