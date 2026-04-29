@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useAdminAuth } from '@/context/AdminAuthContext'
 import { db } from '@/lib/firebase/firebaseClient'
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore'
+import { sendPasswordResetEmail } from 'firebase/auth'
+import { auth as firebaseAuth } from '@/lib/firebase/firebaseClient'
 import Image from 'next/image'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -24,6 +26,8 @@ const icons = {
   applications: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8',
   faith: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
   reports: 'M9 17v-2m3 2v-4m3 4v-6M3 3h18v18H3z',
+  settings: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z',
+  mail: 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6',
   logout: 'M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9',
   menu: 'M3 12h18M3 6h18M3 18h18',
   bell: 'M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0',
@@ -133,6 +137,10 @@ export default function AdminDashboardPage() {
   const [users, setUsers] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetError, setResetError] = useState('')
 
   // ── Auth guard ──
   useEffect(() => {
@@ -170,10 +178,26 @@ export default function AdminDashboardPage() {
     { id: 'applications', label: 'Applications', icon: <Icon path={icons.applications} size={16} />, badge: bookings.filter((b: any) => b.status === 'pending').length || undefined },
     { id: 'faith', label: 'Faith Resources', icon: <Icon path={icons.faith} size={16} /> },
     { id: 'reports', label: 'Reports', icon: <Icon path={icons.reports} size={16} /> },
+    { id: 'settings', label: 'Settings', icon: <Icon path={icons.settings} size={16} /> },
   ]
 
   const admin = state.admin
   const initials = `${admin?.firstName?.[0] || ''}${admin?.lastName?.[0] || ''}`.toUpperCase() || 'SA'
+
+  const handleResetPassword = async () => {
+    if (!admin?.email) return
+    setResetLoading(true)
+    setResetError('')
+    try {
+      await sendPasswordResetEmail(firebaseAuth, admin.email)
+      setResetSent(true)
+    } catch (error: any) {
+      setResetError('Failed to send reset email. Please try again.')
+      console.error('Reset error:', error)
+    } finally {
+      setResetLoading(false)
+    }
+  }
 
   if (state.isLoading) {
     return (
@@ -197,7 +221,8 @@ export default function AdminDashboardPage() {
         ::-webkit-scrollbar-track { background: #161b22; }
         ::-webkit-scrollbar-thumb { background: #2a3441; border-radius: 4px; }
 
-        .layout { display: flex; min-height: 100vh; }
+        html, body { width: 100%; margin: 0; padding: 0; }
+        .layout { display: flex; min-height: 100vh; width: 100%; }
 
         /* Sidebar */
         .sidebar {
@@ -207,6 +232,7 @@ export default function AdminDashboardPage() {
           position: fixed; top: 0; left: 0; z-index: 50;
           display: flex; flex-direction: column;
           transition: transform 0.25s ease;
+          flex-shrink: 0;
         }
         .sidebar-logo {
           padding: 20px 18px 16px;
@@ -286,7 +312,15 @@ export default function AdminDashboardPage() {
         .logout-btn:hover { color: #ef4444; background: rgba(239,68,68,0.08); }
 
         /* Main */
-        .main { margin-left: 240px; display: flex; flex-direction: column; min-height: 100vh; }
+        .main {
+          margin-left: 240px;
+          display: flex;
+          flex-direction: column;
+          min-height: 100vh;
+          width: calc(100% - 240px);
+          min-width: 0;
+          overflow-x: hidden;
+        }
 
         /* Topbar */
         .topbar {
@@ -344,7 +378,7 @@ export default function AdminDashboardPage() {
         }
 
         /* Page content */
-        .page { padding: 24px; flex: 1; }
+        .page { padding: 24px; flex: 1; width: 100%; box-sizing: border-box; }
         .page-header { margin-bottom: 24px; }
         .page-title { font-size: 20px; font-weight: 800; color: #e6edf3; margin-bottom: 3px; }
         .page-sub { font-size: 13px; color: #8b949e; }
@@ -355,6 +389,7 @@ export default function AdminDashboardPage() {
           grid-template-columns: repeat(4, 1fr);
           gap: 14px;
           margin-bottom: 22px;
+          width: 100%;
         }
 
         /* Panel */
@@ -408,12 +443,14 @@ export default function AdminDashboardPage() {
           grid-template-columns: 1fr 1fr;
           gap: 14px;
           margin-bottom: 14px;
+          width: 100%;
         }
         .panels-grid-3 {
           display: grid;
           grid-template-columns: 2fr 1fr;
           gap: 14px;
           margin-bottom: 14px;
+          width: 100%;
         }
 
         /* Activity item */
@@ -480,13 +517,88 @@ export default function AdminDashboardPage() {
         @media (max-width: 1024px) {
           .sidebar { transform: translateX(-240px); }
           .sidebar.open { transform: translateX(0); }
-          .main { margin-left: 0; }
+          .main { margin-left: 0; width: 100%; }
           .stats-grid { grid-template-columns: repeat(2, 1fr); }
           .panels-grid, .panels-grid-3 { grid-template-columns: 1fr; }
         }
         @media (max-width: 640px) {
           .stats-grid { grid-template-columns: 1fr 1fr; }
           .page { padding: 16px; }
+        }
+
+        /* Settings Modal */
+        .modal-backdrop {
+          position: fixed; inset: 0; z-index: 100;
+          background: rgba(0,0,0,0.7);
+          backdrop-filter: blur(6px);
+          display: flex; align-items: center; justify-content: center;
+          padding: 16px;
+          animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-box {
+          background: #1c2330;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 20px;
+          width: 100%; max-width: 440px;
+          padding: 28px;
+          animation: slideUp 0.25s ease;
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-title {
+          font-family: 'Syne', sans-serif;
+          font-size: 17px; font-weight: 800;
+          color: #e6edf3; margin-bottom: 6px;
+        }
+        .modal-sub { font-size: 13px; color: #8b949e; margin-bottom: 24px; }
+        .settings-row {
+          display: flex; align-items: center;
+          justify-content: space-between;
+          padding: 16px;
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 12px;
+          margin-bottom: 12px;
+        }
+        .settings-row-label { font-size: 14px; font-weight: 600; color: #e6edf3; }
+        .settings-row-sub { font-size: 12px; color: #8b949e; margin-top: 2px; }
+        .btn-reset {
+          padding: 8px 16px; border-radius: 9px;
+          font-size: 13px; font-weight: 600;
+          background: rgba(37,150,190,0.1);
+          border: 1px solid rgba(37,150,190,0.3);
+          color: #2596be; cursor: pointer;
+          transition: all 0.15s;
+          white-space: nowrap;
+        }
+        .btn-reset:hover { background: rgba(37,150,190,0.2); }
+        .btn-reset:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-close {
+          width: 100%; padding: 11px;
+          background: transparent;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 10px; color: #8b949e;
+          font-size: 14px; font-weight: 500;
+          cursor: pointer; margin-top: 16px;
+          transition: all 0.15s;
+        }
+        .btn-close:hover { border-color: rgba(255,255,255,0.15); color: #c9d1d9; }
+        .success-box {
+          padding: 12px 16px; border-radius: 10px;
+          background: rgba(16,185,129,0.08);
+          border: 1px solid rgba(16,185,129,0.2);
+          display: flex; align-items: center; gap: 10px;
+          margin-top: 12px;
+        }
+        .error-box {
+          padding: 12px 16px; border-radius: 10px;
+          background: rgba(239,68,68,0.08);
+          border: 1px solid rgba(239,68,68,0.2);
+          font-size: 13px; color: #f87171;
+          margin-top: 12px;
         }
       `}</style>
 
@@ -545,7 +657,15 @@ export default function AdminDashboardPage() {
               <button key={item.id}
                 className={`nav-item${activePage === item.id ? ' active' : ''}`}
                 style={{ width: '100%', textAlign: 'left', background: 'none', border: activePage === item.id ? '1px solid rgba(37,150,190,0.15)' : '1px solid transparent' }}
-                onClick={() => { setActivePage(item.id); setSidebarOpen(false) }}
+                onClick={() => {
+                  if (item.id === 'settings') {
+                    setShowSettingsModal(true)
+                    setSidebarOpen(false)
+                  } else {
+                    setActivePage(item.id)
+                    setSidebarOpen(false)
+                  }
+                }}
               >
                 {item.icon}{item.label}
               </button>
@@ -812,6 +932,77 @@ export default function AdminDashboardPage() {
           )}
         </div>
       </div>
+
+      {/* ── SETTINGS MODAL ── */}
+      {showSettingsModal && (
+        <div className="modal-backdrop" onClick={() => { setShowSettingsModal(false); setResetSent(false); setResetError('') }}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div className="modal-title">Settings</div>
+              <button
+                onClick={() => { setShowSettingsModal(false); setResetSent(false); setResetError('') }}
+                style={{ background: 'none', border: 'none', color: '#8b949e', cursor: 'pointer', padding: 4, borderRadius: 6 }}
+              >
+                <Icon path={icons.x} size={16} />
+              </button>
+            </div>
+            <div className="modal-sub">Manage your admin account settings</div>
+
+            {/* Admin Info */}
+            <div style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(37,150,190,0.15)', border: '1px solid rgba(37,150,190,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#2596be', fontFamily: 'Syne, sans-serif', flexShrink: 0 }}>
+                {initials}
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#e6edf3' }}>{admin.firstName} {admin.lastName}</div>
+                <div style={{ fontSize: 12, color: '#8b949e', marginTop: 2 }}>{admin.email}</div>
+              </div>
+            </div>
+
+            {/* Reset Password Row */}
+            <div className="settings-row">
+              <div>
+                <div className="settings-row-label">Reset Password</div>
+                <div className="settings-row-sub">Send a password reset link to {admin.email}</div>
+              </div>
+              <button
+                className="btn-reset"
+                onClick={handleResetPassword}
+                disabled={resetLoading || resetSent}
+              >
+                {resetLoading ? 'Sending...' : resetSent ? 'Sent ✓' : 'Send Link'}
+              </button>
+            </div>
+
+            {/* Success message */}
+            {resetSent && (
+              <div className="success-box">
+                <Icon path={icons.mail} size={16} />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#10b981' }}>Reset link sent!</div>
+                  <div style={{ fontSize: 12, color: '#8b949e', marginTop: 2 }}>Check {admin.email} for the password reset link.</div>
+                </div>
+              </div>
+            )}
+
+            {/* Error message */}
+            {resetError && <div className="error-box">{resetError}</div>}
+
+            {/* Access ID display */}
+            <div className="settings-row" style={{ marginTop: 12 }}>
+              <div>
+                <div className="settings-row-label">Access ID</div>
+                <div className="settings-row-sub">{admin.accessId}</div>
+              </div>
+              <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, background: 'rgba(37,150,190,0.1)', color: '#2596be', border: '1px solid rgba(37,150,190,0.2)', fontWeight: 600 }}>Active</span>
+            </div>
+
+            <button className="btn-close" onClick={() => { setShowSettingsModal(false); setResetSent(false); setResetError('') }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </>
   )
 }
