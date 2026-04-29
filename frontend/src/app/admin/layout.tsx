@@ -1,4 +1,4 @@
-import { AdminAuthProvider } from '@/contexts/AdminAuthContext'
+import { AdminAuthProvider } from '@/context/AdminAuthContext'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
