@@ -193,7 +193,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await signOut(auth)
       setState({ admin: null, isLoading: false, error: null })
-      router.replace('/admin/login')
+      router.replace('/admin')
     } catch (error) {
       console.error('Admin logout error:', error)
     }
