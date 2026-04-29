@@ -89,7 +89,7 @@ export function AuthProvider({ children }) {
           path === '/' ||
           path.includes('/login') ||
           path.includes('/auth') ||
-          path.startsWith('/admin'
+          path.startsWith('/admin')
 
         if (isLoginPage) {
           setUser(null)
