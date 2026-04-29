@@ -65,15 +65,22 @@ export function AuthProvider({ children }) {
           return
         }
 
-        // Block unverified email users
+        const path = window.location.pathname
+
+        // Skip ALL checks for admin pages — AdminAuthContext handles admin auth
+        if (path.startsWith('/admin')) {
+          setUser(null)
+          setIsLoading(false)
+          return
+        }
+
+        // Block unverified email users (non-admin only)
         if (!firebaseUser.emailVerified) {
           await signOut(auth)
           setUser(null)
           setIsLoading(false)
           return
         }
-
-        const path = window.location.pathname
 
         // ── Do NOT auto-restore session on login/auth pages ──
         // Each login page handles its own redirect after checking
@@ -82,7 +89,7 @@ export function AuthProvider({ children }) {
           path === '/' ||
           path.includes('/login') ||
           path.includes('/auth') ||
-          path === '/admin'
+          path.startsWith('/admin'
 
         if (isLoginPage) {
           setUser(null)
