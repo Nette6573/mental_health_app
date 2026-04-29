@@ -82,26 +82,63 @@ export default function AdminProvidersPage() {
     setActiveTab('overview')
     setActionMsg('')
     setConfirmDelete(false)
+
+    console.log('=== OPENING DRAWER ===')
+    console.log('Provider ID:', provider.id)
+    console.log('Provider name:', provider.first_name, provider.last_name)
+
     try {
-      // Query provider_services where provider_id == provider.id
-      const servicesQuery = query(
-        collection(db, 'provider_services'),
-        where('provider_id', '==', provider.id)
-      )
-      const [availSnap, servicesSnap, settingsSnap] = await Promise.all([
-        getDoc(doc(db, 'provider_availability', provider.id)),
-        getDocs(servicesQuery),
-        getDoc(doc(db, 'provider_settings', provider.id)),
-      ])
+      // Fetch each one individually so we can log which ones fail
+      let availData = null
+      let servicesData: any[] = []
+      let settingsData = null
 
-      console.log('Availability exists:', availSnap.exists(), availSnap.data())
-      console.log('Services count:', servicesSnap.size)
-      console.log('Settings exists:', settingsSnap.exists(), settingsSnap.data())
+      // 1. Availability
+      try {
+        const availSnap = await getDoc(doc(db, 'provider_availability', provider.id))
+        console.log('provider_availability exists:', availSnap.exists())
+        if (availSnap.exists()) {
+          availData = availSnap.data()
+          console.log('Availability data keys:', Object.keys(availData || {}))
+          console.log('Availability data:', JSON.stringify(availData))
+        }
+      } catch (e) {
+        console.error('Availability fetch error:', e)
+      }
 
+      // 2. Services
+      try {
+        const servicesQuery = query(
+          collection(db, 'provider_services'),
+          where('provider_id', '==', provider.id)
+        )
+        const servicesSnap = await getDocs(servicesQuery)
+        console.log('provider_services count:', servicesSnap.size)
+        servicesSnap.docs.forEach((d, i) => {
+          console.log(`Service ${i}:`, JSON.stringify(d.data()))
+        })
+        servicesData = servicesSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      } catch (e) {
+        console.error('Services fetch error:', e)
+      }
+
+      // 3. Settings
+      try {
+        const settingsSnap = await getDoc(doc(db, 'provider_settings', provider.id))
+        console.log('provider_settings exists:', settingsSnap.exists())
+        if (settingsSnap.exists()) {
+          settingsData = settingsSnap.data()
+          console.log('Settings data:', JSON.stringify(settingsData))
+        }
+      } catch (e) {
+        console.error('Settings fetch error:', e)
+      }
+
+      console.log('=== DRAWER DATA SET ===')
       setDrawerData({
-        availability: availSnap.exists() ? availSnap.data() : null,
-        services: servicesSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-        settings: settingsSnap.exists() ? settingsSnap.data() : null,
+        availability: availData,
+        services: servicesData,
+        settings: settingsData,
       })
     } catch (e) {
       console.error('Drawer fetch error:', e)
