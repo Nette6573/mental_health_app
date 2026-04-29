@@ -106,24 +106,66 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, isLoading: true, error: null }))
 
     try {
+      console.log('ADMIN LOGIN: Starting login for email:', email.trim())
+      console.log('ADMIN LOGIN: Access ID:', accessId.trim())
+
       // Step 1: Check Firestore admin collection for matching email + access ID
+      // First try with email as-is
       const adminQuery = query(
         collection(db, 'admin'),
-        where('email', '==', email.trim().toLowerCase()),
-        where('access_id', '==', accessId.trim())
+        where('email', '==', email.trim())
       )
       const adminSnap = await getDocs(adminQuery)
 
+      console.log('ADMIN LOGIN: Firestore query returned', adminSnap.size, 'documents')
+      
+      // Log what we found for debugging
+      adminSnap.docs.forEach(doc => {
+        console.log('ADMIN LOGIN: Found doc:', doc.id, 'data:', JSON.stringify(doc.data()))
+      })
+
       if (adminSnap.empty) {
-        // No matching admin found — notify support
-        await notifySupport(email, accessId)
-        isLoggingIn.current = false
-        setState(prev => ({ ...prev, isLoading: false, error: 'Invalid credentials. This attempt has been logged.' }))
-        return { success: false, error: 'Invalid credentials. This attempt has been logged.' }
+        // Try lowercase as fallback
+        const adminQueryLower = query(
+          collection(db, 'admin'),
+          where('email', '==', email.trim().toLowerCase())
+        )
+        const adminSnapLower = await getDocs(adminQueryLower)
+        console.log('ADMIN LOGIN: Lowercase query returned', adminSnapLower.size, 'docs')
+        
+        if (adminSnapLower.empty) {
+          console.log('ADMIN LOGIN: No admin found with email:', email.trim())
+          await notifySupport(email, accessId)
+          isLoggingIn.current = false
+          setState(prev => ({ ...prev, isLoading: false, error: 'No admin account found with that email.' }))
+          return { success: false, error: 'No admin account found with that email.' }
+        }
       }
 
-      const adminDoc = adminSnap.docs[0]
+      // Check access ID matches
+      const allDocs = adminSnap.empty 
+        ? (await getDocs(query(collection(db, 'admin'), where('email', '==', email.trim().toLowerCase())))).docs
+        : adminSnap.docs
+
+      const matchingDoc = allDocs.find(doc => {
+        const data = doc.data()
+        console.log('ADMIN LOGIN: Checking access_id:', data.access_id, 'vs', accessId.trim())
+        return data.access_id === accessId.trim()
+      })
+
+      if (!matchingDoc) {
+        console.log('ADMIN LOGIN: Access ID does not match')
+        await notifySupport(email, accessId)
+        isLoggingIn.current = false
+        setState(prev => ({ ...prev, isLoading: false, error: 'Invalid Access ID.' }))
+        return { success: false, error: 'Invalid Access ID.' }
+      }
+
+      const adminDoc = matchingDoc
+      const adminSnap2 = { docs: [matchingDoc] }
+
       const adminData = adminDoc.data()
+      console.log('ADMIN LOGIN: Matched admin data:', JSON.stringify(adminData))
 
       // Step 2: Sign in with Firebase Auth
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password)
