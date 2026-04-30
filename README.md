@@ -1,221 +1,259 @@
-# 🧠 HopePath - Mental Health AI Assistant (Jamaica)
+# 🧠 HopePath - AI-Powered Mental Wellness Support Platform
 
-[![Cloudflare Pages](https://img.shields.io/badge/Cloudflare%20Pages-Frontend-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://hopepath.online)
+[![Vercel](https://img.shields.io/badge/Vercel-Frontend-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com)
+[![Cloudflare](https://img.shields.io/badge/Cloudflare-DNS-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://cloudflare.com)
 [![Railway](https://img.shields.io/badge/Railway-Backend-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://railway.app)
-[![Hugging Face](https://img.shields.io/badge/Hugging%20Face-AI%20Model-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
+[![Firebase](https://img.shields.io/badge/Firebase-Auth-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Next.js](https://img.shields.io/badge/Next.js-Frontend-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
 
-A faith-based mental health support platform for Jamaica, combining AI-powered conversational support with professional resources.
+> *"Walking with you towards healing and hope"*
+
+HopePath is an AI-powered mental wellness support web application designed to provide accessible emotional support, behavioural insights, and connections to professional care. The platform integrates conversational AI, mood tracking, and therapist access into a unified system.
 
 ## 🌟 Live Demo
 
 - **Web Application**: [https://hopepath.online](https://hopepath.online)
 - **Backend API**: Deployed on Railway
-- **AI Model**: Hosted on Hugging Face Spaces
+- **AI Assistant (Paula)**: Integrated conversational support
 
 ## 📋 Project Overview
 
-HopePath provides accessible mental health support tailored for the Jamaican community, integrating:
+HopePath addresses the global mental health accessibility gap by offering:
 
-- 💬 **AI Chat Assistant (Paula)** - Conversational support with Jamaican patois understanding
-- 📖 **Faith-Based Guidance** - Scripture-based encouragement and support
-- 🏥 **Professional Directory** - Licensed therapists and counselors across Jamaica
-- 📱 **Mobile App** - React Native mobile application for iOS/Android
+- 💬 **AI-Driven Emotional Support** - Conversational AI assistant (Paula)
+- 📊 **Mood Tracking & Behavioural Insights** - Self-awareness tools with pattern analysis
+- 🏥 **Therapist Directory** - Access to licensed mental health professionals
+- 📱 **User Dashboard** - Centralized interface for all features
+
+The platform serves as a **first-line support system**, encouraging users to reflect, track their emotional state, and seek appropriate help when needed.
+
+## 🎯 Key Objectives
+
+- Implement secure user authentication
+- Develop an AI support assistant (Paula)
+- Enable mood tracking and behavioural insights
+- Create a therapist/provider directory
+- Support communication between users and providers
+- Ensure secure data handling and storage
 
 ## 🏗️ Project Structure
-
-```
-mental_health_app/
-├── frontend/ # Next.js Web Application (Cloudflare Pages)
+hopepath/
+├── frontend/ # Next.js Web Application
 │ ├── src/
-│ │ ├── app/
-│ │ │ ├── paula/ # Paula AI Chat Interface
-│ │ │ ├── auth/ # Authentication Pages
-│ │ │ └── page.tsx # Landing Page
+│ │ ├── app/ # App router pages
+│ │ ├── components/ # Reusable UI components
 │ │ ├── context/ # React Context (Auth)
-│ │ └── styles/ # Global Styles
-│ ├── public/ # Static Assets
+│ │ └── styles/ # Global styles
+│ ├── public/ # Static assets
 │ └── package.json
 │
-├── paula_backend/ # FastAPI Backend (Railway)
+├── backend/ # FastAPI Backend
 │ ├── app/
-│ │ ├── init.py
-│ │ ├── main.py # FastAPI Application
-│ │ ├── config.py # Environment Configuration
-│ │ ├── routes/
-│ │ │ ├── init.py
-│ │ │ └── chat.py # Chat API Endpoints
-│ │ ├── models/
-│ │ │ ├── init.py
-│ │ │ ├── chat.py # Chat Data Models
-│ │ │ └── message.py # Message Pydantic Models
-│ │ ├── db/
-│ │ │ ├── init.py
-│ │ │ └── mongo.py # MongoDB Connection
-│ │ └── ai/
-│ │ ├── init.py
-│ │ └── paula_client.py # Hugging Face API Integration
+│ │ ├── main.py # FastAPI application
+│ │ ├── config.py # Environment configuration
+│ │ ├── routes/ # API endpoints
+│ │ ├── models/ # Data models
+│ │ ├── db/ # Database connection
+│ │ └── ai/ # AI integration layer
 │ ├── requirements.txt
-│ └── runtime.txt # Python Version
+│ └── runtime.txt
 │
 ├── mobile/ # React Native Mobile App
 │ └── HealthApp/
-│ ├── src/
-│ ├── android/
-│ └── ios/
 │
-├── data/ # Training Datasets & JSON Files
-│ ├── health_facilities.json # Jamaican Health Facilities
-│ └── training_data/
-│
-└── .vscode/ # VS Code Configuration
-```
+└── data/ # Training datasets
+
+text
 
 ## 🚀 Technology Stack
 
-### Frontend (Cloudflare Pages)
-
-- **Framework**: Next.js 14 (React) with static export
+### Frontend
+- **Framework**: Next.js 14 (React)
 - **Styling**: Tailwind CSS
-- **Authentication**: Custom Auth Context
-- **Deployment**: Cloudflare Pages
-- **Domain**: [https://hopepath.online](https://hopepath.online)
+- **Deployment**: Vercel
+- **DNS Management**: Cloudflare
+- **Domain**: hopepath.online (registered via Namecheap)
 
-### Backend (Railway)
-
-- **Framework**: FastAPI
-- **Database**: MongoDB Atlas
-- **ORM**: PyMongo
+### Backend
+- **Framework**: FastAPI (Python)
+- **Database**: MongoDB Atlas (chat + behavioural data)
+- **Authentication**: Firebase
+- **Media Storage**: Cloudinary
 - **Deployment**: Railway
 
-### AI Integration (Hugging Face)
+### AI Layer
+- **Assistant**: Paula (context-aware emotional support engine)
+- **Capabilities**: Emotion detection, pattern recognition, crisis detection
+- **Safety**: Non-diagnostic, encourages professional help
 
-- **Model**: Meta Llama-3-8B-Instruct / DialoGPT
-- **API**: Hugging Face Inference API
-- **Hosting**: Hugging Face Spaces (for testing) / Railway (production)
+## 💬 Paula AI Assistant Features
 
-### Mobile
-
-- **Framework**: React Native
-- **Platforms**: iOS & Android
-
-## 💬 Paula AI Chat Features
-
-- 💾 **Conversation Memory** - Maintains chat history per user
-- 🔐 **User Authentication** - Secure login/signup
-- 📱 **Cross-Platform** - Works on web and mobile
-- 📖 **Faith-Based Responses** - Integrates scripture and encouragement
+- 🧠 **Emotion Detection** - Identifies user emotional state
+- 📝 **Context Awareness** - Maintains conversation context
+- 📊 **Pattern Recognition** - Learns from user interactions
+- 🔄 **Proactive Engagement** - Initiates supportive check-ins
+- 🛡️ **Safety Design** - Crisis detection and escalation
+- 💪 **Coping Strategies** - Provides grounding techniques and reflective questioning
 
 ## 🛠️ Local Development
 
 ### Prerequisites
 
 - Node.js 18+
-- Python 3.11+
+- Python 3.9+
 - MongoDB Atlas account
-- Hugging Face account & API token
+- Firebase project setup
+- Cloudinary account
 
 ### Frontend Setup
 
 ```bash
-
 cd frontend
 npm install
- npm run dev
-# Opens on http://localhost:3000**
-```
+npm run dev
+Opens on http://localhost:3000
 
-### Backend Setup
-
-```bash
-
-cd paula_backend
+Backend Setup
+bash
+cd backend
 python -m venv venv
-source venv/bin/activate # On Windows: venv\Scripts\activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-
-# Create .env file with:
-# HF_TOKEN=your_huggingface_token
-# MONGO_URI=your_mongodb_connection_string
-# SECRET_KEY=your_secret_key
-
 uvicorn app.main:app --reload
-#API at http://localhost:8000**
-#Docs at http://localhost:8000/docs**
-```
+API at http://localhost:8000 | Docs at http://localhost:8000/docs
 
-## 🔑 Environment Variables
+🔑 Environment Variables
+Frontend (.env.local)
+env
+NEXT_PUBLIC_API_URL=https://your-backend.railway.app
+Backend (.env)
+env
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/hopepath
+FIREBASE_API_KEY=your_firebase_api_key
+FIREBASE_ADMIN_KEY=your_firebase_admin_key
+CLOUDINARY_URL=cloudinary://api_key:api_secret@cloud_name
+AI_API_KEY=your_huggingface_token
+📡 API Endpoints
+Method	Endpoint	Description
+POST	/api/chat	AI interaction with Paula
+GET	/api/user	Retrieve user data
+POST	/api/mood	Log mood entries
+GET	/api/insights	Return behavioural analytics
+POST	/api/bookings	Handle therapist booking
+GET	/health	Health check
+🔐 Authentication Flow
+User signs up via Firebase Authentication
 
-### Frontend (.env.local)
+Firebase returns unique UID
 
-```env
-  NEXT_PUBLIC_API_URL=https://your-backend.railway.app # Railway URL in production
-```
+UID used across system for identity
 
-### Backend (.env)
+Backend validates all requests using UID
 
-```env
-  HF_TOKEN=hf_your_huggingface_token
-  MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/dbname
-  SECRET_KEY=your_secret_key_here
-```
+🚢 Deployment
+Frontend (Vercel + Cloudflare DNS)
+Push code to GitHub
 
-## 📡 API Endpoints
+Connect repository to Vercel
 
-| Method | Endpoint                                    | Description               |
-| ------ | ------------------------------------------- | ------------------------- |
-| GET    | `/health`                                   | Health check              |
-| POST   | `/api/send?user_id={id}&chat_id={optional}` | Send message to Paula     |
-| GET    | `/`                                         | Root welcome message      |
-| GET    | `/docs`                                     | Swagger API documentation |
+Configure build settings in Vercel:
 
-## 🚢 Deployment
+Build command: cd frontend && npm install && npm run build
 
-### Frontend (Cloudflare Pages)
+Output directory: frontend/out
 
-1. Push code to GitHub
-2. Connect repository to Cloudflare Pages
-3. Configure build settings:
-   **Build command**: cd frontend && npm install && npm run build
-   **Build output directory**: frontend/out
-4. Add NEXT_PUBLIC_API_URL environment variable with your Railway backend URL
-5. Deploy automatically on push
-6. Connect custom domain hopepath.online in Cloudflare Pages dashboard
+Install command: cd frontend && npm install
 
-### Backend (Railway)
+Add NEXT_PUBLIC_API_URL environment variable with Railway backend URL
 
-1. Push code to GitHub
-2. Connect repository to Railway
-3. Add environment variables in Railway dashboard
-4. Deploy automatically
+Deploy automatically on push to main branch
 
-## 🤝 Contributing
+DNS Configuration (Cloudflare):
 
-1. Fork the repository
-2. Create your feature branch (git checkout -b feature/AmazingFeature)
-3. Commit changes (git commit -m 'Add AmazingFeature')
-4. Push to branch (git push origin feature/AmazingFeature)
-5. Open a Pull Request
+Set up Cloudflare as DNS provider for hopepath.online
 
-## 📄 License
+Add CNAME record pointing to Vercel deployment (vercel-dns.com)
 
-This project is licensed under the MIT License.
+Enable Cloudflare proxy (orange cloud) for CDN and DDoS protection
 
-## 🙏 Acknowledgments
+Configure SSL/TLS settings to Full or Full (Strict)
 
-- Medical Council of Jamaica
-- Jamaica Psychological Society
-- Hugging Face for AI infrastructure
-- MongoDB Atlas for database hosting
-- Cloudflare for hosting and DNS services
-- Namecheap for domain registration
+Backend (Railway)
+Push code to GitHub
 
-## 📞 Contact
+Connect repository to Railway
 
-Project Link: https://github.com/Nette6573/mental_health_app
+Add all environment variables in Railway dashboard
+
+Deploy automatically on push
+
+📊 System Architecture
+text
+User → Cloudflare DNS → Vercel (Frontend) → Railway (Backend) → MongoDB/Firebase
+                              ↓                       ↓
+                          Cloudinary              AI Layer (Paula)
+🔒 Security & Ethical Considerations
+✅ Secure authentication (Firebase)
+
+✅ HTTPS for all endpoints (enforced by Vercel & Cloudflare)
+
+✅ Encrypted data handling
+
+✅ Minimal data collection policy
+
+✅ Non-diagnostic AI design
+
+✅ Crisis escalation mechanisms
+
+✅ No exposure of API keys
+
+✅ DDoS protection via Cloudflare
+
+📱 Future Improvements
+Real-time messaging with WebSockets
+
+Appointment scheduling system
+
+Enhanced AI intelligence and personalization
+
+Native mobile application (React Native)
+
+Predictive analytics for early intervention
+
+Caching layer for performance optimization
+
+🤝 Team Collaboration
+Role	Contributor	Responsibilities
+Project Manager / AI Development	Antoinette Thompson	System coordination, AI integration, backend development
+Frontend Developer / UI/UX	Breanne Ricketts	User interface design, usability, responsiveness
+Security Specialist / Database	Shamar Thomas	Authentication, security, provider/admin dashboards
+Testing / Documentation Support	Kevaughn Golding	Testing, documentation, frontend refinements
+🙏 Acknowledgments
+Medical Council of Jamaica
+
+Jamaica Psychological Society
+
+Hugging Face for AI infrastructure
+
+MongoDB Atlas for database hosting
+
+Firebase for authentication services
+
+Cloudinary for media storage
+
+Vercel for frontend hosting
+
+Cloudflare for DNS and security services
+
+Railway for backend hosting
+
+Namecheap for domain registration
+
+📞 Contact
+Project Repository: https://github.com/Nette6573/mental_health_app
 
 Live Site: https://hopepath.online
 
----
-
-**uilt with ❤️ for Jamaica**
+Built with ❤️ for Jamaica | Walking with you towards healing and hope
