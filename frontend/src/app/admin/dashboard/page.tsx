@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAdminAuth } from '@/context/AdminAuthContext'
 import { db } from '@/lib/firebase/firebaseClient'
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore'
+import {
+  collection, getDocs, query, orderBy, limit, where
+} from 'firebase/firestore'
 import { sendPasswordResetEmail } from 'firebase/auth'
 import { auth as firebaseAuth } from '@/lib/firebase/firebaseClient'
 
@@ -28,30 +30,34 @@ const icons = {
   logout: 'M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9',
   menu: 'M3 12h18M3 6h18M3 18h18',
   search: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0',
-  check: 'M20 6L9 17l-5-5',
   x: 'M18 6L6 18M6 6l12 12',
   flag: 'M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7',
   shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  check: 'M20 6L9 17l-5-5',
+  clock: 'M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2',
+  file: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6',
+  calendar: 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18',
+  arrow: 'M5 12h14M12 5l7 7-7 7',
 }
 
-function StatCard({ label, value, icon, accent, change }: {
-  label: string; value: string | number; icon: string; accent: string; change?: string
+function StatCard({ label, value, icon, accent, sub }: {
+  label: string; value: string | number; icon: string; accent: string; sub?: string
 }) {
   return (
-    <div className="stat-card" style={{ '--accent': accent } as any}>
-      <div className="stat-icon"><Icon path={icon} size={16} /></div>
-      <div className="stat-value">{value}</div>
-      <div className="stat-label">{label}</div>
-      {change && <div className="stat-change">{change}</div>}
-      <style>{`
-        .stat-card { background: rgba(22,27,34,0.9); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; position: relative; overflow: hidden; transition: transform 0.2s, border-color 0.2s; }
-        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent); border-radius: 16px 16px 0 0; }
-        .stat-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.1); }
-        .stat-icon { width: 34px; height: 34px; border-radius: 10px; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; color: var(--accent); margin-bottom: 14px; }
-        .stat-value { font-size: 28px; font-weight: 800; color: #e6edf3; font-family: 'Syne', sans-serif; line-height: 1; margin-bottom: 4px; }
-        .stat-label { font-size: 12px; color: #8b949e; font-weight: 500; }
-        .stat-change { font-size: 11px; color: #10b981; font-weight: 600; margin-top: 8px; }
-      `}</style>
+    <div style={{
+      background: 'rgba(22,27,34,0.9)',
+      border: '1px solid rgba(255,255,255,0.06)',
+      borderRadius: 16, padding: 20,
+      position: 'relative', overflow: 'hidden',
+      transition: 'transform 0.2s, border-color 0.2s',
+    }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: accent, borderRadius: '16px 16px 0 0' }} />
+      <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: accent, marginBottom: 14 }}>
+        <Icon path={icon} size={16} />
+      </div>
+      <div style={{ fontSize: 28, fontWeight: 800, color: '#e6edf3', fontFamily: 'Syne, sans-serif', lineHeight: 1, marginBottom: 4 }}>{value}</div>
+      <div style={{ fontSize: 12, color: '#8b949e', fontWeight: 500 }}>{label}</div>
+      {sub && <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600, marginTop: 8 }}>{sub}</div>}
     </div>
   )
 }
@@ -77,15 +83,19 @@ export default function AdminDashboardPage() {
   const router = useRouter()
   const [activePage, setActivePage] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [providers, setProviders] = useState<any[]>([])
-  const [users, setUsers] = useState<any[]>([])
-  const [bookings, setBookings] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [resetSent, setResetSent] = useState(false)
   const [resetLoading, setResetLoading] = useState(false)
   const [resetError, setResetError] = useState('')
+
+  // Data state
+  const [providers, setProviders] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
+  const [recentBookings, setRecentBookings] = useState<any[]>([])
+  const [pendingApplications, setPendingApplications] = useState<any[]>([])
+  const [recentClients, setRecentClients] = useState<any[]>([])
+  const [totalBookings, setTotalBookings] = useState(0)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!state.isLoading && !state.admin) router.replace('/admin')
@@ -95,14 +105,57 @@ export default function AdminDashboardPage() {
     if (!state.admin) return
     const fetchData = async () => {
       try {
-        const [provSnap, userSnap, bookSnap] = await Promise.all([
-          getDocs(collection(db, 'providers')),
-          getDocs(collection(db, 'users')),
-          getDocs(query(collection(db, 'bookings'), orderBy('createdAt', 'desc'), limit(10))),
-        ])
-        setProviders(provSnap.docs.map(d => ({ id: d.id, ...d.data() })))
-        setUsers(userSnap.docs.map(d => ({ id: d.id, ...d.data() })))
-        setBookings(bookSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+        // ── Providers ──
+        const provSnap = await getDocs(collection(db, 'providers'))
+        const allProviders = provSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        setProviders(allProviders)
+
+        // ── Pending applications (providers with credentials uploaded) ──
+        const pending = allProviders.filter((p: any) =>
+          Array.isArray(p.credentials) && p.credentials.length > 0 &&
+          (p.application_status === 'pending' || !p.application_status)
+        )
+        setPendingApplications(pending.slice(0, 5))
+
+        // ── Users ──
+        const userSnap = await getDocs(collection(db, 'users'))
+        const allUsers = userSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+        setUsers(allUsers)
+
+        // Sort users by joinDate descending for recent clients
+        const sorted = [...allUsers].sort((a: any, b: any) => {
+          const aDate = a.joinDate ? new Date(a.joinDate).getTime() : 0
+          const bDate = b.joinDate ? new Date(b.joinDate).getTime() : 0
+          return bDate - aDate
+        })
+        setRecentClients(sorted.slice(0, 5))
+
+        // ── Bookings — pull from providers subcollections ──
+        let allBookings: any[] = []
+        for (const prov of allProviders) {
+          try {
+            const bookSnap = await getDocs(
+              query(collection(db, 'providers', prov.id, 'bookings'), orderBy('createdAt', 'desc'), limit(10))
+            )
+            const provBookings = bookSnap.docs.map(d => ({
+              id: d.id,
+              providerName: `${prov.first_name} ${prov.last_name}`,
+              ...d.data()
+            }))
+            allBookings = [...allBookings, ...provBookings]
+          } catch (e) {
+            // skip if subcollection doesn't exist
+          }
+        }
+        // Sort all bookings by createdAt desc
+        allBookings.sort((a: any, b: any) => {
+          const aTime = a.createdAt?.seconds || 0
+          const bTime = b.createdAt?.seconds || 0
+          return bTime - aTime
+        })
+        setTotalBookings(allBookings.length)
+        setRecentBookings(allBookings.slice(0, 6))
+
       } catch (e) {
         console.error('Dashboard fetch error:', e)
       } finally {
@@ -114,9 +167,9 @@ export default function AdminDashboardPage() {
 
   const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <Icon path={icons.dashboard} size={16} /> },
-    { id: 'providers', label: 'Providers', icon: <Icon path={icons.providers} size={16} />, badge: providers.filter((p: any) => !p.verified).length || undefined },
+    { id: 'providers', label: 'Providers', icon: <Icon path={icons.providers} size={16} /> },
     { id: 'clients', label: 'Clients', icon: <Icon path={icons.clients} size={16} /> },
-    { id: 'applications', label: 'Applications', icon: <Icon path={icons.applications} size={16} />, badge: bookings.filter((b: any) => b.status === 'pending').length || undefined },
+    { id: 'applications', label: 'Applications', icon: <Icon path={icons.applications} size={16} />, badge: pendingApplications.length || undefined },
     { id: 'faith', label: 'Faith Resources', icon: <Icon path={icons.faith} size={16} /> },
     { id: 'reports', label: 'Reports', icon: <Icon path={icons.reports} size={16} /> },
     { id: 'settings', label: 'Settings', icon: <Icon path={icons.settings} size={16} /> },
@@ -191,9 +244,6 @@ export default function AdminDashboardPage() {
         .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; animation: livePulse 2s infinite; }
         @keyframes livePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
         .page { padding: 24px; flex: 1; width: 100%; box-sizing: border-box; }
-        .page-header { margin-bottom: 24px; }
-        .page-title { font-size: 20px; font-weight: 800; color: #e6edf3; margin-bottom: 3px; }
-        .page-sub { font-size: 13px; color: #8b949e; }
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; width: 100%; }
         .panel { background: rgba(22,27,34,0.9); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; }
         .panel-header { padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between; }
@@ -201,27 +251,25 @@ export default function AdminDashboardPage() {
         .panel-sub { font-size: 11.5px; color: #8b949e; margin-top: 2px; }
         .data-table { width: 100%; border-collapse: collapse; }
         .data-table th { text-align: left; padding: 11px 16px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #8b949e; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .data-table td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.03); color: #c9d1d9; transition: background 0.1s; }
+        .data-table td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.03); color: #c9d1d9; transition: background 0.1s; vertical-align: middle; }
         .data-table tr:last-child td { border-bottom: none; }
-        .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .data-table tr:hover td { background: rgba(255,255,255,0.02); cursor: pointer; }
         .avatar { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; font-family: 'Syne', sans-serif; flex-shrink: 0; }
-        .bar-track { background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
-        .bar-fill { height: 100%; border-radius: 4px; transition: width 1s ease; }
         .panels-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; width: 100%; }
-        .panels-grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px; width: 100%; }
-        .health-item { margin-bottom: 14px; }
-        .health-label { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12.5px; color: #c9d1d9; }
-        .health-val { font-weight: 700; font-family: 'Syne', sans-serif; }
-        .action-btn { padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+        .panels-grid-3 { display: grid; grid-template-columns: 3fr 2fr; gap: 14px; margin-bottom: 14px; width: 100%; }
+        .action-btn { padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: none; }
         .action-btn-blue { background: rgba(37,150,190,0.1); border: 1px solid rgba(37,150,190,0.25); color: #2596be; }
         .action-btn-blue:hover { background: rgba(37,150,190,0.18); }
-        .action-btn-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #f87171; }
-        .action-btn-red:hover { background: rgba(239,68,68,0.14); }
+        .action-btn-green { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25); color: #34d399; }
+        .action-btn-green:hover { background: rgba(16,185,129,0.18); }
+        .action-btn-yellow { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); color: #fbbf24; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeInUp 0.4s ease both; }
         .fade-in-1 { animation-delay: 0.05s; }
         .fade-in-2 { animation-delay: 0.1s; }
         .fade-in-3 { animation-delay: 0.15s; }
+        .fade-in-4 { animation-delay: 0.2s; }
+        .empty-row td { text-align: center; color: #8b949e; padding: 28px; }
         @media (max-width: 1024px) {
           .sidebar { transform: translateX(-240px); }
           .sidebar.open { transform: translateX(0); }
@@ -269,42 +317,26 @@ export default function AdminDashboardPage() {
           </div>
 
           <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-            {/* Overview */}
             <div className="nav-section-label">Overview</div>
-            <button
-              className={`nav-item${activePage === 'dashboard' ? ' active' : ''}`}
-              onClick={() => { setActivePage('dashboard'); setSidebarOpen(false) }}
-            >
+            <button className={`nav-item${activePage === 'dashboard' ? ' active' : ''}`} onClick={() => { setActivePage('dashboard'); setSidebarOpen(false) }}>
               <Icon path={icons.dashboard} size={16} />Dashboard
             </button>
 
-            {/* Management — navigate to separate pages */}
             <div className="nav-section-label">Management</div>
             {navItems.slice(1, 4).map(item => (
-              <button
-                key={item.id}
-                className="nav-item"
-                onClick={() => { router.push(`/admin/${item.id}`); setSidebarOpen(false) }}
-              >
+              <button key={item.id} className="nav-item" onClick={() => { router.push(`/admin/${item.id}`); setSidebarOpen(false) }}>
                 {item.icon}{item.label}
                 {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
               </button>
             ))}
 
-            {/* Platform */}
             <div className="nav-section-label">Platform</div>
             {navItems.slice(4).map(item => (
-              <button
-                key={item.id}
+              <button key={item.id}
                 className={`nav-item${activePage === item.id ? ' active' : ''}`}
                 onClick={() => {
-                  if (item.id === 'settings') {
-                    setShowSettingsModal(true)
-                    setSidebarOpen(false)
-                  } else {
-                    setActivePage(item.id)
-                    setSidebarOpen(false)
-                  }
+                  if (item.id === 'settings') { setShowSettingsModal(true); setSidebarOpen(false) }
+                  else { setActivePage(item.id); setSidebarOpen(false) }
                 }}
               >
                 {item.icon}{item.label}
@@ -332,48 +364,71 @@ export default function AdminDashboardPage() {
             <button onClick={() => setSidebarOpen(p => !p)} style={{ background: 'none', border: 'none', color: '#8b949e', cursor: 'pointer', padding: 6, borderRadius: 8, display: 'flex' }}>
               <Icon path={icons.menu} size={16} />
             </button>
-            <div className="topbar-title">
-              {activePage === 'dashboard' ? 'Dashboard' : navItems.find(n => n.id === activePage)?.label || 'Dashboard'}
-            </div>
+            <div className="topbar-title">Dashboard</div>
             <div className="search-wrap">
               <span className="search-icon"><Icon path={icons.search} size={14} /></span>
-              <input className="search-input" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              <input className="search-input" placeholder="Search..." />
             </div>
             <div className="live-indicator">
               <div className="live-dot" />Live
             </div>
           </header>
 
-          {/* ── DASHBOARD PAGE ── */}
+          {/* ── DASHBOARD ── */}
           {activePage === 'dashboard' && (
             <div className="page fade-in">
-              <div className="page-header">
-                <div className="page-title">
+
+              {/* Greeting */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#e6edf3', fontFamily: 'Syne, sans-serif', marginBottom: 3 }}>
                   Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {admin.firstName}
                 </div>
-                <div className="page-sub">Here's what's happening on HopePath today.</div>
+                <div style={{ fontSize: 13, color: '#8b949e' }}>Here's what's happening on HopePath today.</div>
               </div>
 
+              {/* Stats */}
               <div className="stats-grid fade-in fade-in-1">
-                <StatCard label="Active Providers" value={loading ? '—' : providers.length} icon={icons.providers} accent="#2596be" change="+12% this month" />
-                <StatCard label="Registered Clients" value={loading ? '—' : users.length} icon={icons.clients} accent="#10b981" change="+8% this month" />
-                <StatCard label="Pending Bookings" value={loading ? '—' : bookings.filter((b: any) => b.status === 'pending').length} icon={icons.applications} accent="#f59e0b" />
-                <StatCard label="Flagged Items" value="0" icon={icons.flag} accent="#ef4444" />
+                <StatCard
+                  label="Total Providers"
+                  value={loading ? '—' : providers.length}
+                  icon={icons.providers}
+                  accent="#2596be"
+                />
+                <StatCard
+                  label="Registered Clients"
+                  value={loading ? '—' : users.length}
+                  icon={icons.clients}
+                  accent="#10b981"
+                />
+                <StatCard
+                  label="Total Bookings"
+                  value={loading ? '—' : totalBookings}
+                  icon={icons.calendar}
+                  accent="#f59e0b"
+                />
+                <StatCard
+                  label="Pending Applications"
+                  value={loading ? '—' : pendingApplications.length}
+                  icon={icons.file}
+                  accent="#8b5cf6"
+                  sub={pendingApplications.length > 0 ? 'Requires review' : undefined}
+                />
               </div>
 
+              {/* Row 2 — Recent Bookings + Pending Applications */}
               <div className="panels-grid-3 fade-in fade-in-2">
+
+                {/* Recent Bookings */}
                 <div className="panel">
                   <div className="panel-header">
                     <div>
                       <div className="panel-title">Recent Bookings</div>
-                      <div className="panel-sub">Latest appointment requests</div>
+                      <div className="panel-sub">Latest appointment requests across all providers</div>
                     </div>
-                    <Badge type="yellow">{bookings.filter((b: any) => b.status === 'pending').length} pending</Badge>
+                    <button className="action-btn action-btn-blue" onClick={() => router.push('/admin/providers')}>View Providers</button>
                   </div>
                   {loading ? (
                     <div style={{ padding: 24, textAlign: 'center', color: '#8b949e', fontSize: 13 }}>Loading...</div>
-                  ) : bookings.length === 0 ? (
-                    <div style={{ padding: 24, textAlign: 'center', color: '#8b949e', fontSize: 13 }}>No bookings yet</div>
                   ) : (
                     <div style={{ overflowX: 'auto' }}>
                       <table className="data-table">
@@ -381,21 +436,23 @@ export default function AdminDashboardPage() {
                           <tr><th>Client</th><th>Provider</th><th>Date</th><th>Time</th><th>Status</th></tr>
                         </thead>
                         <tbody>
-                          {bookings.slice(0, 6).map((b: any) => (
+                          {recentBookings.length === 0 ? (
+                            <tr className="empty-row"><td colSpan={5}>No bookings yet</td></tr>
+                          ) : recentBookings.map((b: any) => (
                             <tr key={b.id}>
                               <td>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <div className="avatar" style={{ background: 'rgba(37,150,190,0.1)', color: '#2596be', border: '1px solid rgba(37,150,190,0.2)' }}>
                                     {b.userName?.[0]?.toUpperCase() || 'U'}
                                   </div>
-                                  <span style={{ fontWeight: 500, color: '#e6edf3' }}>{b.userName || 'User'}</span>
+                                  <span style={{ fontWeight: 500, color: '#e6edf3' }}>{b.userName || b.userEmail || 'Client'}</span>
                                 </div>
                               </td>
-                              <td style={{ color: '#8b949e' }}>{b.providerName}</td>
-                              <td style={{ color: '#8b949e', fontSize: 12 }}>{b.date?.split(',')[0]}</td>
-                              <td style={{ color: '#8b949e' }}>{b.time}</td>
+                              <td style={{ color: '#8b949e', fontSize: 12 }}>{b.providerName}</td>
+                              <td style={{ color: '#8b949e', fontSize: 12 }}>{b.date?.split(',')[0] || '—'}</td>
+                              <td style={{ color: '#8b949e' }}>{b.time || '—'}</td>
                               <td>
-                                <Badge type={b.status === 'pending' ? 'yellow' : b.status === 'confirmed' ? 'green' : 'red'}>
+                                <Badge type={b.status === 'confirmed' ? 'green' : b.status === 'cancelled' ? 'red' : 'yellow'}>
                                   {b.status || 'pending'}
                                 </Badge>
                               </td>
@@ -407,39 +464,56 @@ export default function AdminDashboardPage() {
                   )}
                 </div>
 
+                {/* Pending Applications */}
                 <div className="panel">
                   <div className="panel-header">
-                    <div className="panel-title">System Health</div>
-                  </div>
-                  <div style={{ padding: '16px 20px' }}>
-                    {[
-                      { label: 'Server Uptime', value: '99.9%', color: '#10b981', pct: 99.9 },
-                      { label: 'Database Load', value: '42%', color: '#2596be', pct: 42 },
-                      { label: 'API Response', value: '68%', color: '#f59e0b', pct: 68 },
-                      { label: 'Storage', value: '31%', color: '#8b5cf6', pct: 31 },
-                    ].map(h => (
-                      <div key={h.label} className="health-item">
-                        <div className="health-label">
-                          <span>{h.label}</span>
-                          <span className="health-val" style={{ color: h.color }}>{h.value}</span>
-                        </div>
-                        <div className="bar-track" style={{ height: 5 }}>
-                          <div className="bar-fill" style={{ height: 5, width: `${h.pct}%`, background: h.color }} />
-                        </div>
-                      </div>
-                    ))}
-                    <div style={{ marginTop: 16, padding: '12px 14px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Icon path={icons.shield} size={16} />
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#10b981' }}>All Systems Operational</div>
-                        <div style={{ fontSize: 11, color: '#8b949e', marginTop: 1 }}>Last checked: just now</div>
-                      </div>
+                    <div>
+                      <div className="panel-title">Pending Applications</div>
+                      <div className="panel-sub">Providers awaiting review</div>
                     </div>
+                    <button className="action-btn action-btn-yellow" onClick={() => router.push('/admin/applications')}>
+                      Review All
+                    </button>
                   </div>
+                  {loading ? (
+                    <div style={{ padding: 24, textAlign: 'center', color: '#8b949e', fontSize: 13 }}>Loading...</div>
+                  ) : pendingApplications.length === 0 ? (
+                    <div style={{ padding: 32, textAlign: 'center', color: '#8b949e', fontSize: 13 }}>
+                      <Icon path={icons.check} size={32} />
+                      <div style={{ marginTop: 8 }}>All applications reviewed</div>
+                    </div>
+                  ) : (
+                    <div>
+                      {pendingApplications.map((p: any) => (
+                        <div key={p.id}
+                          onClick={() => router.push('/admin/applications')}
+                          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', transition: 'background 0.15s' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          {p.profile_photo_url ? (
+                            <img src={p.profile_photo_url} alt="" style={{ width: 36, height: 36, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+                          ) : (
+                            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#a78bfa', fontFamily: 'Syne, sans-serif', flexShrink: 0 }}>
+                              {p.first_name?.[0]}{p.last_name?.[0]}
+                            </div>
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, color: '#e6edf3', fontSize: 13 }}>{p.first_name} {p.last_name}</div>
+                            <div style={{ fontSize: 11.5, color: '#8b949e', marginTop: 2 }}>{p.professional_title || 'Provider'} · {p.credentials?.length || 0} docs</div>
+                          </div>
+                          <Badge type="yellow">Pending</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
+              {/* Row 3 — All Providers + Recent Clients */}
               <div className="panels-grid fade-in fade-in-3">
+
+                {/* Providers */}
                 <div className="panel">
                   <div className="panel-header">
                     <div>
@@ -450,8 +524,6 @@ export default function AdminDashboardPage() {
                   </div>
                   {loading ? (
                     <div style={{ padding: 24, textAlign: 'center', color: '#8b949e', fontSize: 13 }}>Loading...</div>
-                  ) : providers.length === 0 ? (
-                    <div style={{ padding: 24, textAlign: 'center', color: '#8b949e', fontSize: 13 }}>No providers yet</div>
                   ) : (
                     <div style={{ overflowX: 'auto' }}>
                       <table className="data-table">
@@ -459,8 +531,10 @@ export default function AdminDashboardPage() {
                           <tr><th>Provider</th><th>Title</th><th>Parish</th><th>Status</th></tr>
                         </thead>
                         <tbody>
-                          {providers.slice(0, 5).map((p: any) => (
-                            <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => router.push('/admin/providers')}>
+                          {providers.length === 0 ? (
+                            <tr className="empty-row"><td colSpan={4}>No providers yet</td></tr>
+                          ) : providers.slice(0, 6).map((p: any) => (
+                            <tr key={p.id} onClick={() => router.push('/admin/providers')}>
                               <td>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                   {p.profile_photo_url ? (
@@ -470,12 +544,19 @@ export default function AdminDashboardPage() {
                                       {p.first_name?.[0]?.toUpperCase()}{p.last_name?.[0]?.toUpperCase()}
                                     </div>
                                   )}
-                                  <span style={{ fontWeight: 500, color: '#e6edf3' }}>{p.first_name} {p.last_name}</span>
+                                  <div>
+                                    <div style={{ fontWeight: 500, color: '#e6edf3' }}>{p.first_name} {p.last_name}</div>
+                                    {p.professional_email && <div style={{ fontSize: 11, color: '#8b949e' }}>{p.professional_email}</div>}
+                                  </div>
                                 </div>
                               </td>
                               <td style={{ color: '#8b949e', fontSize: 12 }}>{p.professional_title || '—'}</td>
                               <td style={{ color: '#8b949e' }}>{p.parish || '—'}</td>
-                              <td><Badge type={p.is_accepting_clients ? 'green' : 'red'}>{p.is_accepting_clients ? 'Active' : 'Inactive'}</Badge></td>
+                              <td>
+                                <Badge type={p.disabled ? 'red' : p.is_accepting_clients ? 'green' : 'yellow'}>
+                                  {p.disabled ? 'Disabled' : p.is_accepting_clients ? 'Active' : 'Not Accepting'}
+                                </Badge>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -484,6 +565,7 @@ export default function AdminDashboardPage() {
                   )}
                 </div>
 
+                {/* Recent Clients */}
                 <div className="panel">
                   <div className="panel-header">
                     <div>
@@ -494,8 +576,6 @@ export default function AdminDashboardPage() {
                   </div>
                   {loading ? (
                     <div style={{ padding: 24, textAlign: 'center', color: '#8b949e', fontSize: 13 }}>Loading...</div>
-                  ) : users.length === 0 ? (
-                    <div style={{ padding: 24, textAlign: 'center', color: '#8b949e', fontSize: 13 }}>No clients yet</div>
                   ) : (
                     <div style={{ overflowX: 'auto' }}>
                       <table className="data-table">
@@ -503,8 +583,10 @@ export default function AdminDashboardPage() {
                           <tr><th>Client</th><th>Email</th><th>Joined</th></tr>
                         </thead>
                         <tbody>
-                          {users.slice(0, 5).map((u: any) => (
-                            <tr key={u.id} style={{ cursor: 'pointer' }} onClick={() => router.push('/admin/clients')}>
+                          {recentClients.length === 0 ? (
+                            <tr className="empty-row"><td colSpan={3}>No clients yet</td></tr>
+                          ) : recentClients.map((u: any) => (
+                            <tr key={u.id} onClick={() => router.push('/admin/clients')}>
                               <td>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <div className="avatar" style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.2)' }}>
@@ -528,7 +610,7 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
-          {/* ── PLACEHOLDER PAGES (faith, reports) ── */}
+          {/* Placeholder for faith/reports */}
           {activePage !== 'dashboard' && (
             <div className="page fade-in">
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12, color: '#8b949e' }}>
