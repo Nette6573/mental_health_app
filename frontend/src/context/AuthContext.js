@@ -14,6 +14,7 @@ import {
 } from 'firebase/auth'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { auth, db, googleProvider, facebookProvider } from "../lib/firebase/firebaseClient"
+import { isProviderSigningUp } from "../lib/firebase/providersignup"
 
 const AuthContext = createContext(null)
 
@@ -61,6 +62,12 @@ export function AuthProvider({ children }) {
 
         // Skip during signup — signup manages its own auth state
         if (isSigningUp.current) {
+          setIsLoading(false)
+          return
+        }
+
+        // Skip during provider signup — providersignup.ts manages its own flow
+        if (isProviderSigningUp) {
           setIsLoading(false)
           return
         }
