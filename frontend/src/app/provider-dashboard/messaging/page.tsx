@@ -9,7 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
-  BarChart3, BookOpen, Briefcase, Calendar,
+  Briefcase, Calendar, HeadphonesIcon,
   LayoutDashboard, LogOut, Menu, MessageSquare,
   Moon, Send, Settings, ShieldCheck, Sun, User,
 } from "lucide-react";
@@ -27,7 +27,6 @@ export default function ProviderMessagesPage() {
 
   const uid = user?.uid ?? user?.id;
 
-  // ── Dark mode ──
   useEffect(() => {
     const savedTheme = typeof window !== "undefined" ? localStorage.getItem("theme") : null;
     const isDark = savedTheme === "dark" || (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -44,7 +43,6 @@ export default function ProviderMessagesPage() {
 
   const logout = () => { window.location.href = "/provider-dashboard/login"; };
 
-  // ── Auto scroll to latest message ──
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -52,75 +50,60 @@ export default function ProviderMessagesPage() {
   // ── Load conversations in real-time ──
   useEffect(() => {
     if (!uid) return;
-
-    const q = query(
-      collection(db, "chats"),
-      where("participants", "array-contains", uid)
-    );
-
+    const q = query(collection(db, "chats"), where("participants", "array-contains", uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const chats = snapshot.docs.map((chatDoc) => ({
-        id: chatDoc.id,
-        ...chatDoc.data(),
-      }));
-      // Sort by lastMessageAt descending
-      chats.sort((a: any, b: any) => {
-        const aTime = a.lastMessageAt?.seconds || 0;
-        const bTime = b.lastMessageAt?.seconds || 0;
-        return bTime - aTime;
-      });
+      const chats = snapshot.docs.map((chatDoc) => ({ id: chatDoc.id, ...chatDoc.data() }));
+      chats.sort((a: any, b: any) => (b.lastMessageAt?.seconds || 0) - (a.lastMessageAt?.seconds || 0));
       setConversations(chats);
     });
-
     return () => unsubscribe();
   }, [uid]);
 
-  // ── Load messages for selected chat in real-time ──
+  // ── Load messages for selected chat ──
   useEffect(() => {
     if (!selectedChatId) return;
-
-    const q = query(
-      collection(db, "chats", selectedChatId, "messages"),
-      orderBy("createdAt", "asc")
-    );
-
+    const q = query(collection(db, "chats", selectedChatId, "messages"), orderBy("createdAt", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map((msgDoc) => ({
-        id: msgDoc.id,
-        ...msgDoc.data(),
-      }));
-      setMessages(msgs);
+      setMessages(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
-
     return () => unsubscribe();
   }, [selectedChatId]);
 
-  // ── Get the other person's name from the chat ──
-  const getOtherPersonName = (chat: any) => {
+  // ── Get display name for a conversation ──
+  // Support chats always show "HopePath Support" regardless of participant names
+  const getConversationName = (chat: any) => {
+    if (chat.isSupport) return "HopePath Support";
     if (!chat.participantNames || !uid) return "User";
     const otherUid = chat.participants?.find((p: string) => p !== uid);
     return chat.participantNames?.[otherUid] || "User";
   };
 
-  // ── Send message ──
+  // ── Get avatar letter for a conversation ──
+  const getAvatarLetter = (chat: any) => {
+    if (chat.isSupport) return "H";
+    const name = getConversationName(chat);
+    return name?.[0]?.toUpperCase() || "U";
+  };
+
+  // ── Get sender name for a message bubble ──
+  const getSenderLabel = (message: any, chat: any) => {
+    if (message.senderId === uid) return null; // own messages don't need a label
+    if (chat?.isSupport) return "HopePath Support";
+    return message.senderName || "User";
+  };
+
   const sendMessage = async () => {
     const trimmed = messageInput.trim();
     if (!trimmed || !selectedChatId || !uid) return;
-
     setSendingMessage(true);
     try {
       await addDoc(collection(db, "chats", selectedChatId, "messages"), {
         text: trimmed,
         senderId: uid,
+        senderName: user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Provider",
         createdAt: serverTimestamp(),
       });
-
-      await setDoc(
-        doc(db, "chats", selectedChatId),
-        { lastMessage: trimmed, lastMessageAt: serverTimestamp() },
-        { merge: true }
-      );
-
+      await setDoc(doc(db, "chats", selectedChatId), { lastMessage: trimmed, lastMessageAt: serverTimestamp() }, { merge: true });
       setMessageInput("");
     } catch (error) {
       console.error("Error sending message:", error);
@@ -138,8 +121,6 @@ export default function ProviderMessagesPage() {
     { href: "/provider-dashboard/availability", label: "Availability", icon: Calendar },
     { href: "/provider-dashboard/credentials", label: "Verification", icon: ShieldCheck },
     { href: "/provider-dashboard/messaging", label: "Messages", icon: MessageSquare, active: true },
-    { href: "/provider-dashboard/analytics", label: "Analytics", icon: BarChart3 },
-    { href: "/provider-dashboard/resources", label: "Resources", icon: BookOpen },
   ];
 
   return (
@@ -149,10 +130,10 @@ export default function ProviderMessagesPage() {
       )}
 
       {/* SIDEBAR */}
-      <aside className={`fixed z-40 flex h-full w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-300 dark:border-slate-700 dark:bg-slate-800 md:translate-x-0 ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"} md:flex`}>
+      <aside className={`fixed z-40 flex h-full w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-300 dark:border-slate-700 dark:bg-slate-800 md:translate-x-0 ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="border-b border-slate-100 p-6 dark:border-slate-700">
           <div className="flex items-center gap-3">
-            <img src="https://huggingface.co/spaces/brennanlondon/deepsite-project-q0z6c/resolve/main/images/hopepath.png" alt="HopePath Logo" className="h-10 w-10 rounded-xl object-cover shadow-lg" />
+            <img src="/provider-dashboard/images/hopepath.png" alt="HopePath Logo" className="h-10 w-10 rounded-xl object-cover shadow-lg" />
             <div>
               <h1 className="text-xl font-bold text-sky-600">HopePath</h1>
               <p className="text-xs text-slate-600 dark:text-slate-400">Provider Portal</p>
@@ -168,8 +149,7 @@ export default function ProviderMessagesPage() {
                 className={item.active ? "flex items-center gap-3 rounded-lg bg-sky-600/10 px-4 py-3 text-sm font-medium text-sky-600" : "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"}
                 onClick={() => setMobileSidebarOpen(false)}
               >
-                <Icon className="h-5 w-5" />
-                {item.label}
+                <Icon className="h-5 w-5" />{item.label}
               </Link>
             );
           })}
@@ -193,23 +173,24 @@ export default function ProviderMessagesPage() {
           <div className="flex w-80 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
             <div className="flex items-center justify-between border-b border-slate-200 p-4 dark:border-slate-700">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Messages</h2>
-              <button onClick={() => setMobileSidebarOpen(p => !p)} className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-700 md:hidden">
-                <Menu className="h-5 w-5" />
-              </button>
-              <button onClick={toggleDarkMode} className="hidden rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-700 md:block">
-                {darkMode ? <Sun className="h-4 w-4 text-yellow-500" /> : <Moon className="h-4 w-4 text-slate-600" />}
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setMobileSidebarOpen(p => !p)} className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-700 md:hidden">
+                  <Menu className="h-5 w-5" />
+                </button>
+                <button onClick={toggleDarkMode} className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-700">
+                  {darkMode ? <Sun className="h-4 w-4 text-yellow-500" /> : <Moon className="h-4 w-4 text-slate-600" />}
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto">
               {conversations.length === 0 && (
-                <div className="p-6 text-center text-sm text-slate-500 dark:text-slate-400">
-                  No conversations yet
-                </div>
+                <div className="p-6 text-center text-sm text-slate-500 dark:text-slate-400">No conversations yet</div>
               )}
               {conversations.map((conversation) => {
                 const isSelected = conversation.id === selectedChatId;
-                const otherName = getOtherPersonName(conversation);
+                const name = getConversationName(conversation);
+                const isSupport = conversation.isSupport;
                 return (
                   <button
                     key={conversation.id}
@@ -217,11 +198,23 @@ export default function ProviderMessagesPage() {
                     className={`w-full border-b border-slate-100 p-4 text-left transition-colors dark:border-slate-700 ${isSelected ? "border-l-4 border-l-sky-600 bg-sky-50 dark:bg-sky-900/20" : "hover:bg-slate-50 dark:hover:bg-slate-700/50"}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-600 text-sm font-bold text-white">
-                        {otherName?.[0]?.toUpperCase() || "U"}
-                      </div>
+                      {/* Support chats get a special headphones avatar */}
+                      {isSupport ? (
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-900/30">
+                          <HeadphonesIcon className="h-5 w-5 text-sky-600" />
+                        </div>
+                      ) : (
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-600 text-sm font-bold text-white">
+                          {getAvatarLetter(conversation)}
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-slate-800 dark:text-white">{otherName}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate font-medium text-slate-800 dark:text-white">{name}</p>
+                          {isSupport && (
+                            <span className="shrink-0 rounded-full bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-600 dark:bg-sky-900/30">Support</span>
+                          )}
+                        </div>
                         {conversation.lastMessage && (
                           <p className="truncate text-xs text-slate-500 dark:text-slate-400">{conversation.lastMessage}</p>
                         )}
@@ -236,7 +229,6 @@ export default function ProviderMessagesPage() {
           {/* CHAT AREA */}
           <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-900">
             {!selectedChatId ? (
-              // No chat selected
               <div className="flex flex-1 items-center justify-center">
                 <div className="text-center">
                   <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-900/30">
@@ -250,14 +242,22 @@ export default function ProviderMessagesPage() {
               <>
                 {/* Chat Header */}
                 <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-600 text-sm font-bold text-white">
-                    {getOtherPersonName(selectedConversation)?.[0]?.toUpperCase() || "U"}
-                  </div>
+                  {selectedConversation?.isSupport ? (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-900/30">
+                      <HeadphonesIcon className="h-5 w-5 text-sky-600" />
+                    </div>
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-600 text-sm font-bold text-white">
+                      {getAvatarLetter(selectedConversation)}
+                    </div>
+                  )}
                   <div>
                     <p className="font-semibold text-slate-800 dark:text-white">
-                      {getOtherPersonName(selectedConversation)}
+                      {getConversationName(selectedConversation)}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Client</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {selectedConversation?.isSupport ? "HopePath Support Team" : "Client"}
+                    </p>
                   </div>
                 </div>
 
@@ -265,20 +265,31 @@ export default function ProviderMessagesPage() {
                 <div className="flex-1 space-y-3 overflow-y-auto p-6">
                   {messages.length === 0 && (
                     <div className="flex h-full items-center justify-center">
-                      <p className="text-sm text-slate-400">No messages yet — start the conversation</p>
+                      <p className="text-sm text-slate-400">
+                        {selectedConversation?.isSupport
+                          ? "Send a message to reach the HopePath support team"
+                          : "No messages yet — start the conversation"}
+                      </p>
                     </div>
                   )}
                   {messages.map((message) => {
                     const isMe = message.senderId === uid;
+                    const senderLabel = getSenderLabel(message, selectedConversation);
                     return (
                       <div key={message.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${isMe ? "rounded-tr-none bg-sky-600 text-white" : "rounded-tl-none bg-white text-slate-800 shadow-sm dark:bg-slate-700 dark:text-slate-100"}`}>
-                          <p>{message.text}</p>
-                          {message.createdAt && (
-                            <p className={`mt-1 text-right text-xs ${isMe ? "text-sky-200" : "text-slate-400"}`}>
-                              {message.createdAt?.toDate?.()?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) || ""}
-                            </p>
+                        <div className="max-w-[70%]">
+                          {/* Show "HopePath Support" label above admin replies */}
+                          {!isMe && senderLabel && (
+                            <p className="mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">{senderLabel}</p>
                           )}
+                          <div className={`rounded-2xl px-4 py-2.5 text-sm ${isMe ? "rounded-tr-none bg-sky-600 text-white" : "rounded-tl-none bg-white text-slate-800 shadow-sm dark:bg-slate-700 dark:text-slate-100"}`}>
+                            <p>{message.text}</p>
+                            {message.createdAt && (
+                              <p className={`mt-1 text-right text-xs ${isMe ? "text-sky-200" : "text-slate-400"}`}>
+                                {message.createdAt?.toDate?.()?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) || ""}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -294,7 +305,7 @@ export default function ProviderMessagesPage() {
                       value={messageInput}
                       onChange={(e) => setMessageInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                      placeholder="Type your reply..."
+                      placeholder={selectedConversation?.isSupport ? "Message HopePath Support..." : "Type your reply..."}
                       className="flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition-all focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                     />
                     <button
