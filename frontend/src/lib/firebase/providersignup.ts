@@ -9,6 +9,10 @@ import {
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
+// Global flag — prevents AuthContext onAuthStateChanged from
+// signing out the provider during the signup Firestore write
+export let isProviderSigningUp = false;
+
 interface ProviderSignupData {
   first_name: string;
   last_name: string;
@@ -35,6 +39,9 @@ export const providerSignup = async (
   let user: User | null = null;
 
   try {
+    // Set global flag so AuthContext skips the unverified email sign-out
+    isProviderSigningUp = true;
+
     await setPersistence(auth, browserLocalPersistence);
 
     // Step 1: Create Firebase Auth user
@@ -73,10 +80,13 @@ export const providerSignup = async (
 
     console.log("✅ Provider Firestore document created");
 
-    // Step 5: Send verification email
+    // Step 5: Clear flag — Firestore write is done
+    isProviderSigningUp = false;
+
+    // Step 6: Send verification email
     await sendEmailVerification(user);
 
-    // Step 6: Sign out — provider must verify email before logging in
+    // Step 7: Sign out — provider must verify email before logging in
     await signOut(auth);
 
     console.log("✅ Provider signup complete");
@@ -86,7 +96,8 @@ export const providerSignup = async (
   } catch (error: unknown) {
     console.error("Detailed Signup Error:", error);
 
-    // Clean up — sign out if auth was created but something else failed
+    // Clear flag and clean up
+    isProviderSigningUp = false;
     if (user) {
       try { await signOut(auth); } catch (e) {}
     }
