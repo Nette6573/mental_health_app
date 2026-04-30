@@ -132,7 +132,7 @@ export default function AdminDashboardPage() {
 
         // ── Bookings — pull from providers subcollections ──
         let allBookings: any[] = []
-        for (const prov of allProviders) {
+        for (const prov of allProviders as any[]) {
           try {
             const bookSnap = await getDocs(
               query(collection(db, 'providers', prov.id, 'bookings'), orderBy('createdAt', 'desc'), limit(10))
