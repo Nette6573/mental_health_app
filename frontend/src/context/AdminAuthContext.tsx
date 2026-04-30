@@ -76,10 +76,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email || '',
                 firstName: adminData.First_name || '',
-                lastName: adminData.lastname || '',
+                lastName: adminData.last_name || '',
                 accessId: adminData.access_id || '',
                 role: adminData.role || 'admin',
-                isFirstLogin: adminData.first_logged_in === '' || adminData.first_logged_in === null,
+                isFirstLogin: adminData.first_logged_in === '' || adminData.first_logged_in === null || !adminData.first_logged_in,
               },
               isLoading: false,
               error: null,
@@ -152,7 +152,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       const adminData = adminDoc.data()
       console.log('ADMIN LOGIN: Access ID matched, logging in as admin')
 
-      const isFirstLogin = adminData.first_logged_in === '' || adminData.first_logged_in === null
+      const isFirstLogin = adminData.first_logged_in === '' || adminData.first_logged_in === null || !adminData.first_logged_in
 
       if (!isFirstLogin) {
         await updateDoc(doc(db, 'admin', adminDoc.id), {
@@ -164,7 +164,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         uid: cred.user.uid,
         email: cred.user.email || '',
         firstName: adminData.First_name || '',
-        lastName: adminData.lastname || '',
+        lastName: adminData.last_name || '',
         accessId: adminData.access_id || '',
         role: adminData.role || 'admin',
         isFirstLogin,

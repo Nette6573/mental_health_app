@@ -1,63 +1,82 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { db } from '@/lib/firebase/firebaseClient'
 import {
-  collection, getDocs, doc, getDoc, addDoc, serverTimestamp, query, where
+  collection, getDocs, doc, getDoc, addDoc, serverTimestamp,
+  query, where, onSnapshot, orderBy, setDoc
 } from 'firebase/firestore'
 import {
-  MapPin, Clock, DollarSign, Globe,
-  Briefcase, X, ChevronLeft, ChevronRight,
-  ShieldCheck, AlertCircle, XCircle, Clock3,
+  MapPin, Clock, DollarSign, Globe, Briefcase, X,
+  ChevronLeft, ChevronRight, ShieldCheck, AlertCircle,
+  XCircle, Clock3, Send,
 } from 'lucide-react'
 
 function VerificationBadge({ status }) {
   switch (status) {
     case 'approved':
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-          <ShieldCheck className="h-3 w-3" />Verified
-        </span>
-      )
+      return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><ShieldCheck className="h-3 w-3" />Verified</span>
     case 'rejected':
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
-          <XCircle className="h-3 w-3" />Do Not Book
-        </span>
-      )
+      return <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400"><XCircle className="h-3 w-3" />Do Not Book</span>
     case 'pending':
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-          <Clock3 className="h-3 w-3" />Pending Review
-        </span>
-      )
+      return <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"><Clock3 className="h-3 w-3" />Pending Review</span>
     default:
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-400">
-          <AlertCircle className="h-3 w-3" />Unverified
-        </span>
-      )
+      return <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-400"><AlertCircle className="h-3 w-3" />Unverified</span>
   }
 }
 
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const DAY_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+
 export default function TherapistDirectory() {
   const { user } = useAuth()
+  const uid = user?.uid ?? user?.id
+
   const [providers, setProviders] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [layoutUser, setLayoutUser] = useState(null)
   const [selectedProvider, setSelectedProvider] = useState(null)
-  const [bookingProvider, setBookingProvider] = useState(null)
 
+  // Booking state
+  const [bookingProvider, setBookingProvider] = useState(null)
+  const [providerServices, setProviderServices] = useState([])
+  const [selectedService, setSelectedService] = useState(null)
+  const [providerAvailability, setProviderAvailability] = useState(null)
+  const [blockedDates, setBlockedDates] = useState([])
+  const [calendarDate, setCalendarDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedTime, setSelectedTime] = useState('')
   const [bookingNotes, setBookingNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [bookingSuccess, setBookingSuccess] = useState(false)
-  const [calendarDate, setCalendarDate] = useState(new Date())
-  const [providerAvailability, setProviderAvailability] = useState(null)
-  const [blockedDates, setBlockedDates] = useState([])
 
+  // Chat state
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatProvider, setChatProvider] = useState(null)
+  const [chatId, setChatId] = useState(null)
+  const [messages, setMessages] = useState([])
+  const [messageInput, setMessageInput] = useState('')
+  const [sendingMessage, setSendingMessage] = useState(false)
+  const messagesEndRef = useRef(null)
+
+  // ── Load user name for chat ──
+  useEffect(() => {
+    if (!uid) return
+    const load = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'users', uid))
+        if (snap.exists()) {
+          const d = snap.data()
+          setLayoutUser({ firstName: d.firstName || '', lastName: d.lastName || '', email: d.email || user?.email || '' })
+        }
+      } catch (e) {}
+    }
+    load()
+  }, [uid])
+
+  // ── Fetch providers ──
   useEffect(() => {
     const fetchProviders = async () => {
       try {
@@ -84,9 +103,9 @@ export default function TherapistDirectory() {
             payment_options: data.payment_options || '',
             languages: Array.isArray(data.languages) ? data.languages : [],
             profile_photo_url: data.profile_photo_url || '',
-            cover_photo_url: data.cover_photo_url || '',           // ← cover photo
+            cover_photo_url: data.cover_photo_url || '',
             is_accepting_clients: data.is_accepting_clients ?? true,
-            application_status: data.application_status || '',     // ← verification status
+            application_status: data.application_status || '',
           })
         })
         setProviders(list)
@@ -99,33 +118,44 @@ export default function TherapistDirectory() {
     fetchProviders()
   }, [])
 
+  // ── Open booking ──
   const openBooking = async (provider) => {
     setBookingProvider(provider)
+    setSelectedProvider(null)
+    setSelectedService(null)
     setSelectedDate(null)
     setSelectedTime('')
     setBookingNotes('')
     setBookingSuccess(false)
     setCalendarDate(new Date())
+    setProviderServices([])
+    setProviderAvailability(null)
+    setBlockedDates([])
+
+    // Fetch provider services
+    try {
+      const snap = await getDocs(query(collection(db, 'provider_services'), where('provider_id', '==', provider.id)))
+      const services = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(s => s.service_status === 'active' || !s.service_status)
+      setProviderServices(services)
+    } catch (e) { console.error('Services fetch error:', e) }
+
+    // Fetch availability
     try {
       const availSnap = await getDoc(doc(db, 'provider_availability', provider.id))
       if (availSnap.exists()) {
         const data = availSnap.data()
         setProviderAvailability(data)
         setBlockedDates(data.blocked_dates ? JSON.parse(data.blocked_dates) : [])
-      } else {
-        setProviderAvailability(null)
-        setBlockedDates([])
       }
-    } catch (error) {
-      console.error('Error fetching availability:', error)
-      setProviderAvailability(null)
-    }
+    } catch (e) { console.error('Availability fetch error:', e) }
   }
 
+  // ── Calendar helpers ──
   const parseBlockedDate = (dateStr) => {
     if (!dateStr) return []
-    const str = dateStr.trim()
-    const rangeMatch = str.match(/^(\w+)\s+(\d+)-(\d+),\s*(\d{4})$/)
+    const rangeMatch = dateStr.trim().match(/^(\w+)\s+(\d+)-(\d+),\s*(\d{4})$/)
     if (rangeMatch) {
       const [, month, startDay, endDay, year] = rangeMatch
       const dates = []
@@ -135,7 +165,7 @@ export default function TherapistDirectory() {
       }
       return dates
     }
-    const parsed = new Date(str)
+    const parsed = new Date(dateStr.trim())
     return isNaN(parsed.getTime()) ? [] : [parsed]
   }
 
@@ -147,7 +177,7 @@ export default function TherapistDirectory() {
     const [avail] = encoded.split('|')
     if (avail !== '1') return false
     const dateKey = date.toDateString()
-    return !blockedDates.some((b) => parseBlockedDate(b.date).some(pd => pd.toDateString() === dateKey))
+    return !blockedDates.some(b => parseBlockedDate(b.date).some(pd => pd.toDateString() === dateKey))
   }
 
   const generateSlots = (start, end) => {
@@ -156,17 +186,18 @@ export default function TherapistDirectory() {
     const [endH, endM] = end.split(':').map(Number)
     let current = startH * 60 + startM
     const endMin = endH * 60 + endM
-    while (current + 60 <= endMin) {
+    const duration = selectedService?.duration ? parseInt(selectedService.duration) || 60 : 60
+    while (current + duration <= endMin) {
       const h = Math.floor(current / 60)
       const m = current % 60
       slots.push(`${h % 12 || 12}:${m.toString().padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`)
-      current += 60
+      current += duration
     }
     return slots
   }
 
   const getTimeSlots = (date) => {
-    if (!providerAvailability || !date) return generateSlots('09:00', '17:00')
+    if (!providerAvailability) return generateSlots('09:00', '17:00')
     const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
     const encoded = providerAvailability[dayNames[date.getDay()]]
     if (!encoded) return generateSlots('09:00', '17:00')
@@ -186,26 +217,21 @@ export default function TherapistDirectory() {
   }
 
   const isPast = (date) => {
-    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const today = new Date(); today.setHours(0,0,0,0)
     return date < today
   }
 
+  // ── Submit booking ──
   const submitBooking = async () => {
     if (!selectedDate || !selectedTime) { alert('Please select a date and time.'); return }
     if (!user) { alert('You must be logged in to book.'); return }
-    const uid = user.uid ?? user.id
     if (!uid) { alert('Unable to identify user. Please log in again.'); return }
     setIsSubmitting(true)
     try {
       let userName = user.email || 'User'
-      try {
-        const userSnap = await getDoc(doc(db, 'users', uid))
-        if (userSnap.exists()) {
-          const userData = userSnap.data()
-          const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim()
-          if (fullName) userName = fullName
-        }
-      } catch (e) {}
+      if (layoutUser?.firstName) {
+        userName = `${layoutUser.firstName} ${layoutUser.lastName || ''}`.trim()
+      }
 
       await addDoc(collection(db, 'providers', bookingProvider.id, 'bookings'), {
         providerId: bookingProvider.id,
@@ -218,49 +244,107 @@ export default function TherapistDirectory() {
         time: selectedTime,
         notes: bookingNotes || '',
         status: 'pending',
+        serviceId: selectedService?.id || null,
+        serviceName: selectedService?.service_title || null,
+        servicePrice: selectedService?.price || null,
+        serviceDuration: selectedService?.duration || null,
+        serviceMode: selectedService?.delivery_mode || null,
         createdAt: serverTimestamp(),
       })
       setBookingSuccess(true)
     } catch (error) {
-      console.error('Booking error:', error.code, error.message)
       alert(`Failed to submit booking: ${error.message}`)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const filteredProviders = providers.filter((p) => {
+  // ── Open chat ──
+  const openChat = async (provider) => {
+    if (!user) return
+    setChatProvider(provider)
+    setChatOpen(true)
+    setSelectedProvider(null)
+    setMessages([])
+    setChatId(null)
+    try {
+      const snap = await getDocs(query(collection(db, 'chats'), where('participants', 'array-contains', uid)))
+      let foundChatId = null
+      snap.forEach(chatDoc => {
+        if (chatDoc.data().participants?.includes(provider.id)) foundChatId = chatDoc.id
+      })
+      if (foundChatId) setChatId(foundChatId)
+    } catch (e) {}
+  }
+
+  // ── Subscribe to messages ──
+  useEffect(() => {
+    if (!chatId) return
+    const unsub = onSnapshot(
+      query(collection(db, 'chats', chatId, 'messages'), orderBy('createdAt', 'asc')),
+      (snap) => setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    )
+    return () => unsub()
+  }, [chatId])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  // ── Send message ──
+  const sendMessage = async () => {
+    const trimmed = messageInput.trim()
+    if (!trimmed || !chatProvider || !user) return
+    setSendingMessage(true)
+    try {
+      let activeChatId = chatId
+      if (!activeChatId) {
+        const chatRef = await addDoc(collection(db, 'chats'), {
+          participants: [uid, chatProvider.id],
+          participantNames: {
+            [uid]: layoutUser?.firstName ? `${layoutUser.firstName} ${layoutUser.lastName || ''}`.trim() : user.email || 'User',
+            [chatProvider.id]: `${chatProvider.first_name} ${chatProvider.last_name}`,
+          },
+          createdAt: serverTimestamp(),
+          lastMessage: '',
+          lastMessageAt: serverTimestamp(),
+        })
+        activeChatId = chatRef.id
+        setChatId(activeChatId)
+      }
+      await addDoc(collection(db, 'chats', activeChatId, 'messages'), {
+        text: trimmed,
+        senderId: uid,
+        senderName: layoutUser?.firstName ? `${layoutUser.firstName} ${layoutUser.lastName || ''}`.trim() : user.email || 'User',
+        createdAt: serverTimestamp(),
+      })
+      await setDoc(doc(db, 'chats', activeChatId), { lastMessage: trimmed, lastMessageAt: serverTimestamp() }, { merge: true })
+      setMessageInput('')
+    } catch (e) { console.error(e) }
+    finally { setSendingMessage(false) }
+  }
+
+  const filteredProviders = providers.filter(p => {
     if (!searchQuery) return true
     const q = searchQuery.toLowerCase()
-    const name = `${p.first_name} ${p.last_name}`.toLowerCase()
-    return name.includes(q) || (p.biography || '').toLowerCase().includes(q) ||
+    return `${p.first_name} ${p.last_name}`.toLowerCase().includes(q) ||
+      (p.biography || '').toLowerCase().includes(q) ||
       (p.professional_title || '').toLowerCase().includes(q) ||
       (p.parish || '').toLowerCase().includes(q)
   })
 
-  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
-  const dayLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
-
   if (isLoading) {
-    return (
-      <div className="space-y-4">
-        {[1,2,3].map(i => <div key={i} className="h-40 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />)}
-      </div>
-    )
+    return <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="h-40 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />)}</div>
   }
 
   return (
     <div className="space-y-6">
-
       {/* Search */}
-      <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+      <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
         placeholder="Search by name, title, or parish..."
         className="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2.5 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:bg-gray-800 dark:text-white"
       />
-
-      <p className="text-sm text-gray-500 dark:text-gray-400">
-        {filteredProviders.length} {filteredProviders.length === 1 ? 'therapist' : 'therapists'} found
-      </p>
+      <p className="text-sm text-gray-500 dark:text-gray-400">{filteredProviders.length} {filteredProviders.length === 1 ? 'therapist' : 'therapists'} found</p>
 
       {filteredProviders.length === 0 ? (
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-10 text-center text-gray-500">
@@ -269,33 +353,24 @@ export default function TherapistDirectory() {
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredProviders.map((provider) => (
+          {filteredProviders.map(provider => (
             <div key={provider.id} className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow">
-
-              {/* Cover photo */}
               {provider.cover_photo_url ? (
-                <div className="h-24 w-full overflow-hidden">
-                  <img src={provider.cover_photo_url} alt="" className="h-full w-full object-cover" />
-                </div>
+                <div className="h-24 w-full overflow-hidden"><img src={provider.cover_photo_url} alt="" className="h-full w-full object-cover" /></div>
               ) : (
                 <div className="h-12 w-full bg-gradient-to-r from-primary-500 to-primary-600" />
               )}
-
               <div className="p-6">
                 <div className="flex items-start gap-4">
-                  {/* Avatar overlapping cover */}
                   <div className="-mt-10 shrink-0">
                     {provider.profile_photo_url ? (
-                      <img src={provider.profile_photo_url} alt=""
-                        className="h-16 w-16 rounded-full border-4 border-white dark:border-gray-800 object-cover shadow-md"
-                      />
+                      <img src={provider.profile_photo_url} alt="" className="h-16 w-16 rounded-full border-4 border-white dark:border-gray-800 object-cover shadow-md" />
                     ) : (
                       <div className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-white dark:border-gray-800 bg-primary-500 text-lg font-bold text-white shadow-md">
                         {(provider.first_name?.[0] || '').toUpperCase()}{(provider.last_name?.[0] || '').toUpperCase()}
                       </div>
                     )}
                   </div>
-
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
@@ -320,20 +395,24 @@ export default function TherapistDirectory() {
                     </div>
                     {provider.practice_areas.length > 0 && (
                       <div className="flex flex-wrap gap-2 pt-2">
-                        {provider.practice_areas.slice(0, 4).map((spec) => (
+                        {provider.practice_areas.slice(0, 4).map(spec => (
                           <span key={spec} className="rounded-full bg-primary-100 dark:bg-primary-900/30 px-3 py-1 text-xs font-medium text-primary-700 dark:text-primary-400">{spec}</span>
                         ))}
-                        {provider.practice_areas.length > 4 && (
-                          <span className="rounded-full bg-gray-100 dark:bg-gray-700 px-3 py-1 text-xs text-gray-500">+{provider.practice_areas.length - 4} more</span>
-                        )}
+                        {provider.practice_areas.length > 4 && <span className="rounded-full bg-gray-100 dark:bg-gray-700 px-3 py-1 text-xs text-gray-500">+{provider.practice_areas.length - 4} more</span>}
                       </div>
                     )}
                   </div>
                 </div>
-
-                <div className="mt-4 flex gap-3 border-t border-gray-100 dark:border-gray-700 pt-4">
+                <div className="mt-4 flex flex-wrap gap-3 border-t border-gray-100 dark:border-gray-700 pt-4">
                   <button onClick={() => setSelectedProvider(provider)} className="rounded-lg border border-gray-200 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">View Profile</button>
-                  <button onClick={() => openBooking(provider)} disabled={!provider.is_accepting_clients} className="rounded-lg bg-primary-500 hover:bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Book Session</button>
+                  <button onClick={() => openBooking(provider)} disabled={!provider.is_accepting_clients}
+                    className="rounded-lg bg-emerald-500 hover:bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Book Session
+                  </button>
+                  <button onClick={() => openChat(provider)}
+                    className="rounded-lg bg-primary-500 hover:bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors">
+                    Send Message
+                  </button>
                 </div>
               </div>
             </div>
@@ -341,33 +420,28 @@ export default function TherapistDirectory() {
         </div>
       )}
 
-      {/* Emergency Notice */}
+      {/* Emergency */}
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6">
-        <div className="flex items-start space-x-3">
+        <div className="flex items-start gap-3">
           <span className="text-2xl">🚨</span>
           <div>
-            <h3 className="text-lg font-semibold text-red-800 dark:text-red-300 mb-2">Need Immediate Help?</h3>
-            <p className="text-red-700 dark:text-red-400 mb-3">If you&apos;re experiencing a mental health crisis, don&apos;t wait for an appointment.</p>
-            <a href="tel:+18765554321" className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition-colors inline-block">Call Crisis Line: +1 (876) 555-HELP</a>
+            <h3 className="text-lg font-semibold text-red-800 dark:text-red-300 mb-1">Need Immediate Help?</h3>
+            <p className="text-red-700 dark:text-red-400 text-sm mb-3">If you&apos;re experiencing a mental health crisis, don&apos;t wait for an appointment.</p>
+            <a href="tel:+18765554321" className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg font-medium transition-colors inline-block text-sm">Call Crisis Line: +1 (876) 555-HELP</a>
           </div>
         </div>
       </div>
 
-      {/* PROFILE POPUP */}
+      {/* ── PROFILE POPUP ── */}
       {selectedProvider && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={() => setSelectedProvider(null)}>
-          <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white dark:bg-gray-800 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white dark:bg-gray-800 shadow-2xl" onClick={e => e.stopPropagation()}>
             <button onClick={() => setSelectedProvider(null)} className="absolute right-4 top-4 z-10 rounded-full bg-white/80 dark:bg-gray-700/80 p-2 text-gray-500 hover:text-gray-800"><X className="h-5 w-5" /></button>
-
-            {/* Cover photo in modal */}
             {selectedProvider.cover_photo_url ? (
-              <div className="h-36 w-full overflow-hidden rounded-t-2xl">
-                <img src={selectedProvider.cover_photo_url} alt="" className="h-full w-full object-cover" />
-              </div>
+              <div className="h-36 w-full overflow-hidden rounded-t-2xl"><img src={selectedProvider.cover_photo_url} alt="" className="h-full w-full object-cover" /></div>
             ) : (
               <div className="h-28 w-full rounded-t-2xl bg-gradient-to-r from-primary-500 to-primary-600" />
             )}
-
             <div className="px-6 pb-6">
               <div className="-mt-12 mb-4 flex items-end justify-between">
                 {selectedProvider.profile_photo_url ? (
@@ -388,8 +462,7 @@ export default function TherapistDirectory() {
               {selectedProvider.professional_title && <p className="text-primary-600 dark:text-primary-400 font-medium">{selectedProvider.professional_title}</p>}
               {selectedProvider.organization && <p className="text-sm text-gray-500 dark:text-gray-400">{selectedProvider.organization}</p>}
               {selectedProvider.biography && (
-                <div className="mt-4">
-                  <h4 className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">About</h4>
+                <div className="mt-4"><h4 className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">About</h4>
                   <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{selectedProvider.biography}</p>
                 </div>
               )}
@@ -398,19 +471,23 @@ export default function TherapistDirectory() {
                 {selectedProvider.experience && <div className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3"><p className="text-xs text-gray-500">Experience</p><p className="text-sm font-medium text-gray-800 dark:text-white">{selectedProvider.experience}</p></div>}
                 {selectedProvider.session_cost && <div className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3"><p className="text-xs text-gray-500">Session Rate</p><p className="text-sm font-medium text-gray-800 dark:text-white">JMD {selectedProvider.session_cost}</p></div>}
                 {selectedProvider.session_types && <div className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3"><p className="text-xs text-gray-500">Session Types</p><p className="text-sm font-medium text-gray-800 dark:text-white">{selectedProvider.session_types}</p></div>}
+                {selectedProvider.payment_options && <div className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3"><p className="text-xs text-gray-500">Payment</p><p className="text-sm font-medium text-gray-800 dark:text-white">{selectedProvider.payment_options}</p></div>}
+                {selectedProvider.languages.length > 0 && <div className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3"><p className="text-xs text-gray-500">Languages</p><p className="text-sm font-medium text-gray-800 dark:text-white">{selectedProvider.languages.join(', ')}</p></div>}
               </div>
               {selectedProvider.practice_areas.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">Areas of Practice</h4>
+                <div className="mt-4"><h4 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">Areas of Practice</h4>
                   <div className="flex flex-wrap gap-2">
-                    {selectedProvider.practice_areas.map((spec) => (
+                    {selectedProvider.practice_areas.map(spec => (
                       <span key={spec} className="rounded-full bg-primary-100 dark:bg-primary-900/30 px-3 py-1 text-xs font-medium text-primary-700 dark:text-primary-400">{spec}</span>
                     ))}
                   </div>
                 </div>
               )}
               <div className="mt-6 flex gap-3">
-                <button onClick={() => { setSelectedProvider(null); openBooking(selectedProvider) }} disabled={!selectedProvider.is_accepting_clients} className="flex-1 rounded-lg bg-primary-500 hover:bg-primary-600 py-3 text-sm font-medium text-white transition-colors disabled:opacity-50">Book Session</button>
+                <button onClick={() => { setSelectedProvider(null); openBooking(selectedProvider) }} disabled={!selectedProvider.is_accepting_clients}
+                  className="flex-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 py-3 text-sm font-medium text-white transition-colors disabled:opacity-50">Book Session</button>
+                <button onClick={() => openChat(selectedProvider)}
+                  className="flex-1 rounded-lg bg-primary-500 hover:bg-primary-600 py-3 text-sm font-medium text-white transition-colors">Send Message</button>
                 <button onClick={() => setSelectedProvider(null)} className="rounded-lg border border-gray-200 dark:border-gray-600 px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Close</button>
               </div>
             </div>
@@ -418,7 +495,7 @@ export default function TherapistDirectory() {
         </div>
       )}
 
-      {/* BOOKING POPUP */}
+      {/* ── BOOKING POPUP ── */}
       {bookingProvider && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white dark:bg-gray-800 shadow-2xl">
@@ -428,14 +505,16 @@ export default function TherapistDirectory() {
                 <div className="text-center py-8">
                   <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100"><span className="text-3xl">✅</span></div>
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Booking Submitted!</h3>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Your appointment request with <strong>{bookingProvider.first_name} {bookingProvider.last_name}</strong> has been sent.</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Request sent to <strong>{bookingProvider.first_name} {bookingProvider.last_name}</strong>.</p>
+                  {selectedService && <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Service: <strong>{selectedService.service_title}</strong></p>}
                   <p className="text-gray-500 dark:text-gray-400 text-sm mb-2"><strong>{selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</strong> at <strong>{selectedTime}</strong></p>
                   <p className="text-xs text-gray-400 mb-6">The provider will confirm your appointment shortly.</p>
                   <button onClick={() => setBookingProvider(null)} className="rounded-lg bg-primary-500 px-6 py-2 text-sm font-medium text-white hover:bg-primary-600">Done</button>
                 </div>
               ) : (
                 <>
-                  <div className="mb-6 flex items-center gap-3">
+                  {/* Provider header */}
+                  <div className="mb-5 flex items-center gap-3">
                     {bookingProvider.profile_photo_url ? (
                       <img src={bookingProvider.profile_photo_url} alt="" className="h-12 w-12 rounded-full object-cover" />
                     ) : (
@@ -449,18 +528,54 @@ export default function TherapistDirectory() {
                     </div>
                   </div>
 
-                  {/* Calendar */}
+                  {/* ── SERVICE SELECTION ── */}
+                  <div className="mb-5">
+                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Select Service <span className="text-red-500">*</span></h4>
+                    {providerServices.length === 0 ? (
+                      <div className="rounded-lg border border-gray-200 dark:border-gray-600 p-3 text-sm text-gray-500 dark:text-gray-400">
+                        No specific services listed — booking for general consultation.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {providerServices.map(service => (
+                          <button key={service.id} onClick={() => { setSelectedService(service); setSelectedTime('') }}
+                            className={`w-full text-left rounded-xl border p-3 transition-all ${
+                              selectedService?.id === service.id
+                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-primary-300 hover:bg-primary-50/50 dark:hover:bg-primary-900/10'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 dark:text-white text-sm">{service.service_title}</p>
+                                {service.description && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{service.description}</p>}
+                                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                  {service.duration && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{service.duration}</span>}
+                                  {service.delivery_mode && <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" />{service.delivery_mode}</span>}
+                                </div>
+                              </div>
+                              <p className="text-sm font-semibold text-primary-600 dark:text-primary-400 shrink-0">
+                                {service.price === 'Free' ? 'Free' : service.price ? `JMD ${service.price}` : '—'}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── CALENDAR ── */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Select Date</h4>
+                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Select Date <span className="text-red-500">*</span></h4>
                       <div className="flex items-center gap-2">
                         <button onClick={() => setCalendarDate(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d })} className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"><ChevronLeft className="h-4 w-4" /></button>
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{monthNames[calendarDate.getMonth()]} {calendarDate.getFullYear()}</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{MONTH_NAMES[calendarDate.getMonth()]} {calendarDate.getFullYear()}</span>
                         <button onClick={() => setCalendarDate(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d })} className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"><ChevronRight className="h-4 w-4" /></button>
                       </div>
                     </div>
                     <div className="grid grid-cols-7 gap-1 mb-2">
-                      {dayLabels.map(d => <div key={d} className="text-center text-xs font-medium text-gray-400 py-1">{d}</div>)}
+                      {DAY_LABELS.map(d => <div key={d} className="text-center text-xs font-medium text-gray-400 py-1">{d}</div>)}
                     </div>
                     <div className="grid grid-cols-7 gap-1">
                       {getDaysInMonth(calendarDate).map((date, i) => {
@@ -472,7 +587,12 @@ export default function TherapistDirectory() {
                         const disabled = past || unavailable
                         return (
                           <button key={i} onClick={() => { if (!disabled) { setSelectedDate(date); setSelectedTime('') } }} disabled={disabled}
-                            className={`aspect-square rounded-lg text-sm font-medium transition-all ${isSelected ? 'bg-primary-500 text-white' : isToday && !disabled ? 'border-2 border-primary-500 text-primary-600 dark:text-primary-400' : disabled ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'hover:bg-primary-50 dark:hover:bg-primary-900/20 text-gray-700 dark:text-gray-300'}`}>
+                            className={`aspect-square rounded-lg text-sm font-medium transition-all ${
+                              isSelected ? 'bg-primary-500 text-white' :
+                              isToday && !disabled ? 'border-2 border-primary-500 text-primary-600 dark:text-primary-400' :
+                              disabled ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' :
+                              'hover:bg-primary-50 dark:hover:bg-primary-900/20 text-gray-700 dark:text-gray-300'
+                            }`}>
                             {date.getDate()}
                           </button>
                         )
@@ -480,13 +600,17 @@ export default function TherapistDirectory() {
                     </div>
                   </div>
 
+                  {/* ── TIME SLOTS ── */}
                   {selectedDate && (
                     <div className="mb-4">
-                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Select Time</h4>
+                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Select Time <span className="text-red-500">*</span></h4>
                       <div className="grid grid-cols-3 gap-2">
-                        {getTimeSlots(selectedDate).map((slot) => (
+                        {getTimeSlots(selectedDate).map(slot => (
                           <button key={slot} onClick={() => setSelectedTime(slot)}
-                            className={`rounded-lg border py-2 text-xs font-medium transition-all ${selectedTime === slot ? 'border-primary-500 bg-primary-500 text-white' : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20'}`}>
+                            className={`rounded-lg border py-2 text-xs font-medium transition-all ${
+                              selectedTime === slot ? 'border-primary-500 bg-primary-500 text-white' :
+                              'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20'
+                            }`}>
                             {slot}
                           </button>
                         ))}
@@ -494,25 +618,98 @@ export default function TherapistDirectory() {
                     </div>
                   )}
 
-                  <div className="mb-6">
+                  {/* ── NOTES ── */}
+                  <div className="mb-5">
                     <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Notes (optional)</h4>
-                    <textarea value={bookingNotes} onChange={(e) => setBookingNotes(e.target.value)} placeholder="Describe what you'd like to discuss..." rows={3} className="w-full rounded-lg border border-gray-200 dark:border-gray-600 px-3 py-2 text-sm outline-none focus:border-primary-500 dark:bg-gray-700 dark:text-white resize-none" />
+                    <textarea value={bookingNotes} onChange={e => setBookingNotes(e.target.value)}
+                      placeholder="Describe what you'd like to discuss..." rows={3}
+                      className="w-full rounded-lg border border-gray-200 dark:border-gray-600 px-3 py-2 text-sm outline-none focus:border-primary-500 dark:bg-gray-700 dark:text-white resize-none" />
                   </div>
 
+                  {/* ── SUMMARY ── */}
                   {selectedDate && selectedTime && (
-                    <div className="mb-4 rounded-lg bg-primary-50 dark:bg-primary-900/20 p-3 text-sm">
-                      <p className="font-medium text-primary-700 dark:text-primary-300">Booking Summary</p>
-                      <p className="text-primary-600 dark:text-primary-400 mt-1">{selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} at {selectedTime}</p>
-                      {bookingProvider.session_cost && <p className="text-primary-600 dark:text-primary-400">Rate: JMD {bookingProvider.session_cost}</p>}
+                    <div className="mb-5 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 p-4">
+                      <p className="font-semibold text-primary-800 dark:text-primary-300 text-sm mb-2">Booking Summary</p>
+                      {selectedService && <p className="text-primary-700 dark:text-primary-400 text-xs"><span className="font-medium">Service:</span> {selectedService.service_title}</p>}
+                      <p className="text-primary-700 dark:text-primary-400 text-xs mt-1">
+                        <span className="font-medium">Date:</span> {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} at {selectedTime}
+                      </p>
+                      {selectedService?.price && <p className="text-primary-700 dark:text-primary-400 text-xs mt-1"><span className="font-medium">Rate:</span> {selectedService.price === 'Free' ? 'Free' : `JMD ${selectedService.price}`}</p>}
+                      {selectedService?.duration && <p className="text-primary-700 dark:text-primary-400 text-xs mt-1"><span className="font-medium">Duration:</span> {selectedService.duration}</p>}
                     </div>
                   )}
 
-                  <button onClick={submitBooking} disabled={!selectedDate || !selectedTime || isSubmitting}
+                  <button onClick={submitBooking}
+                    disabled={!selectedDate || !selectedTime || isSubmitting || (providerServices.length > 0 && !selectedService)}
                     className="w-full rounded-lg bg-primary-500 hover:bg-primary-600 py-3 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     {isSubmitting ? 'Submitting...' : 'Confirm Booking'}
                   </button>
+                  {providerServices.length > 0 && !selectedService && (
+                    <p className="text-center text-xs text-red-500 mt-2">Please select a service to continue</p>
+                  )}
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CHAT PANEL ── */}
+      {chatOpen && chatProvider && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setChatOpen(false)} />
+          <div className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl dark:bg-gray-800">
+            <div className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800">
+              <button onClick={() => setChatOpen(false)} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"><ChevronLeft className="h-5 w-5" /></button>
+              {chatProvider.profile_photo_url ? (
+                <img src={chatProvider.profile_photo_url} alt="" className="h-10 w-10 rounded-full object-cover" />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-500 text-sm font-bold text-white">
+                  {(chatProvider.first_name?.[0] || '').toUpperCase()}{(chatProvider.last_name?.[0] || '').toUpperCase()}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="truncate font-semibold text-gray-900 dark:text-white">{chatProvider.first_name} {chatProvider.last_name}</p>
+                <p className="truncate text-xs text-gray-500 dark:text-gray-400">{chatProvider.professional_title}</p>
+              </div>
+            </div>
+            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              {messages.length === 0 && (
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center">
+                    <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30 overflow-hidden">
+                      {chatProvider.profile_photo_url ? <img src={chatProvider.profile_photo_url} alt="" className="h-16 w-16 rounded-full object-cover" /> : <span className="text-2xl font-bold text-primary-600">{(chatProvider.first_name?.[0] || '').toUpperCase()}</span>}
+                    </div>
+                    <p className="font-medium text-gray-700 dark:text-gray-200">{chatProvider.first_name} {chatProvider.last_name}</p>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Send a message to start the conversation</p>
+                  </div>
+                </div>
+              )}
+              {messages.map(message => {
+                const isMe = message.senderId === uid
+                return (
+                  <div key={message.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${isMe ? 'rounded-tr-none bg-primary-500 text-white' : 'rounded-tl-none bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'}`}>
+                      <p>{message.text}</p>
+                      {message.createdAt && <p className={`mt-1 text-right text-xs ${isMe ? 'text-primary-200' : 'text-gray-400'}`}>{message.createdAt?.toDate?.()?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || ''}</p>}
+                    </div>
+                  </div>
+                )
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+            <div className="border-t border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+              <div className="flex items-center gap-2">
+                <input type="text" value={messageInput} onChange={e => setMessageInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+                  placeholder={`Message ${chatProvider.first_name}...`}
+                  className="flex-1 rounded-full border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+                <button onClick={sendMessage} disabled={!messageInput.trim() || sendingMessage}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 transition-colors">
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
