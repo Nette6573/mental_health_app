@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAdminAuth } from '@/context/AdminAuthContext'
 import { db } from '@/lib/firebase/firebaseClient'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { collection, getDocs, doc, deleteDoc } from 'firebase/firestore'
 
 const Icon = ({ path, size = 16 }: { path: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -20,7 +20,8 @@ const icons = {
   trash: 'M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6',
   unlock: 'M8 11V7a4 4 0 018 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z',
   calendar: 'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18',
-  user: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8',
+  mail: 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM22 6l-10 7L2 6',
+  back: 'M19 12H5M12 5l-7 7 7 7',
 }
 
 function Badge({ children, type = 'blue' }: { children: React.ReactNode; type?: string }) {
@@ -56,15 +57,12 @@ export default function AdminClientsPage() {
   useEffect(() => {
     const fetchClients = async () => {
       try {
-        // Fetch users
         const usersSnap = await getDocs(collection(db, 'users'))
         const userList = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }))
         setClients(userList)
 
-        // Fetch booking counts per user
-        const bookingsSnap = await getDocs(collection(db, 'bookings'))
+        // Count bookings per user from providers subcollections
         const counts: Record<string, number> = {}
-        // Also check providers/{id}/bookings subcollections
         const provSnap = await getDocs(collection(db, 'providers'))
         for (const provDoc of provSnap.docs) {
           const provBookings = await getDocs(collection(db, 'providers', provDoc.id, 'bookings'))
@@ -74,10 +72,15 @@ export default function AdminClientsPage() {
           })
         }
         // Also check top-level bookings collection
-        bookingsSnap.docs.forEach(b => {
-          const uid = b.data().userId
-          if (uid) counts[uid] = (counts[uid] || 0) + 1
-        })
+        try {
+          const bookingsSnap = await getDocs(collection(db, 'bookings'))
+          bookingsSnap.docs.forEach(b => {
+            const uid = b.data().userId
+            if (uid) counts[uid] = (counts[uid] || 0) + 1
+          })
+        } catch (e) {
+          // top-level bookings may not exist
+        }
         setBookingCount(counts)
       } catch (e) {
         console.error(e)
@@ -91,6 +94,7 @@ export default function AdminClientsPage() {
   const handleDisable = async () => {
     if (!selectedClient) return
     setActionLoading('disable')
+    setActionMsg('')
     try {
       const res = await fetch('/api/admin/disable-user', {
         method: 'POST',
@@ -99,9 +103,12 @@ export default function AdminClientsPage() {
       })
       const data = await res.json()
       if (data.success) {
-        setClients(prev => prev.map(c => c.id === selectedClient.id ? { ...c, disabled: !c.disabled } : c))
-        setSelectedClient((prev: any) => ({ ...prev, disabled: !prev.disabled }))
-        setActionMsg(selectedClient.disabled ? 'Account enabled.' : 'Account disabled.')
+        const updated = { ...selectedClient, disabled: !selectedClient.disabled }
+        setClients(prev => prev.map(c => c.id === selectedClient.id ? updated : c))
+        setSelectedClient(updated)
+        setActionMsg(selectedClient.disabled ? 'Account enabled successfully.' : 'Account disabled successfully.')
+      } else {
+        setActionMsg('Failed to update account.')
       }
     } catch (e) {
       setActionMsg('Failed to update account.')
@@ -113,7 +120,9 @@ export default function AdminClientsPage() {
   const handleDelete = async () => {
     if (!selectedClient) return
     setActionLoading('delete')
+    setActionMsg('')
     try {
+      // 1. Delete from Firebase Auth via Admin SDK
       const res = await fetch('/api/admin/delete-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -121,14 +130,42 @@ export default function AdminClientsPage() {
       })
       const data = await res.json()
       if (data.success) {
+        // 2. Delete from Firestore users collection
+        await deleteDoc(doc(db, 'users', selectedClient.id))
+        // 3. Remove from local state immediately
         setClients(prev => prev.filter(c => c.id !== selectedClient.id))
         setSelectedClient(null)
+        setConfirmDelete(false)
+      } else {
+        setActionMsg('Failed to delete account: ' + (data.error || 'Unknown error'))
       }
     } catch (e) {
       setActionMsg('Failed to delete account.')
     } finally {
       setActionLoading('')
-      setConfirmDelete(false)
+    }
+  }
+
+  const handleResetPassword = async () => {
+    if (!selectedClient?.email) return
+    setActionLoading('reset')
+    setActionMsg('')
+    try {
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: selectedClient.email }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setActionMsg('Password reset email sent to ' + selectedClient.email)
+      } else {
+        setActionMsg('Failed to send reset email.')
+      }
+    } catch (e) {
+      setActionMsg('Failed to send reset email.')
+    } finally {
+      setActionLoading('')
     }
   }
 
@@ -151,6 +188,8 @@ export default function AdminClientsPage() {
         .page-header { margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
         .page-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: #e6edf3; }
         .page-sub { font-size: 13px; color: #8b949e; margin-top: 3px; }
+        .back-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 9px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #8b949e; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; margin-bottom: 16px; font-family: 'DM Sans', sans-serif; }
+        .back-btn:hover { background: rgba(255,255,255,0.07); color: #c9d1d9; }
         .search-wrap { position: relative; display: flex; align-items: center; }
         .search-icon { position: absolute; left: 10px; color: #8b949e; pointer-events: none; }
         .search-input { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 8px 14px 8px 34px; font-size: 13px; color: #c9d1d9; outline: none; width: 240px; font-family: 'DM Sans', sans-serif; transition: border-color 0.2s; }
@@ -165,9 +204,13 @@ export default function AdminClientsPage() {
         .avatar-placeholder { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; font-family: 'Syne', sans-serif; flex-shrink: 0; }
         .action-btn { padding: 5px 11px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 5px; }
         .btn-blue { background: rgba(37,150,190,0.1); border: 1px solid rgba(37,150,190,0.25); color: #2596be; }
+        .btn-blue:hover { background: rgba(37,150,190,0.18); }
         .btn-yellow { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); color: #fbbf24; }
+        .btn-yellow:hover { background: rgba(245,158,11,0.18); }
         .btn-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #f87171; }
+        .btn-red:hover { background: rgba(239,68,68,0.14); }
         .btn-green { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25); color: #34d399; }
+        .btn-green:hover { background: rgba(16,185,129,0.18); }
         .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 80; }
         .drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 90; width: 460px; max-width: 100vw; background: #161b22; border-left: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; animation: slideInRight 0.25s ease; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -192,6 +235,12 @@ export default function AdminClientsPage() {
       `}</style>
 
       <div className="page">
+        {/* Back button */}
+        <button className="back-btn" onClick={() => router.push('/admin/dashboard')}>
+          <Icon path={icons.back} size={14} />
+          Back to Dashboard
+        </button>
+
         <div className="page-header">
           <div>
             <div className="page-title">Clients</div>
@@ -237,15 +286,9 @@ export default function AdminClientsPage() {
                       <td style={{ color: '#8b949e', fontSize: 12 }}>
                         {c.joinDate ? new Date(c.joinDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                       </td>
-                      <td>
-                        <Badge type="blue">{bookingCount[c.id] || 0} bookings</Badge>
-                      </td>
-                      <td>
-                        <Badge type={c.newsletter ? 'green' : 'red'}>{c.newsletter ? 'Yes' : 'No'}</Badge>
-                      </td>
-                      <td>
-                        <Badge type={c.disabled ? 'red' : 'green'}>{c.disabled ? 'Disabled' : 'Active'}</Badge>
-                      </td>
+                      <td><Badge type="blue">{bookingCount[c.id] || 0} bookings</Badge></td>
+                      <td><Badge type={c.newsletter ? 'green' : 'red'}>{c.newsletter ? 'Yes' : 'No'}</Badge></td>
+                      <td><Badge type={c.disabled ? 'red' : 'green'}>{c.disabled ? 'Disabled' : 'Active'}</Badge></td>
                       <td>
                         <button className="action-btn btn-blue" onClick={() => { setSelectedClient(c); setActionMsg(''); setConfirmDelete(false) }}>
                           <Icon path={icons.eye} size={12} /> View
@@ -279,15 +322,18 @@ export default function AdminClientsPage() {
             </div>
 
             <div className="drawer-body">
-              {/* Booking count stat */}
+              {/* Booking count */}
               <div className="stat-box">
                 <div>
                   <div style={{ fontSize: 12, color: '#8b949e', marginBottom: 4 }}>Total Bookings</div>
-                  <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 28, fontWeight: 800, color: '#2596be' }}>{bookingCount[selectedClient.id] || 0}</div>
+                  <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 28, fontWeight: 800, color: '#2596be' }}>
+                    {bookingCount[selectedClient.id] || 0}
+                  </div>
                 </div>
                 <Icon path={icons.calendar} size={28} />
               </div>
 
+              {/* Account info */}
               <div className="section-label">Account Information</div>
               <div className="info-grid">
                 {[
@@ -297,6 +343,7 @@ export default function AdminClientsPage() {
                   { label: 'Role', value: selectedClient.role },
                   { label: 'Newsletter', value: selectedClient.newsletter ? 'Subscribed' : 'Not subscribed' },
                   { label: 'Joined', value: selectedClient.joinDate ? new Date(selectedClient.joinDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—' },
+                  { label: 'Status', value: selectedClient.disabled ? 'Disabled' : 'Active' },
                 ].map(item => item.value ? (
                   <div key={item.label} className="info-item">
                     <div className="info-item-label">{item.label}</div>
@@ -306,37 +353,73 @@ export default function AdminClientsPage() {
               </div>
 
               <div className="divider" />
+
+              {/* Actions */}
               <div className="section-label">Account Actions</div>
               <div className="action-row">
+                {/* Disable / Enable */}
                 <button
                   className={`action-btn ${selectedClient.disabled ? 'btn-green' : 'btn-yellow'}`}
                   onClick={handleDisable}
                   disabled={actionLoading === 'disable'}
                 >
-                  {actionLoading === 'disable' ? <div className="spinner" /> : <Icon path={selectedClient.disabled ? icons.unlock : icons.lock} size={12} />}
+                  {actionLoading === 'disable'
+                    ? <div className="spinner" />
+                    : <Icon path={selectedClient.disabled ? icons.unlock : icons.lock} size={12} />
+                  }
                   {selectedClient.disabled ? 'Enable Account' : 'Disable Account'}
                 </button>
 
-                <button className="action-btn btn-red" onClick={() => setConfirmDelete(true)}>
+                {/* Reset Password */}
+                <button
+                  className="action-btn btn-blue"
+                  onClick={handleResetPassword}
+                  disabled={actionLoading === 'reset'}
+                >
+                  {actionLoading === 'reset'
+                    ? <div className="spinner" />
+                    : <Icon path={icons.mail} size={12} />
+                  }
+                  Reset Password
+                </button>
+
+                {/* Delete */}
+                <button
+                  className="action-btn btn-red"
+                  onClick={() => setConfirmDelete(true)}
+                >
                   <Icon path={icons.trash} size={12} />
                   Delete Account
                 </button>
               </div>
 
+              {/* Delete confirmation */}
               {confirmDelete && (
                 <div className="confirm-box">
-                  <div className="confirm-text">Permanently delete this client account? This cannot be undone.</div>
+                  <div className="confirm-text">
+                    Permanently delete <strong>{selectedClient.firstName} {selectedClient.lastName}</strong>? This removes their account from Firebase Auth and Firestore. This cannot be undone.
+                  </div>
                   <div className="confirm-btns">
-                    <button className="action-btn btn-red" onClick={handleDelete} disabled={actionLoading === 'delete'}>
-                      {actionLoading === 'delete' ? <div className="spinner" /> : null} Yes, Delete
+                    <button
+                      className="action-btn btn-red"
+                      onClick={handleDelete}
+                      disabled={actionLoading === 'delete'}
+                    >
+                      {actionLoading === 'delete' ? <div className="spinner" /> : null}
+                      Yes, Delete
                     </button>
-                    <button className="action-btn btn-blue" onClick={() => setConfirmDelete(false)}>Cancel</button>
+                    <button className="action-btn btn-blue" onClick={() => setConfirmDelete(false)}>
+                      Cancel
+                    </button>
                   </div>
                 </div>
               )}
 
+              {/* Action message */}
               {actionMsg && (
-                <div className={`msg-box ${actionMsg.includes('Failed') ? 'msg-error' : 'msg-success'}`}>{actionMsg}</div>
+                <div className={`msg-box ${actionMsg.includes('Failed') ? 'msg-error' : 'msg-success'}`}>
+                  {actionMsg}
+                </div>
               )}
             </div>
           </div>
