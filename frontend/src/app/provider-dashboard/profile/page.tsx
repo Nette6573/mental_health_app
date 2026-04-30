@@ -27,6 +27,7 @@ import {
   User,
   X,
   Loader2,
+  HeadphonesIcon,
 } from "lucide-react";
 
 const specializationOptions = [
@@ -81,6 +82,7 @@ export default function ProviderProfilePage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
 
   const [fullName, setFullName] = useState("");
   const [professionalTitle, setProfessionalTitle] = useState("");
@@ -101,11 +103,14 @@ export default function ProviderProfilePage() {
 
   // Photo URLs — loaded from Firebase, updated after Cloudinary upload
   const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState("");
 
   // Local previews before upload
   const [profilePreview, setProfilePreview] = useState("https://ui-avatars.com/api/?name=Provider&background=0ea5e9&color=fff&size=200");
+  const [coverPreview, setCoverPreview] = useState("");
 
   const profilePhotoInputRef = useRef<HTMLInputElement | null>(null);
+  const coverPhotoInputRef = useRef<HTMLInputElement | null>(null);
 
   // ── Dark mode ──
   useEffect(() => {
@@ -162,12 +167,17 @@ export default function ProviderProfilePage() {
           if (data.session_cost) setSessionCost(String(data.session_cost));
           if (data.payment_options) setSlidingScale(data.payment_options);
 
-          // ── Load profile photo from Firebase ──
+          // ── Load profile photo ──
           if (data.profile_photo_url) {
             setProfilePhotoUrl(data.profile_photo_url);
             setProfilePreview(data.profile_photo_url);
           }
 
+          // ── Load cover photo ──
+          if (data.cover_photo_url) {
+            setCoverPhotoUrl(data.cover_photo_url);
+            setCoverPreview(data.cover_photo_url);
+          }
         }
       } catch (error) {
         console.error("Error fetching provider:", error);
@@ -185,59 +195,39 @@ export default function ProviderProfilePage() {
 
   const logout = () => router.replace("/provider-dashboard/login");
 
-  // ── Upload photo to Cloudinary then save URL to Firebase immediately ──
-  const uploadPhotoToCloudinary = async (
-    file: File,
-    type: "profile" | "cover"
-  ): Promise<string> => {
+  // ── Upload photo to Cloudinary ──
+  const uploadPhotoToCloudinary = async (file: File, type: "profile" | "cover"): Promise<string> => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("photoType", type);
-
     const res = await fetch("/api/profile/upload-photo", {
       method: "POST",
       body: formData,
     });
-
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Photo upload failed");
     return data.url;
   };
 
-  // ── Handle profile photo selection — upload immediately on selection ──
+  // ── Handle profile photo selection ──
   const handleProfilePhotoChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file.");
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      alert("Profile photo must be 2MB or less.");
-      return;
-    }
+    if (!file.type.startsWith("image/")) { alert("Please upload an image file."); return; }
+    if (file.size > 2 * 1024 * 1024) { alert("Profile photo must be 2MB or less."); return; }
 
-    // Show local preview immediately
     const localPreview = URL.createObjectURL(file);
     setProfilePreview(localPreview);
 
     try {
       setIsUploadingPhoto(true);
       const uid = user.uid ?? user.id;
-
-      // 1. Upload to Cloudinary
       const url = await uploadPhotoToCloudinary(file, "profile");
-
-      // 2. Save URL to Firebase immediately
-      const docRef = doc(db, "providers", uid);
-      await setDoc(docRef, { profile_photo_url: url }, { merge: true });
-
-      // 3. Update state with the real Cloudinary URL
+      await setDoc(doc(db, "providers", uid), { profile_photo_url: url }, { merge: true });
       setProfilePhotoUrl(url);
       setProfilePreview(url);
       URL.revokeObjectURL(localPreview);
-
       alert("Profile photo updated successfully!");
     } catch (err: any) {
       console.error("Profile photo upload error:", err);
@@ -249,9 +239,37 @@ export default function ProviderProfilePage() {
     }
   };
 
+  // ── Handle cover photo selection ──
+  const handleCoverPhotoChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
+    if (!file.type.startsWith("image/")) { alert("Please upload an image file."); return; }
+    if (file.size > 5 * 1024 * 1024) { alert("Cover photo must be 5MB or less."); return; }
 
-  // ── Save all other profile fields ──
+    const localPreview = URL.createObjectURL(file);
+    setCoverPreview(localPreview);
+
+    try {
+      setIsUploadingCover(true);
+      const uid = user.uid ?? user.id;
+      const url = await uploadPhotoToCloudinary(file, "cover");
+      await setDoc(doc(db, "providers", uid), { cover_photo_url: url }, { merge: true });
+      setCoverPhotoUrl(url);
+      setCoverPreview(url);
+      URL.revokeObjectURL(localPreview);
+      alert("Cover photo updated successfully!");
+    } catch (err: any) {
+      console.error("Cover photo upload error:", err);
+      alert("Failed to upload cover photo: " + err.message);
+      setCoverPreview(coverPhotoUrl || "");
+    } finally {
+      setIsUploadingCover(false);
+      e.target.value = "";
+    }
+  };
+
+  // ── Save all profile fields ──
   const handleSave = async (e?: FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
     if (!user) return;
@@ -270,9 +288,7 @@ export default function ProviderProfilePage() {
 
     try {
       const uid = user.uid ?? user.id;
-      const docRef = doc(db, "providers", uid);
-
-      await setDoc(docRef, {
+      await setDoc(doc(db, "providers", uid), {
         first_name,
         last_name,
         professional_title: professionalTitle,
@@ -290,8 +306,8 @@ export default function ProviderProfilePage() {
         session_types: sessionTypeParts.join(", "),
         session_cost: sessionCost,
         payment_options: slidingScale,
-        // Photo already saved immediately on upload
         profile_photo_url: profilePhotoUrl,
+        cover_photo_url: coverPhotoUrl,
       }, { merge: true });
 
       alert("Profile updated successfully!");
@@ -319,9 +335,7 @@ export default function ProviderProfilePage() {
     setLanguageInput("");
   };
 
-  const removeLanguage = (language: string) => {
-    setLanguages((prev) => prev.filter((lang) => lang !== language));
-  };
+  const removeLanguage = (language: string) => setLanguages((prev) => prev.filter((lang) => lang !== language));
 
   const onLanguageKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") { e.preventDefault(); addLanguage(); }
@@ -333,9 +347,7 @@ export default function ProviderProfilePage() {
     { href: "/provider-dashboard/services", label: "Services", icon: Briefcase },
     { href: "/provider-dashboard/availability", label: "Availability", icon: Calendar },
     { href: "/provider-dashboard/credentials", label: "Verification", icon: ShieldCheck },
-    { href: "/provider-dashboard/messaging", label: "Messages", icon: MessageSquare, badge: "3" },
-    { href: "/provider-dashboard/analytics", label: "Analytics", icon: BarChart3 },
-    { href: "/provider-dashboard/resources", label: "Resources", icon: BookOpen },
+    { href: "/provider-dashboard/messaging", label: "Messages", icon: MessageSquare },
   ];
 
   return (
@@ -344,10 +356,10 @@ export default function ProviderProfilePage() {
         <button className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={() => setMobileSidebarOpen(false)} aria-label="Close sidebar overlay" />
       )}
 
-      <aside className={`fixed z-40 flex h-full w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-300 dark:border-slate-700 dark:bg-slate-800 md:translate-x-0 ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"} md:flex`}>
+      <aside className={`fixed z-40 flex h-full w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-300 dark:border-slate-700 dark:bg-slate-800 md:translate-x-0 ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="border-b border-slate-100 p-6 dark:border-slate-700">
           <div className="flex items-center gap-3">
-            <img src="https://huggingface.co/spaces/brennanlondon/deepsite-project-q0z6c/resolve/main/images/hopepath.png" alt="HopePath Logo" className="h-10 w-10 rounded-xl object-cover shadow-lg" />
+            <img src="/provider-dashboard/images/hopepath.png" alt="HopePath Logo" className="h-10 w-10 rounded-xl object-cover shadow-lg" />
             <div>
               <h1 className="text-xl font-bold text-sky-600">HopePath</h1>
               <p className="text-xs text-slate-600 dark:text-slate-400">Provider Portal</p>
@@ -360,25 +372,29 @@ export default function ProviderProfilePage() {
             const Icon = item.icon;
             return (
               <Link key={item.label} href={item.href}
-                className={item.active ? "flex items-center gap-3 rounded-lg bg-sky-600/10 px-4 py-3 text-sm font-medium text-sky-600" : "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"}
+                className={item.active
+                  ? "flex items-center gap-3 rounded-lg bg-sky-600/10 px-4 py-3 text-sm font-medium text-sky-600"
+                  : "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"
+                }
                 onClick={() => setMobileSidebarOpen(false)}
               >
                 <Icon className="h-5 w-5" />
                 {item.label}
-                {item.badge && <span className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-xs text-white">{item.badge}</span>}
               </Link>
             );
           })}
         </nav>
 
         <div className="space-y-1 border-t border-slate-200 p-4 dark:border-slate-700">
-          <Link href="/provider-dashboard/settings" className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white">
-            <Settings className="h-5 w-5" />
-            Settings
+          <Link href="/provider-dashboard/settings"
+            className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"
+          >
+            <Settings className="h-5 w-5" />Settings
           </Link>
-          <button onClick={logout} className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20">
-            <LogOut className="h-5 w-5" />
-            Logout
+          <button onClick={logout}
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+          >
+            <LogOut className="h-5 w-5" />Logout
           </button>
         </div>
       </aside>
@@ -410,8 +426,7 @@ export default function ProviderProfilePage() {
             {/* BASIC INFO */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <h3 className="mb-6 flex items-center gap-2 font-semibold text-slate-800 dark:text-white">
-                <User className="h-5 w-5 text-sky-600" />
-                Basic Information
+                <User className="h-5 w-5 text-sky-600" />Basic Information
               </h3>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="md:col-span-2">
@@ -444,8 +459,7 @@ export default function ProviderProfilePage() {
             {/* CONTACT */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <h3 className="mb-6 flex items-center gap-2 font-semibold text-slate-800 dark:text-white">
-                <Phone className="h-5 w-5 text-sky-600" />
-                Contact Information
+                <Phone className="h-5 w-5 text-sky-600" />Contact Information
               </h3>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                 <div>
@@ -466,8 +480,7 @@ export default function ProviderProfilePage() {
             {/* BIO */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <h3 className="mb-6 flex items-center gap-2 font-semibold text-slate-800 dark:text-white">
-                <FileText className="h-5 w-5 text-sky-600" />
-                About / Bio
+                <FileText className="h-5 w-5 text-sky-600" />About / Bio
               </h3>
               <div className="space-y-6">
                 <div>
@@ -487,8 +500,7 @@ export default function ProviderProfilePage() {
             {/* SPECIALIZATIONS */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <h3 className="mb-6 flex items-center gap-2 font-semibold text-slate-800 dark:text-white">
-                <Target className="h-5 w-5 text-sky-600" />
-                Areas of Specialization
+                <Target className="h-5 w-5 text-sky-600" />Areas of Specialization
               </h3>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
                 {specializationOptions.map((item) => (
@@ -505,8 +517,7 @@ export default function ProviderProfilePage() {
             {/* LANGUAGES & SESSION */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <h3 className="mb-6 flex items-center gap-2 font-semibold text-slate-800 dark:text-white">
-                <Globe className="h-5 w-5 text-sky-600" />
-                Languages & Session Details
+                <Globe className="h-5 w-5 text-sky-600" />Languages & Session Details
               </h3>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
@@ -556,24 +567,28 @@ export default function ProviderProfilePage() {
               </div>
             </div>
 
-            {/* PHOTOS — uploads to Cloudinary immediately on selection */}
+            {/* PHOTOS */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <h3 className="mb-6 flex items-center gap-2 font-semibold text-slate-800 dark:text-white">
-                <ImageIcon className="h-5 w-5 text-sky-600" />
-                Profile Photos
+                <ImageIcon className="h-5 w-5 text-sky-600" />Profile Photos
               </h3>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 
                 {/* Profile Photo */}
                 <div>
                   <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Profile Photo</label>
-                  <button type="button" onClick={() => profilePhotoInputRef.current?.click()} disabled={isUploadingPhoto} className="relative w-full rounded-lg border-2 border-dashed border-slate-300 p-6 text-center transition-colors hover:border-sky-600 dark:border-slate-600 disabled:opacity-60">
+                  <button
+                    type="button"
+                    onClick={() => profilePhotoInputRef.current?.click()}
+                    disabled={isUploadingPhoto}
+                    className="relative w-full rounded-lg border-2 border-dashed border-slate-300 p-6 text-center transition-colors hover:border-sky-600 dark:border-slate-600 disabled:opacity-60"
+                  >
                     {isUploadingPhoto && (
                       <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-white/80 dark:bg-slate-800/80">
                         <Loader2 className="h-8 w-8 animate-spin text-sky-600" />
                       </div>
                     )}
-                    <img src={profilePreview} alt="Profile" className="mx-auto mb-3 h-24 w-24 rounded-full object-cover" />
+                    <img src={profilePreview} alt="Profile" className="mx-auto mb-3 h-24 w-24 rounded-full object-cover border-4 border-white shadow-md" />
                     <p className="text-sm text-slate-500 dark:text-slate-400">
                       {isUploadingPhoto ? "Uploading..." : "Click to upload new photo"}
                     </p>
@@ -582,6 +597,52 @@ export default function ProviderProfilePage() {
                   <input ref={profilePhotoInputRef} type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" onChange={handleProfilePhotoChange} />
                 </div>
 
+                {/* Cover Photo */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Cover Photo</label>
+                  <button
+                    type="button"
+                    onClick={() => coverPhotoInputRef.current?.click()}
+                    disabled={isUploadingCover}
+                    className="relative w-full rounded-lg border-2 border-dashed border-slate-300 transition-colors hover:border-sky-600 dark:border-slate-600 disabled:opacity-60 overflow-hidden"
+                    style={{ minHeight: 160 }}
+                  >
+                    {isUploadingCover && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-slate-800/80 z-10">
+                        <Loader2 className="h-8 w-8 animate-spin text-sky-600" />
+                      </div>
+                    )}
+                    {coverPreview ? (
+                      <div className="relative w-full h-40">
+                        <img src={coverPreview} alt="Cover" className="w-full h-full object-cover rounded-lg" />
+                        <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center rounded-lg opacity-0 hover:opacity-100 transition-opacity">
+                          <ImageIcon className="w-8 h-8 text-white mb-1" />
+                          <p className="text-white text-sm font-medium">Change Cover Photo</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-40 gap-2">
+                        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                          <ImageIcon className="w-6 h-6 text-slate-400" />
+                        </div>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          {isUploadingCover ? "Uploading..." : "Click to upload cover photo"}
+                        </p>
+                        <p className="text-xs text-slate-400">JPG, PNG up to 5MB · Recommended: 1200×400px</p>
+                      </div>
+                    )}
+                  </button>
+                  <input ref={coverPhotoInputRef} type="file" accept="image/png,image/jpeg,image/jpg" className="hidden" onChange={handleCoverPhotoChange} />
+                  {coverPhotoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => { setCoverPhotoUrl(""); setCoverPreview(""); }}
+                      className="mt-2 text-xs text-red-500 hover:text-red-700 transition-colors"
+                    >
+                      Remove cover photo
+                    </button>
+                  )}
+                </div>
 
               </div>
             </div>
