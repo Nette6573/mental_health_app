@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import Link from "next/link";
 
 interface ChatMessage {
   id: string;
@@ -17,14 +16,13 @@ interface AuthUser {
   email: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const baseUrl = "https://mentalhealthapp-production.up.railway.app";
 
 export default function PaulaChat() {
-  const { user, isLoading } = (useAuth() as {
+  const { user, isLoading } = useAuth() as {
     user: AuthUser | null;
     isLoading: boolean;
-  });
+  };
 
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -152,14 +150,10 @@ export default function PaulaChat() {
 
   const confirmRefresh = () => {
     if (user?.id) {
-      // Clear messages
       setMessages([]);
-      // Clear chat ID to start a new conversation
       setChatId(null);
-      // Clear local storage for this user
       localStorage.removeItem(`chat_history_${user.id}`);
       localStorage.removeItem(`chat_id_${user.id}`);
-      // Clear greeted flag so Paula will greet again
       sessionStorage.removeItem(`paula_greeted_${user.id}`);
     }
     setShowConfirmReset(false);
@@ -195,8 +189,7 @@ export default function PaulaChat() {
           {/* New Chat / Refresh Button */}
           <button
             onClick={refreshChat}
-            className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-1"
-            title="Start New Conversation"
+            className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-1 text-sm"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -218,8 +211,7 @@ export default function PaulaChat() {
           {/* Safety Button */}
           <button
             onClick={navigateToSafety}
-            className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-1"
-            title="Safety Resources"
+            className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-1 text-sm"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
