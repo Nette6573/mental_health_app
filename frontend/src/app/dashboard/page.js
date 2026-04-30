@@ -2,49 +2,33 @@
 
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import DashboardLayout from '@/components/dashboard/layout/DashboardLayout'
 import { db } from '@/lib/firebase/firebaseClient'
 import {
   doc, getDoc, collection, query, where,
-  getDocs, orderBy, limit, onSnapshot
+  getDocs, orderBy, limit, onSnapshot,
+  updateDoc, addDoc, setDoc, serverTimestamp
 } from 'firebase/firestore'
 import {
   CalendarCheck, MessageSquare, BookOpen,
   TrendingUp, Clock, ChevronRight, Users,
   Activity, Heart, ShieldCheck, AlertCircle,
-  XCircle, Clock3, CheckCircle,
+  XCircle, Clock3, X, Send,
 } from 'lucide-react'
 
-// ── Verification badge (same as therapist directory) ──────────────────────────
-function VerificationBadge({ status }) {
-  switch (status) {
-    case 'approved':
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-          <ShieldCheck className="h-3 w-3" />Verified
-        </span>
-      )
-    case 'rejected':
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-          <XCircle className="h-3 w-3" />Do Not Book
-        </span>
-      )
-    case 'pending':
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-          <Clock3 className="h-3 w-3" />Pending Review
-        </span>
-      )
-    default:
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-          <AlertCircle className="h-3 w-3" />Unverified
-        </span>
-      )
+function StatusBadge({ status }) {
+  const map = {
+    confirmed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400',
+    pending:   'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400',
+    cancelled: 'bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400',
   }
+  return (
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${map[status] || map.pending}`}>
+      {status || 'pending'}
+    </span>
+  )
 }
 
 function StatCard({ icon: Icon, label, value, color, sub }) {
@@ -55,21 +39,8 @@ function StatCard({ icon: Icon, label, value, color, sub }) {
       </div>
       <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
       <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{sub}</p>}
+      {sub && <p className="text-xs text-primary-500 font-medium mt-1">{sub}</p>}
     </div>
-  )
-}
-
-function StatusBadge({ status }) {
-  const map = {
-    confirmed: 'bg-emerald-100 text-emerald-700',
-    pending: 'bg-amber-100 text-amber-700',
-    cancelled: 'bg-red-100 text-red-700',
-  }
-  return (
-    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${map[status] || map.pending}`}>
-      {status || 'pending'}
-    </span>
   )
 }
 
@@ -77,16 +48,23 @@ export default function DashboardPage() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
 
-  const [profileData, setProfileData] = useState(null)
-  const [bookings, setBookings] = useState([])
+  const [profileData, setProfileData]     = useState(null)
+  const [bookings, setBookings]           = useState([])       // from providers/{id}/bookings
+  const [userBookings, setUserBookings]   = useState([])       // from users/{uid}/bookings (if exists)
+  const [allBookings, setAllBookings]     = useState([])       // merged
   const [recentMessages, setRecentMessages] = useState([])
-  const [moodEntries, setMoodEntries] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [unreadCount, setUnreadCount] = useState(0)
+  const [moodEntries, setMoodEntries]     = useState([])
+  const [loading, setLoading]             = useState(true)
+  const [unreadCount, setUnreadCount]     = useState(0)
+
+  // Booking detail popup
+  const [selectedBooking, setSelectedBooking] = useState(null)
+  const [cancelLoading, setCancelLoading]     = useState(false)
+  const [cancelDone, setCancelDone]           = useState(false)
+  const [cancelError, setCancelError]         = useState('')
 
   const uid = user?.uid ?? user?.id
 
-  // ── Auth guard ──
   useEffect(() => {
     if (!isLoading && !user) router.push('/auth/login')
   }, [user, isLoading, router])
@@ -101,35 +79,83 @@ export default function DashboardPage() {
         const userSnap = await getDoc(doc(db, 'users', uid))
         if (userSnap.exists()) setProfileData(userSnap.data())
 
-        // 2. Bookings — search across all providers
-        const provSnap = await getDocs(collection(db, 'providers'))
-        let allBookings = []
-        for (const provDoc of provSnap.docs) {
-          const bookSnap = await getDocs(
-            query(
-              collection(db, 'providers', provDoc.id, 'bookings'),
-              where('userId', '==', uid),
-              orderBy('createdAt', 'desc'),
-              limit(10)
-            )
+        // 2. Mood entries from users/{uid}/mood_entries
+        try {
+          const moodSnap = await getDocs(
+            query(collection(db, 'users', uid, 'mood_entries'), orderBy('date', 'desc'), limit(7))
           )
-          const provBookings = bookSnap.docs.map(d => ({
+          setMoodEntries(moodSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+        } catch (e) {
+          // Try without orderBy in case index doesn't exist
+          try {
+            const moodSnap2 = await getDocs(collection(db, 'users', uid, 'mood_entries'))
+            const entries = moodSnap2.docs.map(d => ({ id: d.id, ...d.data() }))
+            entries.sort((a, b) => {
+              const aTime = a.date || a.createdAt?.seconds || 0
+              const bTime = b.date || b.createdAt?.seconds || 0
+              return bTime > aTime ? 1 : -1
+            })
+            setMoodEntries(entries.slice(0, 7))
+          } catch (e2) {
+            console.log('No mood entries found')
+          }
+        }
+
+        // 3a. Bookings from providers/{id}/bookings subcollection (where userId == uid)
+        let providerBookings = []
+        try {
+          const provSnap = await getDocs(collection(db, 'providers'))
+          for (const provDoc of provSnap.docs) {
+            try {
+              const bookSnap = await getDocs(
+                query(
+                  collection(db, 'providers', provDoc.id, 'bookings'),
+                  where('userId', '==', uid)
+                )
+              )
+              const pData = provDoc.data()
+              const mapped = bookSnap.docs.map(d => ({
+                id: d.id,
+                _source: 'provider',          // track where this came from
+                _providerId: provDoc.id,       // needed for cancellation
+                providerName: `${pData.first_name || ''} ${pData.last_name || ''}`.trim() || 'Provider',
+                providerTitle: pData.professional_title || '',
+                providerPhoto: pData.profile_photo_url || '',
+                providerId: provDoc.id,
+                ...d.data(),
+              }))
+              providerBookings = [...providerBookings, ...mapped]
+            } catch (e) {
+              // skip providers with permission issues
+            }
+          }
+        } catch (e) {
+          console.log('Provider bookings fetch error:', e)
+        }
+
+        // 3b. Bookings from users/{uid}/bookings subcollection (alternative location)
+        let userSubBookings = []
+        try {
+          const userBookSnap = await getDocs(collection(db, 'users', uid, 'bookings'))
+          userSubBookings = userBookSnap.docs.map(d => ({
             id: d.id,
-            providerName: `${provDoc.data().first_name || ''} ${provDoc.data().last_name || ''}`.trim(),
-            providerTitle: provDoc.data().professional_title || '',
-            providerPhoto: provDoc.data().profile_photo_url || '',
+            _source: 'user',
             ...d.data(),
           }))
-          allBookings = [...allBookings, ...provBookings]
+        } catch (e) {
+          // subcollection may not exist
         }
-        allBookings.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
-        setBookings(allBookings.slice(0, 5))
 
-        // 3. Mood entries
-        const moodSnap = await getDocs(
-          query(collection(db, 'users', uid, 'mood_entries'), orderBy('date', 'desc'), limit(7))
-        )
-        setMoodEntries(moodSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+        // Merge and deduplicate by id, sort newest first
+        const merged = [...providerBookings, ...userSubBookings]
+        const seen = new Set()
+        const deduped = merged.filter(b => {
+          if (seen.has(b.id)) return false
+          seen.add(b.id)
+          return true
+        })
+        deduped.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+        setAllBookings(deduped)
 
       } catch (err) {
         console.error('Dashboard fetch error:', err)
@@ -141,7 +167,7 @@ export default function DashboardPage() {
     fetchAll()
   }, [uid])
 
-  // ── Messages — real-time ──
+  // ── Messages real-time ──
   useEffect(() => {
     if (!uid) return
     const q = query(collection(db, 'chats'), where('participants', 'array-contains', uid))
@@ -156,11 +182,105 @@ export default function DashboardPage() {
     return () => unsub()
   }, [uid])
 
-  const firstName = profileData?.firstName || user?.firstName || 'there'
-  const totalBookings = bookings.length
-  const upcomingBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'pending')
-  const latestMood = moodEntries[0]
+  // ── Cancel booking ──
+  const handleCancelBooking = async () => {
+    if (!selectedBooking || !uid) return
+    setCancelLoading(true)
+    setCancelError('')
 
+    const userName = profileData
+      ? `${profileData.firstName || ''} ${profileData.lastName || ''}`.trim() || user?.email
+      : user?.email || 'A user'
+
+    try {
+      // 1. Update the booking status to cancelled in Firestore
+      const providerId = selectedBooking._providerId || selectedBooking.providerId
+      if (providerId && selectedBooking._source === 'provider') {
+        await updateDoc(
+          doc(db, 'providers', providerId, 'bookings', selectedBooking.id),
+          { status: 'cancelled' }
+        )
+      }
+      // Also update in user subcollection if it exists there
+      if (selectedBooking._source === 'user') {
+        await updateDoc(
+          doc(db, 'users', uid, 'bookings', selectedBooking.id),
+          { status: 'cancelled' }
+        )
+      }
+
+      // 2. Send a message to the provider via the chats collection
+      if (providerId) {
+        // Find or create chat between user and provider
+        let chatId = null
+        try {
+          const existingQuery = query(
+            collection(db, 'chats'),
+            where('participants', 'array-contains', uid)
+          )
+          const existingSnap = await getDocs(existingQuery)
+          existingSnap.forEach(chatDoc => {
+            const data = chatDoc.data()
+            if (data.participants?.includes(providerId)) {
+              chatId = chatDoc.id
+            }
+          })
+        } catch (e) {}
+
+        if (!chatId) {
+          const providerSnap = await getDoc(doc(db, 'providers', providerId))
+          const pData = providerSnap.exists() ? providerSnap.data() : {}
+          const chatRef = await addDoc(collection(db, 'chats'), {
+            participants: [uid, providerId],
+            participantNames: {
+              [uid]: userName,
+              [providerId]: `${pData.first_name || ''} ${pData.last_name || ''}`.trim() || 'Provider',
+            },
+            createdAt: serverTimestamp(),
+            lastMessage: '',
+            lastMessageAt: serverTimestamp(),
+          })
+          chatId = chatRef.id
+        }
+
+        // Send cancellation message
+        const cancelMsg = `Hi, this is ${userName}. I am writing to let you know that my appointment scheduled for ${selectedBooking.date || 'our scheduled date'}${selectedBooking.time ? ` at ${selectedBooking.time}` : ''} has been cancelled. I apologise for any inconvenience caused.`
+
+        await addDoc(collection(db, 'chats', chatId, 'messages'), {
+          text: cancelMsg,
+          senderId: uid,
+          senderName: userName,
+          createdAt: serverTimestamp(),
+        })
+        await setDoc(doc(db, 'chats', chatId), {
+          lastMessage: cancelMsg,
+          lastMessageAt: serverTimestamp(),
+        }, { merge: true })
+      }
+
+      // 3. Update local state immediately
+      setAllBookings(prev =>
+        prev.map(b => b.id === selectedBooking.id ? { ...b, status: 'cancelled' } : b)
+      )
+      setSelectedBooking(prev => ({ ...prev, status: 'cancelled' }))
+      setCancelDone(true)
+
+    } catch (err) {
+      console.error('Cancel error:', err)
+      setCancelError('Failed to cancel booking. Please try again.')
+    } finally {
+      setCancelLoading(false)
+    }
+  }
+
+  const closePopup = () => {
+    setSelectedBooking(null)
+    setCancelDone(false)
+    setCancelError('')
+  }
+
+  const firstName = profileData?.firstName || user?.firstName || 'there'
+  const upcomingCount = allBookings.filter(b => b.status !== 'cancelled').length
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
@@ -191,11 +311,11 @@ export default function DashboardPage() {
             <p className="text-white/80 text-sm font-medium">{greeting},</p>
             <h1 className="text-2xl font-bold mt-0.5">{firstName} 👋</h1>
             <p className="text-white/70 text-sm mt-2">
-              {upcomingBookings.length > 0
-                ? `You have ${upcomingBookings.length} upcoming appointment${upcomingBookings.length !== 1 ? 's' : ''}.`
+              {upcomingCount > 0
+                ? `You have ${upcomingCount} appointment${upcomingCount !== 1 ? 's' : ''}.`
                 : "You're all caught up. Ready to book a session?"}
             </p>
-            {upcomingBookings.length === 0 && (
+            {upcomingCount === 0 && (
               <Link href="/dashboard/therapists">
                 <button className="mt-4 px-5 py-2 bg-white text-primary-600 rounded-xl text-sm font-semibold hover:bg-white/90 transition-colors">
                   Find a Therapist
@@ -207,68 +327,50 @@ export default function DashboardPage() {
 
         {/* ── STATS ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            icon={CalendarCheck}
-            label="Total Bookings"
-            value={loading ? '—' : totalBookings}
-            color="bg-primary-100 text-primary-600 dark:bg-primary-900/30"
-            sub={upcomingBookings.length > 0 ? `${upcomingBookings.length} upcoming` : undefined}
-          />
-          <StatCard
-            icon={MessageSquare}
-            label="Conversations"
-            value={loading ? '—' : recentMessages.length}
-            color="bg-purple-100 text-purple-600 dark:bg-purple-900/30"
-            sub={unreadCount > 0 ? `${unreadCount} active` : undefined}
-          />
-          <StatCard
-            icon={Activity}
-            label="Mood Logs"
-            value={loading ? '—' : moodEntries.length}
-            color="bg-amber-100 text-amber-600 dark:bg-amber-900/30"
-            sub={latestMood ? `Last: ${latestMood.mood || latestMood.rating || '—'}` : undefined}
-          />
-          <StatCard
-            icon={Users}
-            label="Providers"
-            value={loading ? '—' : [...new Set(bookings.map(b => b.providerId))].length}
-            color="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30"
-            sub="Connected with"
-          />
+          <StatCard icon={CalendarCheck} label="Total Bookings"   value={loading ? '—' : allBookings.length}       color="bg-primary-100 text-primary-600 dark:bg-primary-900/30"  sub={upcomingCount > 0 ? `${upcomingCount} active` : undefined} />
+          <StatCard icon={MessageSquare}  label="Conversations"    value={loading ? '—' : recentMessages.length}    color="bg-purple-100 text-purple-600 dark:bg-purple-900/30"     sub={unreadCount > 0 ? `${unreadCount} active` : undefined} />
+          <StatCard icon={Activity}       label="Mood Logs"        value={loading ? '—' : moodEntries.length}       color="bg-amber-100 text-amber-600 dark:bg-amber-900/30"        sub={moodEntries[0] ? `Latest: ${moodEntries[0].mood || moodEntries[0].rating || '—'}` : undefined} />
+          <StatCard icon={Users}          label="Providers"        value={loading ? '—' : [...new Set(allBookings.filter(b => b.providerId).map(b => b.providerId))].length} color="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30" sub="Booked with" />
         </div>
 
         {/* ── MAIN GRID ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          {/* LEFT — Bookings + Messages */}
           <div className="lg:col-span-2 space-y-6">
 
-            {/* Upcoming Appointments */}
+            {/* ── APPOINTMENTS ── */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-                <h3 className="font-semibold text-gray-900 dark:text-white">Appointments</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-white">My Appointments</h3>
                 <Link href="/dashboard/therapists" className="text-sm text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1">
                   Book New <ChevronRight className="w-3 h-3" />
                 </Link>
               </div>
 
               {loading ? (
-                <div className="p-8 text-center text-gray-400 text-sm">Loading...</div>
-              ) : bookings.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 text-sm">
+                  <div className="h-6 w-6 animate-spin rounded-full border-4 border-primary-500 border-t-transparent mx-auto mb-2" />
+                  Loading appointments...
+                </div>
+              ) : allBookings.length === 0 ? (
                 <div className="p-8 text-center">
                   <CalendarCheck className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                  <p className="text-gray-500 dark:text-gray-400 text-sm">No appointments yet</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">No appointments yet</p>
+                  <p className="text-gray-400 text-xs mt-1">Book a session with a therapist to get started</p>
                   <Link href="/dashboard/therapists">
-                    <button className="mt-3 px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors">
+                    <button className="mt-4 px-4 py-2 bg-primary-500 text-white text-sm rounded-lg hover:bg-primary-600 transition-colors">
                       Find a Therapist
                     </button>
                   </Link>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
-                  {bookings.map(b => (
-                    <div key={b.id} className="flex items-start gap-4 px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                      {/* Provider avatar */}
+                  {allBookings.map(b => (
+                    <div
+                      key={b.id}
+                      onClick={() => { setSelectedBooking(b); setCancelDone(false); setCancelError('') }}
+                      className="flex items-start gap-4 px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer"
+                    >
                       {b.providerPhoto ? (
                         <img src={b.providerPhoto} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
                       ) : (
@@ -285,18 +387,19 @@ export default function DashboardPage() {
                           <StatusBadge status={b.status} />
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
-                          {b.date && <span className="flex items-center gap-1"><CalendarCheck className="w-3 h-3" />{b.date.split(',').slice(0, 2).join(',')}</span>}
+                          {b.date && <span className="flex items-center gap-1"><CalendarCheck className="w-3 h-3" />{typeof b.date === 'string' ? b.date.split(',').slice(0, 2).join(',') : b.date}</span>}
                           {b.time && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{b.time}</span>}
                         </div>
-                        {b.notes && <p className="text-xs text-gray-400 mt-1 truncate">{b.notes}</p>}
+                        {b.notes && <p className="text-xs text-gray-400 mt-1 truncate italic">{b.notes}</p>}
                       </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600 shrink-0 mt-1" />
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Recent Messages */}
+            {/* ── MESSAGES ── */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
                 <h3 className="font-semibold text-gray-900 dark:text-white">Recent Messages</h3>
@@ -304,12 +407,10 @@ export default function DashboardPage() {
                   View All <ChevronRight className="w-3 h-3" />
                 </Link>
               </div>
-
               {recentMessages.length === 0 ? (
                 <div className="p-8 text-center">
                   <MessageSquare className="w-10 h-10 mx-auto mb-2 text-gray-300" />
                   <p className="text-gray-500 dark:text-gray-400 text-sm">No messages yet</p>
-                  <p className="text-gray-400 text-xs mt-1">Send a message to a therapist to start</p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
@@ -323,9 +424,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-900 dark:text-white text-sm">{otherName}</p>
-                          {chat.lastMessage && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{chat.lastMessage}</p>
-                          )}
+                          {chat.lastMessage && <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{chat.lastMessage}</p>}
                         </div>
                         {chat.lastMessageAt && (
                           <span className="text-xs text-gray-400 shrink-0">
@@ -340,7 +439,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* RIGHT — Quick Actions + Mood + Resources */}
+          {/* RIGHT */}
           <div className="space-y-6">
 
             {/* Quick Actions */}
@@ -348,10 +447,10 @@ export default function DashboardPage() {
               <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
               <div className="space-y-2">
                 {[
-                  { href: '/dashboard/therapists', icon: Users, label: 'Find a Therapist', color: 'text-primary-600', bg: 'bg-primary-50 dark:bg-primary-900/20' },
-                  { href: '/dashboard/mood', icon: Heart, label: 'Log Your Mood', color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-                  { href: '/dashboard/resources', icon: BookOpen, label: 'Browse Resources', color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-                  { href: '/dashboard/messages', icon: MessageSquare, label: 'Messages', color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
+                  { href: '/dashboard/therapists', icon: Users,         label: 'Find a Therapist', color: 'text-primary-600', bg: 'bg-primary-50 dark:bg-primary-900/20' },
+                  { href: '/dashboard/mood',        icon: Heart,         label: 'Log Your Mood',    color: 'text-amber-600',   bg: 'bg-amber-50 dark:bg-amber-900/20' },
+                  { href: '/dashboard/resources',   icon: BookOpen,      label: 'Browse Resources', color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+                  { href: '/dashboard/messages',    icon: MessageSquare, label: 'Messages',         color: 'text-purple-600',  bg: 'bg-purple-50 dark:bg-purple-900/20' },
                 ].map(item => (
                   <Link key={item.href} href={item.href}
                     className={`flex items-center gap-3 p-3 rounded-xl ${item.bg} hover:opacity-80 transition-opacity`}>
@@ -373,27 +472,30 @@ export default function DashboardPage() {
                 <div className="text-center py-4">
                   <TrendingUp className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                   <p className="text-sm text-gray-500 dark:text-gray-400">No mood entries yet</p>
+                  <Link href="/dashboard/mood">
+                    <button className="mt-2 text-xs text-primary-500 hover:underline">Log your first mood</button>
+                  </Link>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {moodEntries.slice(0, 5).map((entry, i) => {
-                    const mood = entry.mood || entry.rating || entry.score
+                    const mood = entry.mood || entry.rating || entry.score || entry.value
                     const moodNum = typeof mood === 'number' ? mood : null
+                    const dateLabel = entry.date
+                      ? (typeof entry.date === 'string'
+                          ? new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                          : entry.date?.toDate?.()?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) || `Entry ${i + 1}`)
+                      : `Entry ${i + 1}`
                     return (
                       <div key={entry.id || i} className="flex items-center justify-between text-sm">
-                        <span className="text-gray-500 dark:text-gray-400 text-xs">
-                          {entry.date ? new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : `Entry ${i + 1}`}
-                        </span>
-                        <div className="flex items-center gap-2">
+                        <span className="text-gray-500 dark:text-gray-400 text-xs w-16 shrink-0">{dateLabel}</span>
+                        <div className="flex items-center gap-2 flex-1 ml-2">
                           {moodNum !== null ? (
                             <>
-                              <div className="w-24 h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
-                                <div
-                                  className="h-full rounded-full bg-primary-500"
-                                  style={{ width: `${Math.min((moodNum / 10) * 100, 100)}%` }}
-                                />
+                              <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                                <div className="h-full rounded-full bg-primary-500" style={{ width: `${Math.min((moodNum / 10) * 100, 100)}%` }} />
                               </div>
-                              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 w-6 text-right">{moodNum}</span>
+                              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 w-5 text-right">{moodNum}</span>
                             </>
                           ) : (
                             <span className="text-xs font-medium text-gray-700 dark:text-gray-300 capitalize">{String(mood)}</span>
@@ -423,6 +525,103 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ── BOOKING DETAIL POPUP ── */}
+      {selectedBooking && (
+        <>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={closePopup}>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6 relative" onClick={e => e.stopPropagation()}>
+
+              {/* Close */}
+              <button onClick={closePopup} className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400">
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* Provider info */}
+              <div className="flex items-center gap-4 mb-6">
+                {selectedBooking.providerPhoto ? (
+                  <img src={selectedBooking.providerPhoto} alt="" className="w-14 h-14 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 font-bold text-xl shrink-0">
+                    {(selectedBooking.providerName?.[0] || 'P').toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-bold text-gray-900 dark:text-white">{selectedBooking.providerName || 'Provider'}</h3>
+                  {selectedBooking.providerTitle && <p className="text-sm text-primary-600 dark:text-primary-400">{selectedBooking.providerTitle}</p>}
+                  <StatusBadge status={selectedBooking.status} />
+                </div>
+              </div>
+
+              {/* Booking details */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                {selectedBooking.date && (
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Date</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{typeof selectedBooking.date === 'string' ? selectedBooking.date.split(',').slice(0,2).join(',') : selectedBooking.date}</p>
+                  </div>
+                )}
+                {selectedBooking.time && (
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Time</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedBooking.time}</p>
+                  </div>
+                )}
+                {selectedBooking.status && (
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Status</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white capitalize">{selectedBooking.status}</p>
+                  </div>
+                )}
+                {selectedBooking.providerTitle && (
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Type</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedBooking.providerTitle}</p>
+                  </div>
+                )}
+              </div>
+
+              {selectedBooking.notes && (
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 mb-6">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Notes</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">{selectedBooking.notes}</p>
+                </div>
+              )}
+
+              {/* Success state */}
+              {cancelDone && (
+                <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-green-700 dark:text-green-400 text-sm">
+                  ✓ Appointment cancelled and a message was sent to {selectedBooking.providerName}.
+                </div>
+              )}
+
+              {cancelError && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 text-sm">
+                  {cancelError}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button onClick={closePopup}
+                  className="flex-1 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  Close
+                </button>
+                {selectedBooking.status !== 'cancelled' && !cancelDone && (
+                  <button
+                    onClick={handleCancelBooking}
+                    disabled={cancelLoading}
+                    className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-xl text-sm font-medium transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {cancelLoading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                    {cancelLoading ? 'Cancelling...' : 'Cancel Appointment'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </DashboardLayout>
   )
 }
