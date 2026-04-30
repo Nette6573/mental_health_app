@@ -42,7 +42,7 @@ function VerificationBadge({ status }) {
 }
 
 export default function TherapistDirectory() {
-  const { user } = useAuth() as any
+  const { user } = useAuth()
   const [providers, setProviders] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
