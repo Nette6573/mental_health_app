@@ -12,7 +12,7 @@ import {
   ShieldCheck, AlertCircle, XCircle, Clock3,
 } from 'lucide-react'
 
-function VerificationBadge({ status }: { status: string }) {
+function VerificationBadge({ status }) {
   switch (status) {
     case 'approved':
       return (
@@ -43,27 +43,27 @@ function VerificationBadge({ status }: { status: string }) {
 
 export default function TherapistDirectory() {
   const { user } = useAuth() as any
-  const [providers, setProviders] = useState<any[]>([])
+  const [providers, setProviders] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedProvider, setSelectedProvider] = useState<any>(null)
-  const [bookingProvider, setBookingProvider] = useState<any>(null)
+  const [selectedProvider, setSelectedProvider] = useState(null)
+  const [bookingProvider, setBookingProvider] = useState(null)
 
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [selectedDate, setSelectedDate] = useState(null)
   const [selectedTime, setSelectedTime] = useState('')
   const [bookingNotes, setBookingNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [bookingSuccess, setBookingSuccess] = useState(false)
   const [calendarDate, setCalendarDate] = useState(new Date())
-  const [providerAvailability, setProviderAvailability] = useState<any>(null)
-  const [blockedDates, setBlockedDates] = useState<any[]>([])
+  const [providerAvailability, setProviderAvailability] = useState(null)
+  const [blockedDates, setBlockedDates] = useState([])
 
   useEffect(() => {
     const fetchProviders = async () => {
       try {
         setIsLoading(true)
         const snapshot = await getDocs(collection(db, 'providers'))
-        const list: any[] = []
+        const list = []
         snapshot.forEach((providerDoc) => {
           const data = providerDoc.data()
           list.push({
@@ -99,7 +99,7 @@ export default function TherapistDirectory() {
     fetchProviders()
   }, [])
 
-  const openBooking = async (provider: any) => {
+  const openBooking = async (provider) => {
     setBookingProvider(provider)
     setSelectedDate(null)
     setSelectedTime('')
@@ -122,7 +122,7 @@ export default function TherapistDirectory() {
     }
   }
 
-  const parseBlockedDate = (dateStr: string) => {
+  const parseBlockedDate = (dateStr) => {
     if (!dateStr) return []
     const str = dateStr.trim()
     const rangeMatch = str.match(/^(\w+)\s+(\d+)-(\d+),\s*(\d{4})$/)
@@ -139,7 +139,7 @@ export default function TherapistDirectory() {
     return isNaN(parsed.getTime()) ? [] : [parsed]
   }
 
-  const isDayAvailable = (date: Date) => {
+  const isDayAvailable = (date) => {
     if (!providerAvailability) return true
     const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
     const encoded = providerAvailability[dayNames[date.getDay()]]
@@ -147,11 +147,11 @@ export default function TherapistDirectory() {
     const [avail] = encoded.split('|')
     if (avail !== '1') return false
     const dateKey = date.toDateString()
-    return !blockedDates.some((b: any) => parseBlockedDate(b.date).some(pd => pd.toDateString() === dateKey))
+    return !blockedDates.some((b) => parseBlockedDate(b.date).some(pd => pd.toDateString() === dateKey))
   }
 
-  const generateSlots = (start: string, end: string) => {
-    const slots: string[] = []
+  const generateSlots = (start, end) => {
+    const slots = []
     const [startH, startM] = start.split(':').map(Number)
     const [endH, endM] = end.split(':').map(Number)
     let current = startH * 60 + startM
@@ -165,7 +165,7 @@ export default function TherapistDirectory() {
     return slots
   }
 
-  const getTimeSlots = (date: Date) => {
+  const getTimeSlots = (date) => {
     if (!providerAvailability || !date) return generateSlots('09:00', '17:00')
     const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
     const encoded = providerAvailability[dayNames[date.getDay()]]
@@ -174,18 +174,18 @@ export default function TherapistDirectory() {
     return generateSlots(start || '09:00', end || '17:00')
   }
 
-  const getDaysInMonth = (date: Date) => {
+  const getDaysInMonth = (date) => {
     const year = date.getFullYear()
     const month = date.getMonth()
     const firstDay = new Date(year, month, 1).getDay()
     const daysInMonth = new Date(year, month + 1, 0).getDate()
-    const days: (Date | null)[] = []
+    const days = []
     for (let i = 0; i < firstDay; i++) days.push(null)
     for (let d = 1; d <= daysInMonth; d++) days.push(new Date(year, month, d))
     return days
   }
 
-  const isPast = (date: Date) => {
+  const isPast = (date) => {
     const today = new Date(); today.setHours(0, 0, 0, 0)
     return date < today
   }
@@ -221,7 +221,7 @@ export default function TherapistDirectory() {
         createdAt: serverTimestamp(),
       })
       setBookingSuccess(true)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Booking error:', error.code, error.message)
       alert(`Failed to submit booking: ${error.message}`)
     } finally {
@@ -320,7 +320,7 @@ export default function TherapistDirectory() {
                     </div>
                     {provider.practice_areas.length > 0 && (
                       <div className="flex flex-wrap gap-2 pt-2">
-                        {provider.practice_areas.slice(0, 4).map((spec: string) => (
+                        {provider.practice_areas.slice(0, 4).map((spec) => (
                           <span key={spec} className="rounded-full bg-primary-100 dark:bg-primary-900/30 px-3 py-1 text-xs font-medium text-primary-700 dark:text-primary-400">{spec}</span>
                         ))}
                         {provider.practice_areas.length > 4 && (
@@ -403,7 +403,7 @@ export default function TherapistDirectory() {
                 <div className="mt-4">
                   <h4 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">Areas of Practice</h4>
                   <div className="flex flex-wrap gap-2">
-                    {selectedProvider.practice_areas.map((spec: string) => (
+                    {selectedProvider.practice_areas.map((spec) => (
                       <span key={spec} className="rounded-full bg-primary-100 dark:bg-primary-900/30 px-3 py-1 text-xs font-medium text-primary-700 dark:text-primary-400">{spec}</span>
                     ))}
                   </div>
