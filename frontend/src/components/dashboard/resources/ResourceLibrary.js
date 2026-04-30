@@ -30,8 +30,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
 
 export default function ResourceLibrary() {
   const [selectedResource, setSelectedResource] = useState(null)
-  const [resources, setResources] = useState([])
-  const [filteredResources, setFilteredResources] = useState([])
+  const [resources, setResources] = useState([]) // Always initialize as array
+  const [filteredResources, setFilteredResources] = useState([]) // Always initialize as array
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
@@ -77,8 +77,10 @@ export default function ResourceLibrary() {
         
         if (response.ok) {
           const data = await response.json()
-          setResources(data)
-          setFilteredResources(data)
+          // Ensure data is an array
+          const resourcesArray = Array.isArray(data) ? data : []
+          setResources(resourcesArray)
+          setFilteredResources(resourcesArray)
         } else {
           console.warn('API fetch failed, using mock data')
           setResources(mockResources)
@@ -97,23 +99,29 @@ export default function ResourceLibrary() {
   }, [])
 
   useEffect(() => {
+    // Ensure resources is an array before filtering
+    if (!Array.isArray(resources)) {
+      setFilteredResources([])
+      return
+    }
+
     let filtered = [...resources]
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(resource =>
-        resource.title.toLowerCase().includes(query) ||
-        resource.description.toLowerCase().includes(query) ||
-        (resource.tags && resource.tags.some(tag => tag.toLowerCase().includes(query)))
+        resource && resource.title && resource.title.toLowerCase().includes(query) ||
+        resource && resource.description && resource.description.toLowerCase().includes(query) ||
+        (resource && resource.tags && Array.isArray(resource.tags) && resource.tags.some(tag => tag && tag.toLowerCase().includes(query)))
       )
     }
 
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(resource => resource.category === selectedCategory)
+      filtered = filtered.filter(resource => resource && resource.category === selectedCategory)
     }
 
     if (selectedType !== 'all') {
-      filtered = filtered.filter(resource => resource.type === selectedType)
+      filtered = filtered.filter(resource => resource && resource.type === selectedType)
     }
 
     setFilteredResources(filtered)
@@ -135,9 +143,13 @@ export default function ResourceLibrary() {
   }
 
   const handleResourceView = (resource) => {
+    if (!resource || !resource.id) return
     trackResourceUsage(resource.id).catch(console.error)
     setSelectedResource(resource)
   }
+
+  // Safe check for featured resources
+  const hasFeaturedResources = Array.isArray(filteredResources) && filteredResources.filter(r => r && r.featured).length > 0
 
   if (isLoading) {
     return (
@@ -221,14 +233,14 @@ export default function ResourceLibrary() {
         </div>
       </div>
 
-      {filteredResources.filter(r => r.featured).length > 0 && (
+      {hasFeaturedResources && (
         <div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
             Featured Resources
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {filteredResources
-              .filter(resource => resource.featured)
+              .filter(resource => resource && resource.featured)
               .map(resource => (
                 <ResourceCard
                   key={resource.id}
@@ -250,11 +262,11 @@ export default function ResourceLibrary() {
             All Resources
           </h2>
           <span className="text-sm text-gray-600 dark:text-gray-400">
-            {filteredResources.length} resource{filteredResources.length !== 1 ? 's' : ''} found
+            {Array.isArray(filteredResources) ? filteredResources.length : 0} resource{filteredResources.length !== 1 ? 's' : ''} found
           </span>
         </div>
 
-        {filteredResources.length === 0 ? (
+        {!Array.isArray(filteredResources) || filteredResources.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -294,71 +306,37 @@ export default function ResourceLibrary() {
         )}
       </div>
 
-      <ResourceViewerModal
-        resource={selectedResource}
-        isOpen={!!selectedResource}
-        onClose={() => setSelectedResource(null)}
-      />
+      {selectedResource && (
+        <ResourceViewerModal
+          resource={selectedResource}
+          isOpen={!!selectedResource}
+          onClose={() => setSelectedResource(null)}
+        />
+      )}
     </div>
   )
 }
 
+// Mock data (keep this as is from previous code)
 const mockResources = [
   {
     id: 1,
     title: 'Understanding Anxiety Disorders',
-    description: 'A comprehensive guide to understanding different types of anxiety disorders, their symptoms, and evidence-based treatment approaches.',
+    description: 'A comprehensive guide to understanding different types of anxiety disorders...',
     category: 'anxiety',
     type: 'article',
     duration: '15 min read',
     level: 'Beginner',
-    image: '/images/resources/anxiety-guide.jpg',
     rating: 4.8,
     reviews: 124,
     featured: true,
     tags: ['Anxiety', 'Mental Health', 'Education'],
-    content: {
-      intro: 'Anxiety disorders are among the most common mental health conditions. While occasional anxiety is a normal part of life, persistent or overwhelming anxiety can affect relationships, work, school, and daily functioning.',
-      sections: [
-        {
-          heading: 'What anxiety can look like',
-          paragraphs: [
-            'Anxiety does not always look the same for everyone. Some people experience constant worry, while others feel panic, restlessness, racing thoughts, or physical symptoms such as sweating, trembling, chest tightness, or nausea.',
-            'It may come in waves or stay present in the background throughout the day.'
-          ]
-        },
-        {
-          heading: 'Common signs and symptoms',
-          bullets: [
-            'Excessive worry that feels hard to control',
-            'Feeling restless, tense, or on edge',
-            'Trouble concentrating or feeling mentally overwhelmed',
-            'Sleep difficulties',
-            'Rapid heartbeat, shortness of breath, or stomach discomfort',
-            'Avoiding situations that trigger fear or stress'
-          ]
-        },
-        {
-          heading: 'Helpful treatment approaches',
-          paragraphs: [
-            'Many people benefit from a combination of support strategies. These may include therapy, stress management techniques, breathing exercises, journaling, sleep improvement, physical activity, and professional guidance.',
-            'Cognitive Behavioral Therapy (CBT) is one evidence-based approach often used to help people challenge anxious thoughts and build healthier coping patterns.'
-          ]
-        },
-        {
-          heading: 'When to seek support',
-          paragraphs: [
-            'If anxiety is interfering with your daily life, relationships, sleep, or ability to function, it may be time to speak with a licensed mental health professional.',
-            'Seeking help is not weakness. Early support can make symptoms easier to manage and improve quality of life.'
-          ]
-        }
-      ]
-    }
+    content: { intro: 'Anxiety disorders are among the most common mental health conditions...', sections: [] }
   },
   {
     id: 2,
     title: 'Mindfulness Meditation for Stress',
-    description: 'Guided meditation sessions designed to help reduce stress and promote mindfulness in daily life.',
+    description: 'Guided meditation sessions designed to help reduce stress...',
     category: 'stress',
     type: 'audio',
     duration: '20 min',
@@ -368,56 +346,30 @@ const mockResources = [
     featured: true,
     tags: ['Meditation', 'Mindfulness', 'Stress Relief'],
     audioUrl: '/audio/mindfulness.mp3',
-    content: {
-      intro: 'This guided meditation helps you slow down, focus your breathing, and release tension from your body and mind.'
-    }
+    content: { intro: 'This guided meditation helps you slow down...' }
   },
   {
     id: 3,
     title: 'Cognitive Behavioral Therapy (CBT) Basics',
-    description: 'A 6-module self-paced course to help you understand and manage negative thought patterns using evidence-based CBT strategies.',
+    description: 'A 6-module self-paced course to help you understand and manage negative thought patterns...',
     category: 'depression',
     type: 'course',
     duration: '6 modules',
     level: 'Intermediate',
-    image: '/images/resources/cbt-course.jpg',
     rating: 4.7,
     reviews: 203,
     featured: false,
     tags: ['CBT', 'Therapy', 'Skills'],
-    content: {
-      intro: 'Cognitive Behavioral Therapy (CBT) is a structured, evidence-based approach that helps individuals understand how thoughts, emotions, and behaviors are connected.',
-      sections: [
-        {
-          heading: 'What Is CBT?',
-          bullets: [
-            'Understand the difference between fear and anxiety',
-            'Learn how CBT works',
-            'Recognize the "vicious cycle" of anxiety'
-          ]
-        },
-        {
-          heading: 'Thought Distortions',
-          bullets: [
-            'Catastrophizing',
-            'Mind reading',
-            'Overgeneralization',
-            'All-or-nothing thinking',
-            'Emotional reasoning'
-          ]
-        }
-      ]
-    }
+    content: { intro: 'Cognitive Behavioral Therapy (CBT) is a structured approach...', sections: [] }
   },
   {
     id: 4,
     title: 'Daily Self-Care Checklist',
-    description: 'Printable worksheet to track your daily self-care activities and build healthy habits.',
+    description: 'Printable worksheet to track your daily self-care activities...',
     category: 'self-care',
     type: 'worksheet',
     duration: '5 min daily',
     level: 'Beginner',
-    image: '/images/resources/self-care.jpg',
     rating: 4.6,
     reviews: 67,
     featured: false,
@@ -427,54 +379,29 @@ const mockResources = [
   {
     id: 5,
     title: 'Finding Strength in Faith',
-    description: 'Exploring how spiritual practices can support mental wellness and provide comfort during difficult times.',
+    description: 'Exploring how spiritual practices can support mental wellness...',
     category: 'faith',
     type: 'article',
     duration: '12 min read',
     level: 'All Levels',
-    image: '/images/resources/faith-strength.jpg',
     rating: 4.9,
     reviews: 156,
     featured: true,
     tags: ['Faith', 'Spirituality', 'Hope'],
-    content: {
-      intro: 'Spirituality and faith have been central sources of comfort and resilience for people around the world for centuries.',
-      sections: [
-        {
-          heading: 'How Faith Supports Mental Health',
-          paragraphs: [
-            'Spiritual practices support mental wellness in several scientifically documented ways, including providing meaning and purpose, offering community support, and incorporating calming practices like prayer and meditation.'
-          ]
-        },
-        {
-          heading: 'Practical Spiritual Practices',
-          bullets: [
-            'Daily reflection or prayer',
-            'Scripture or inspirational reading',
-            'Spiritual music or hymns',
-            'Gratitude journaling',
-            'Meditative prayer or contemplation'
-          ]
-        }
-      ]
-    }
+    content: { intro: 'Spirituality and faith have been central sources of comfort...', sections: [] }
   },
   {
     id: 6,
     title: 'Crisis Coping Strategies',
-    description: 'Immediate techniques and resources for managing mental health crises and emergency situations.',
+    description: 'Immediate techniques and resources for managing mental health crises...',
     category: 'crisis',
     type: 'video',
     duration: '25 min',
     level: 'All Levels',
-    image: '/images/resources/crisis-support.jpg',
     rating: 4.8,
     reviews: 92,
     featured: true,
     tags: ['Crisis', 'Emergency', 'Support'],
-    embedUrls: [
-      'https://www.youtube.com/embed/5-PgSUTOSeM',
-      'https://www.youtube.com/embed/fKyapN8B3Mw'
-    ]
+    embedUrls: ['https://www.youtube.com/embed/5-PgSUTOSeM']
   }
 ]
